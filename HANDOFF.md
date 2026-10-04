@@ -8,7 +8,7 @@
 패키지 `wegenerweb` (020, CLAUDE.md "이름"). **로컬 실행·시험의 `MIH_*` 환경변수는 이제 안 먹는다.**
 
 **저장소** https://github.com/koprifossillab/WegenersDream (09-30 에 `MIH` 에서 바꿈 — 옛 주소는 GitHub 가 넘겨 준다).
-**브랜치** `main` = `1.1.0` (10-02, PR #1~#44) · 병합을 기다리는 브랜치는 없다. 0.11.1 부터 GitHub PR 로 병합하고,
+**브랜치** `main` = `1.1.1` (10-04, PR #1~#45) · 병합을 기다리는 브랜치는 없다. 0.11.1 부터 GitHub PR 로 병합하고,
 판을 올리면 CHANGELOG 로 GitHub 릴리스를 만든다(v0.11.2 부터).
 다음 코드 작업은 각자 자기 계정에서 `feature/<기능 이름>` 브랜치를 `main` 에서 만들고, 끝나면 PR 을 만든다
 (CLAUDE.md "커밋과 PR"). **병합 직전에 `deploy/host/premerge.sh <PR>`**(충돌·뒤처짐·판·CI, wetherilli 010).
@@ -17,10 +17,10 @@
 몰바이데 `moll-*`(024)가 있어야 한다. `python -m pipeline fetch`(PBDB 시대 이름 목록 `intervals.json` 이 든다) 다음
 `build`(배경 포함, 7 분 남짓). 몰바이데 배경이 없으면 투영 고르기가 숨는다.
 
-**배포**: paleoserver — **http://paleolab/WegenersDream/**(`172.16.116.98`) = `v1.1.0`(Docker Hub 이미지). 컨테이너 `wegenersdream-web-1`
+**배포**: paleoserver — **http://paleolab/WegenersDream/**(`172.16.116.98`) = `v1.1.1`(Docker Hub 이미지). 컨테이너 `wegenersdream-web-1`
 **연구소 밖**: **https://koprifossillab.github.io/WegenersDream/** — 같은 뷰어의 고정 사본(GitHub Pages, tupandactyl 029). `deploy/static_site.py` 로
 굽고 `.github/workflows/pages.yml` 이 올린다. 자료는 릴리스 `site-data` 의 `wegener-data.tar.gz`(주간 갱신이 덮어쓴다). Pages(Source "GitHub Actions")는
-10-02 에 켰고 v1.1.0 이 올라가 있다. 배포 환경 `github-pages` 는 `main` 브랜치와 `v*` 태그에서만 올릴 수 있다 — 릴리스로 도는
+10-02 에 켰고 v1.1.1 이 올라가 있다. 배포 환경 `github-pages` 는 `main` 브랜치와 `v*` 태그에서만 올릴 수 있다 — 릴리스로 도는
 작업은 태그 위라, 태그 규칙이 없으면 배포 단계가 막힌다(10-02 v1.1.0 에서 한 번 막혀 더했다). 손으로 다시 올리려면 `gh workflow run pages.yml`.
 (`127.0.0.1:8095`), nginx `snippets/WegenersDream-subpath.conf`, paleolab 첫 화면 카드. 운영 compose·`.env` 는
 `/srv/WegenersDream/`, 자료는 `/srv/WegenersDream/data`(읽기 전용), 명칭 덮어쓰기·비밀키는 `/srv/WegenersDream/state`.
@@ -209,3 +209,4 @@ playwright 의 헤드리스 크롬은 사내 TLS 검사 장비의 인증서(KOPR
 | 1.0.0 | 첫 정식판 — 연구소 밖에서 보는 사이트(GitHub Pages) | tupandactyl 029 |
 | 1.0.1 | 지층 화석 나무 동물·식물·기타·문부터 접기, 읽는 법 접힌 항목, 찾기 후보 국가→지층→분류군 | tupandactyl 031 |
 | 1.1.0 | 휴대폰 화면 — 페이지 폭을 창에 맞추고, 머리말 두 줄·밑에서 올라오는 패널·지도 위쪽 찾기 칸 | koprifossillab 035 |
+| 1.1.1 | 휴대폰 팝업 — 작게, 안을 문지르면 스크롤·지도 옮기기, 두 손가락 크기. 시점 막대 얇게, 패널 끌어 높이 고르기 | koprifossillab 036 |
