@@ -528,6 +528,9 @@ button.link { border: 0; background: none; color: var(--accent); padding: 0; cur
   padding: 0 6px; border-radius: 4px; background: var(--accent); color: #fff; font-size: 11px; white-space: nowrap;
 }
 
+/* 팝업 안의 터치는 map.js 가 맡는다(스크롤·지도 옮기기·두 손가락 크기, koprifossillab 036) — 브라우저가 따로 밀지 않게 */
+.leaflet-popup-content-wrapper { touch-action: none; }
+
 /* 3D 지구본(wetherilli P01) — 지도 칸 안에 Cesium 캔버스를 깐다. 밑의 Leaflet 창(배경·층·팝업)은 숨기고
    컨트롤(도구 묶음·온도계·출처)은 그 위에 남는다. 축척 막대·커서 기온은 지구본에서 뜻이 없어 숨긴다 */
 .globe-host { position: absolute; inset: 0; z-index: 500; background: #05070d; }
@@ -836,7 +839,7 @@ button, input, select { font-family: inherit; }
 .guide .guide-item[open] > summary { color: var(--accent); }
 .guide .guide-item .note { margin: 2px 0 6px 12px; }
 
-/* ── 휴대폰(760 px 아래, koprifossillab 035) ──────────────────────────
+/* ── 휴대폰(760 px 아래, koprifossillab 035·036) ──────────────────────────
    전에는 찾기 카드가 창 오른쪽 밖으로 삐져 레이아웃 폭이 500 px 가까이 늘었고, 휴대폰 브라우저가 그 폭에 맞춰 화면 전체를
    줄여 글씨가 모두 작게 보였다. 이제 페이지는 창 폭을 넘지 않고(가로로 밀리지 않는다), 머리말은 두 줄, 지도가 남은 높이를
    다 쓰고, 패널은 밑에서 올라오는 판이다(지도 크기는 그대로 — 판이 지도 위에 덮인다) */
@@ -861,23 +864,19 @@ button, input, select { font-family: inherit; }
   .now .unit { font-size: 12.5px; }
   .now .label { white-space: nowrap; font-size: 12.5px; }
 
-  /* 시점 막대 */
-  .timebar > button { padding: 6px 10px; }
-  .timebar .play input { width: 20px; height: 20px; }
-
   /* 지도가 남은 높이를 다 쓴다 */
   .stage { flex-direction: column; position: relative; }
   .mapcol, #app.panel-closed .mapcol { flex: 1 1 auto; height: auto; min-height: 0; }
 
   /* 찾기 카드 — 지도 위쪽에 가로로 붙인다(끌어 옮기지 않는다). 온도계·도구 묶음은 그 밑으로 */
   .findfloat, .findfloat.below {
-    left: 8px !important; right: 8px; top: 8px !important; bottom: auto !important; width: auto;
-    padding: 6px 8px; gap: 6px; cursor: auto; touch-action: auto;
+    left: 6px !important; right: 6px; top: 6px !important; bottom: auto !important; width: auto;
+    padding: 4px 6px; gap: 4px 6px; cursor: auto; touch-action: auto;
   }
   .findfloat .grip { display: none; }
   .find { flex: 1 1 100%; }
-  .find input { font-size: 16px; padding: 6px 8px; }   /* 16 px 아래면 iOS 가 칸을 누를 때 화면을 확대한다 */
-  .find-go { padding: 6px 12px; }
+  .find input { font-size: 16px; padding: 4px 8px; }   /* 16 px 아래면 iOS 가 칸을 누를 때 화면을 확대한다 */
+  .find-go { padding: 4px 10px; }
   .fchip { max-width: 100%; font-size: 13px; }
   .find-x { padding: 6px 8px; font-size: 15px; }
   .findfloat .suggest, .findfloat.below .suggest {
@@ -895,8 +894,16 @@ button, input, select { font-family: inherit; }
   .tool-out { max-width: calc(100vw - 80px); }
   .leaflet-container .leaflet-control-attribution { font-size: 10px; max-width: 70vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  /* 팝업 — 창 폭 안에서, 글씨는 그대로 */
-  .leaflet-popup-content { max-width: calc(100vw - 72px) !important; font-size: 14px; }
+  /* 팝업 — 창 폭·높이 안에서 통째로 스크롤한다. 크기는 두 손가락으로(--pop-scale, map.js, koprifossillab 036) */
+  .leaflet-popup-content {
+    max-width: calc(100vw - 36px) !important; margin: 10px 14px 10px 12px; font-size: calc(13px * var(--pop-scale, 1)); line-height: 1.42;
+    max-height: min(calc(34dvh * var(--pop-scale, 1)), calc(100dvh - 250px)); overflow-y: auto; overscroll-behavior: contain;
+  }
+  .pop h3 { font-size: 1.08em; padding-right: 18px; }
+  .pop dl { gap: 1px 8px; margin: 4px 0; }
+  .pop .taxa { max-height: none; overflow: visible; }
+  .pop-grip { display: none; }
+  .leaflet-container a.leaflet-popup-close-button { width: 34px; height: 34px; font: 24px/30px Tahoma, Verdana, sans-serif; }
   .leaflet-tooltip.occ-tip { max-width: calc(100vw - 40px); }
 
   /* 패널 — 밑에서 올라오는 판. 접으면 밑의 막대 하나만 남는다 */
@@ -909,10 +916,11 @@ button, input, select { font-family: inherit; }
   }
   .panel-bar::before { content: ""; position: absolute; top: 5px; left: 50%; width: 36px; height: 4px; margin-left: -18px;
     border-radius: 2px; background: var(--line); }
-  #app:not(.panel-closed) .panel-bar { bottom: 46vh; bottom: 46dvh; box-shadow: none; }
+  #app:not(.panel-closed) .panel-bar { bottom: 46vh; bottom: var(--sheet-h, 46dvh); box-shadow: none; }
+  .panel-bar { touch-action: none; cursor: ns-resize; user-select: none; }
   .panel {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 1500; order: 0;
-    height: 46vh; height: 46dvh; width: auto; padding: 0 16px calc(24px + env(safe-area-inset-bottom));
+    height: 46vh; height: var(--sheet-h, 46dvh); width: auto; padding: 0 16px calc(24px + env(safe-area-inset-bottom));
     border: 0; box-shadow: none; overscroll-behavior: contain; font-size: 15px;
   }
   #app.panel-closed .panel { display: none; }
@@ -933,6 +941,20 @@ button, input, select { font-family: inherit; }
   .opacity { font-size: 13px; }
   .panel input[type="checkbox"], .panel input[type="radio"] { width: 18px; height: 18px; }
   .panel .tool { font-size: 13px; padding: 4px 10px; }
+
+  /* 시점 막대 — 얇게(연구자: 지도 자리가 좁다, koprifossillab 036). 기 이름 한 줄, 세는 색 띠만, 사건 표시는 작게,
+     양 끝 눈금(540 Ma·현재)은 뺀다 — 지금 나이는 머리말에 있다. 최근 절 단추가 있을 때만 눈금 줄이 남는다 */
+  .timebar { padding: 3px 6px 2px; gap: 4px; }
+  .timebar > button { padding: 3px 8px; font-size: 12px; }
+  .strip-row.named { height: 13px; font-size: 9.5px; line-height: 13px; }
+  .strip-row.named + .strip-row.named { height: 5px; font-size: 0; margin-top: 0; }
+  .strip-row.ev-row { height: 11px; }
+  .ev-row .ev-mark { width: 7px; height: 7px; }
+  .ev-row .ev-mark.extinction.t1 { width: 11px; height: 11px; }
+  .timebar input[type="range"] { margin: 1px 0 0; }
+  .timebar .ticks > span:first-child, .timebar .ticks > span:last-child { display: none; }
+  .timebar .ticks:has(.recent:empty) { display: none; }
+  .timebar .play input { width: 18px; height: 18px; }
 
   /* 설정·분석 창 — 거의 꽉 채운다 */
   .sheet { width: calc(100vw - 16px); max-width: none; max-height: calc(100dvh - 24px); padding: 0 14px 14px; }

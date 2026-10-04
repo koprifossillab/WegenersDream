@@ -112,3 +112,4 @@
 | tupandactyl 030 | 2026-10-01 | [지층의 화석 기록을 계통 나무로](20261001_tupandactyl_030_formation_fauna.md) |
 | tupandactyl 031 | 2026-10-01 | [지층 화석 나무를 동물·식물·기타로, 읽는 법을 접어서, 찾기 후보 차례](20261001_tupandactyl_031_fauna_guide_tidy.md) |
 | koprifossillab 035 | 2026-10-02 | [휴대폰 화면](20261002_koprifossillab_035_mobile_ui.md) |
+| koprifossillab 036 | 2026-10-02 | [휴대폰의 팝업 터치·시점 막대·패널 끌기](20261002_koprifossillab_036_mobile_touch.md) |

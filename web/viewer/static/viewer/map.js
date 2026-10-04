@@ -1358,7 +1358,7 @@
     el.innerHTML = html;
     bindTaxonLinks(el);
     var popup = state.proj === "globe" ? globe.popup(latlng, el)
-      : L.popup({ maxWidth: 360, autoPan: true, autoPanPaddingTopLeft: L.point(24, 150), autoPanPaddingBottomRight: L.point(96, 48) })
+      : L.popup(popupOptions(360))
         .setLatLng(latlng).setContent(el).openOn(map);
     var refresh = function () { if (popup.update) popup.update(); if (state.proj !== "globe") flipPopup(popup); };
     addGrips(el, refresh);
@@ -1476,7 +1476,7 @@
     bindTaxonLinks(el);
     // 팝업이 화면 가장자리·온도계·찾기 카드·도구 묶음에 가리지 않게 지도를 옮겨 띄운다(autoPan 의 여백)
     var popup = state.proj === "globe" ? globe.popup(latlng, el)
-      : L.popup({ maxWidth: 340, autoPan: true, autoPanPaddingTopLeft: L.point(24, 150), autoPanPaddingBottomRight: L.point(96, 48) })
+      : L.popup(popupOptions(340))
         .setLatLng(latlng).setContent(el).openOn(map);
     if (popup.update && state.proj !== "globe") {
       // 지도 위쪽의 산지는 지도를 더 내릴 수 없어(옮기는 폭의 끝) 팝업이 창 위로 잘렸다 — 그때는 점 **아래로** 편다
@@ -1563,10 +1563,118 @@
     });
   }
 
+  // ── 휴대폰의 팝업(koprifossillab 036) ─────────────────────────────
+  // 좁은 창(760 px 아래)에서는 팝업이 창 폭·높이 안에 들고(map.css), 크기는 두 손가락으로 벌리고 좁혀 고른다(--pop-scale,
+  // 이 브라우저가 기억한다). 넓은 창은 그대로 — 마우스로 위·아래 가장자리를 끈다(addGrips)
+  var narrowPop = window.matchMedia ? window.matchMedia("(max-width: 760px)") : { matches: false };
+  var POP_SCALE_KEY = "wegener.popScale", POP_SCALE_MIN = .75, POP_SCALE_MAX = 1.7;
+  var popScale = 1;
+  try { popScale = Math.max(POP_SCALE_MIN, Math.min(POP_SCALE_MAX, +localStorage.getItem(POP_SCALE_KEY) || 1)); } catch (e) {}
+  $("map").style.setProperty("--pop-scale", popScale);
+  function popupWidth(base) {
+    return narrowPop.matches ? Math.round(Math.min(window.innerWidth - 36, 270 * popScale)) : base;
+  }
+  // 팝업이 화면 가장자리·온도계·찾기 카드·도구 묶음에 가리지 않게 지도를 옮겨 띄운다(autoPan 의 여백). 좁은 창은 위에 찾기 카드,
+  // 밑에 패널 막대만 비키면 된다
+  function popupOptions(maxWidth) {
+    return narrowPop.matches
+      ? { maxWidth: popupWidth(maxWidth), autoPan: true, autoPanPaddingTopLeft: L.point(10, 70), autoPanPaddingBottomRight: L.point(10, 56) }
+      : { maxWidth: maxWidth, autoPan: true, autoPanPaddingTopLeft: L.point(24, 150), autoPanPaddingBottomRight: L.point(96, 48) };
+  }
+
+  // 팝업 안의 손가락(좁은 창이든 아니든 터치일 때만) — Leaflet 은 팝업 안의 누르기를 지도로 넘기지 않고, 지도 칸은 브라우저의 터치
+  // 동작을 모두 끈다(touch-action: none). 그래서 팝업을 문질러도 목록이 안 밀리고 지도도 안 움직였다(연구자). 여기서 직접 처리한다 —
+  // 한 손가락은 손가락 밑의 스크롤 칸을 먼저 밀고, 끝에 닿아 남은 만큼과 가로로 민 만큼은 지도를 옮긴다(지구본에서는 스크롤만).
+  // 두 손가락은 팝업 크기. 6 px 안쪽에서 뗀 것은 그대로 누르기(이름·링크·펼치기)다
+  (function popupTouch() {
+    var pts = {}, gesture = null;
+    function wrapperOf(t) { return t && t.closest && t.closest(".leaflet-popup-content-wrapper"); }
+    function scrollerFor(el, stop, dy) {
+      for (; el && el !== stop.parentNode; el = el.parentNode) {
+        if (el.nodeType !== 1) continue;
+        var oy = getComputedStyle(el).overflowY;
+        if ((oy === "auto" || oy === "scroll") && el.scrollHeight > el.clientHeight + 1) {
+          if (dy < 0 && el.scrollTop + el.clientHeight < el.scrollHeight - 1) return el;   // 위로 밀면 아래 내용
+          if (dy > 0 && el.scrollTop > 0) return el;
+        }
+      }
+      return null;
+    }
+    function distance() {
+      var k = Object.keys(pts);
+      return k.length < 2 ? 0 : Math.hypot(pts[k[0]].x - pts[k[1]].x, pts[k[0]].y - pts[k[1]].y);
+    }
+    var frame = 0;
+    function relayout() {
+      if (frame) return;
+      frame = requestAnimationFrame(function () {
+        frame = 0;
+        var p = map._popup;
+        if (p && p.isOpen && p.isOpen()) { p.options.maxWidth = popupWidth(p.options.maxWidth); p.update(); }
+        markCovered();
+      });
+    }
+    var box = $("map");
+    box.addEventListener("pointerdown", function (e) {
+      if (e.pointerType !== "touch") return;
+      var w = wrapperOf(e.target);
+      if (!w) return;
+      pts[e.pointerId] = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, target: e.target, wrap: w };
+      var n = Object.keys(pts).length;
+      if (n === 2) gesture = { kind: "pinch", d0: distance(), s0: popScale };
+      else if (n === 1) gesture = { kind: "tap" };
+    }, true);
+    box.addEventListener("pointermove", function (e) {
+      var p = pts[e.pointerId];
+      if (!p || !gesture) return;
+      var dx = e.clientX - p.x, dy = e.clientY - p.y;
+      p.x = e.clientX; p.y = e.clientY;
+      if (gesture.kind === "pinch") {
+        var d = distance();
+        if (gesture.d0 > 0 && d > 0) {
+          popScale = Math.max(POP_SCALE_MIN, Math.min(POP_SCALE_MAX, gesture.s0 * d / gesture.d0));
+          box.style.setProperty("--pop-scale", popScale.toFixed(3));
+          relayout();
+        }
+        e.preventDefault();
+        return;
+      }
+      if (gesture.kind === "tap") {
+        if (Math.hypot(e.clientX - p.x0, e.clientY - p.y0) < 6) return;
+        gesture.kind = "drag";
+      }
+      e.preventDefault();
+      var sc = dy ? scrollerFor(p.target, p.wrap, dy) : null, rest = dy;
+      if (sc) {
+        var before = sc.scrollTop;
+        sc.scrollTop = before - dy;
+        rest = dy + (sc.scrollTop - before);                      // 끝에 닿아 못 민 만큼
+      }
+      if (state.proj !== "globe" && (dx || rest)) map.panBy([-dx, -rest], { animate: false });
+    }, { capture: true, passive: false });
+    function up(e) {
+      if (!pts[e.pointerId]) return;
+      delete pts[e.pointerId];
+      if (gesture && gesture.kind === "pinch" && !Object.keys(pts).length) {
+        try { localStorage.setItem(POP_SCALE_KEY, popScale.toFixed(3)); } catch (err) {}
+      }
+      if (gesture && gesture.kind !== "tap") {
+        // 문지르거나 벌린 뒤의 click 은 누르기가 아니다 — 한 번만 삼킨다
+        var swallow = function (ev) { ev.stopPropagation(); ev.preventDefault(); };
+        window.addEventListener("click", swallow, { capture: true, once: true });
+        setTimeout(function () { window.removeEventListener("click", swallow, true); }, 400);
+      }
+      if (!Object.keys(pts).length) gesture = null;
+      else if (gesture && gesture.kind === "pinch") gesture = { kind: "drag" };   // 한 손가락만 남으면 이어서 문지르기
+    }
+    box.addEventListener("pointerup", up, true);
+    box.addEventListener("pointercancel", up, true);
+  })();
+
   // 팝업과 겹친 지도 위 카드를 흐리게(tupandactyl 022) — 팝업은 지도 층 안이라 카드 위로 올릴 수 없다. 겹친 카드는 마우스도 통과시킨다
   function markCovered() {
     var pop = document.querySelector("#map .leaflet-popup"), box = pop && pop.getBoundingClientRect();
-    [$("findfloat"), $("thermo"), document.querySelector(".maptools")].forEach(function (card) {
+    [$("findfloat"), $("thermo"), document.querySelector(".maptools"), document.querySelector(".scalebar")].forEach(function (card) {
       if (!card) return;
       var r = card.getBoundingClientRect();
       card.classList.toggle("behind-popup", !!box && r.left < box.right && r.right > box.left && r.top < box.bottom && r.bottom > box.top);
@@ -4419,9 +4527,56 @@
       });
     });
     setPanel(saved ? !saved.panelClosed : !narrow.matches);
+    var dragged = false;
     $("panel-bar").addEventListener("click", function () {
+      if (dragged) { dragged = false; return; }               // 끌어서 높이를 고른 뒤의 click 은 접고 펴기가 아니다
       setPanel(app.classList.contains("panel-closed"));
       savePanel();
+    });
+    // 좁은 창 — 막대를 끌어 판의 높이를 고른다(koprifossillab 036). 끝까지 올리면 창 맨 위까지, 맨 밑 가까이 내리면 접힌다.
+    // 고른 높이는 창 높이에 대한 비율로 기억한다(SHEET_KEY). 누르기만 하면 전처럼 접고 편다
+    var SHEET_KEY = "wegener.sheet", SHEET_MIN = .12;
+    function sheetMax() { return window.innerHeight - $("panel-bar").offsetHeight; }
+    function setSheet(frac) {
+      if (frac == null) app.style.removeProperty("--sheet-h");
+      else app.style.setProperty("--sheet-h", (frac * 100).toFixed(2) + "dvh");   // 창 높이가 바뀌어도(주소창·돌리기) 비율대로
+    }
+    var sheetFrac = null;
+    try { sheetFrac = parseFloat(localStorage.getItem(SHEET_KEY)) || null; } catch (e) {}
+    if (sheetFrac) setSheet(Math.min(sheetFrac, sheetMax() / window.innerHeight));
+    $("panel-bar").addEventListener("pointerdown", function (e) {
+      if (!narrow.matches || e.button !== 0) return;
+      var bar = this, y0 = e.clientY, panel = $("panel"), moved = false;
+      var h0 = app.classList.contains("panel-closed") ? 0 : panel.offsetHeight;
+      bar.setPointerCapture(e.pointerId);
+      function move(ev) {
+        var dy = ev.clientY - y0;
+        if (!moved && Math.abs(dy) < 6) return;
+        if (!moved) { moved = true; app.classList.add("sheet-dragging"); if (!h0) setPanel(true); }
+        var h = Math.max(0, Math.min(sheetMax(), h0 - dy));
+        app.style.setProperty("--sheet-h", h + "px");
+      }
+      function end() {
+        bar.removeEventListener("pointermove", move);
+        bar.removeEventListener("pointerup", end);
+        bar.removeEventListener("pointercancel", end);
+        if (!moved) return;
+        dragged = true;
+        setTimeout(function () { dragged = false; }, 400);
+        app.classList.remove("sheet-dragging");
+        var h = panel.offsetHeight, max = sheetMax();
+        if (h < SHEET_MIN * window.innerHeight) { setPanel(false); setSheet(sheetFrac); }   // 거의 내렸으면 접고, 높이는 전의 것
+        else {
+          if (h > max - 40) h = max;                              // 끝 가까이면 끝까지
+          sheetFrac = h / window.innerHeight;
+          setSheet(sheetFrac);
+          try { localStorage.setItem(SHEET_KEY, sheetFrac.toFixed(3)); } catch (err) {}
+        }
+        savePanel();
+      }
+      bar.addEventListener("pointermove", move);
+      bar.addEventListener("pointerup", end);
+      bar.addEventListener("pointercancel", end);
     });
     // 좁은 창에서 찾기 칸을 누르면 판을 내린다 — 후보 목록이 판에 가리지 않게. 기억하지는 않는다
     $("find").addEventListener("focus", function () { if (narrow.matches) setPanel(false); });
