@@ -236,7 +236,8 @@ body {
 
 .swatch { display: flex; align-items: center; gap: 6px; margin: 4px 0; cursor: pointer; }
 .swatch small { color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
-.leaflet-container.moll { cursor: grab; }
+.leaflet-container.moll { cursor: grab; touch-action: none; }   /* 끌기는 spin 이 맡는다 — Leaflet 의 끌기를 끄면 touch-action 이 풀려
+                                                                  브라우저가 첫 움직임 뒤에 손가락을 가져갔다(pointercancel, koprifossillab 038) */
 .leaflet-container.spinning { cursor: grabbing; }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1px solid #333; }
 .dot.m { background: var(--marine); }
@@ -527,6 +528,8 @@ button.link { border: 0; background: none; color: var(--accent); padding: 0; cur
   content: attr(data-flash); position: absolute; left: 100%; top: 50%; transform: translate(6px, -50%);
   padding: 0 6px; border-radius: 4px; background: var(--accent); color: #fff; font-size: 11px; white-space: nowrap;
 }
+
+.tb-toggle, .find-dist { display: none; }   /* 좁은 창에서만(아래 @media) */
 
 /* 팝업 안의 터치는 map.js 가 맡는다(스크롤·지도 옮기기·두 손가락 크기, koprifossillab 036) — 브라우저가 따로 밀지 않게 */
 .leaflet-popup-content-wrapper { touch-action: none; }
@@ -857,7 +860,7 @@ button, input, select { font-family: inherit; }
   .bar .tools { order: 1; gap: 5px; margin-left: auto; flex: none; }
   .bar .seg button { font-size: 11.5px; padding: 4px 5px; }
   .bar .gear { font-size: 16px; padding: 4px 6px; }
-  .now { order: 2; flex: 1 0 100%; min-width: 0; flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 1px 0; }
+  .now { order: 2; flex: 1 1 calc(100% - 96px); min-width: 0; flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 1px 0; }
   .now::-webkit-scrollbar { display: none; }
   .now .age { font-size: 17px; white-space: nowrap; }
   .now .units { flex-wrap: nowrap; white-space: nowrap; }
@@ -955,6 +958,29 @@ button, input, select { font-family: inherit; }
   .timebar .ticks > span:first-child, .timebar .ticks > span:last-child { display: none; }
   .timebar .ticks:has(.recent:empty) { display: none; }
   .timebar .play input { width: 18px; height: 18px; }
+
+  /* 시점 막대 접기(koprifossillab 038) — 처음에는 접힘. 머리말 둘째 줄 끝의 단추 */
+  .tb-toggle {
+    display: inline-flex; order: 3; flex: none; align-items: center; margin-left: auto; padding: 3px 9px;
+    border: 1px solid rgba(216, 180, 103, .6); border-radius: 4px; background: transparent; color: var(--gilt);
+    font: inherit; font-size: 12.5px; white-space: nowrap; cursor: pointer;
+  }
+  .tb-toggle[aria-expanded="true"] { background: linear-gradient(#c9a45f, #9e7a3e); color: #2b1d10; }
+  #app.timebar-closed .timebar { display: none; }
+
+  /* 찾기 카드의 분류군 줄 — 시점마다 산출 수 막대와 전체 산지 단추(koprifossillab 038) */
+  .find-dist:not([hidden]) { display: flex; flex: 1 1 100%; align-items: center; gap: 8px; padding: 2px 2px 0; }
+  .fd-strip {
+    position: relative; flex: 1; min-width: 0; height: 22px; cursor: pointer;
+    border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--accent) 6%, transparent); border-radius: 3px 3px 0 0;
+  }
+  .fd-strip span { position: absolute; bottom: 0; width: 3px; margin-left: -1px; background: var(--accent); border-radius: 1px 1px 0 0; pointer-events: none; }
+  .fd-strip .fd-now { position: absolute; top: -2px; bottom: -2px; width: 0; border-left: 2px solid #b0201c; pointer-events: none; }
+  .fd-all {
+    flex: none; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--accent);
+    font: inherit; font-size: 13px; padding: 4px 9px; white-space: nowrap; cursor: pointer;
+  }
+  .fd-all[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
 
   /* 설정·분석 창 — 거의 꽉 채운다 */
   .sheet { width: calc(100vw - 16px); max-width: none; max-height: calc(100dvh - 24px); padding: 0 14px 14px; }

@@ -44,6 +44,8 @@
       <span id="now-units" class="units"></span>
       <span id="now-label" class="label"></span>
     </div>
+    <!-- 휴대폰에서 시점 막대를 접고 펴는 단추 — 좁은 창에서만 보인다(처음에는 접힘, koprifossillab 038) -->
+    <button type="button" class="tb-toggle" id="timebar-toggle" aria-controls="timebar" aria-expanded="true"></button>
     <div class="tools">
       <div class="seg" id="proj-seg" role="group" aria-label="투영" data-i18n-attr="aria-label:proj" hidden>
         <button type="button" data-proj="eq" aria-pressed="true" data-i18n="proj.eq">정거원통</button><button type="button" data-proj="moll" aria-pressed="false" data-i18n="proj.moll">몰바이데</button><button type="button" data-proj="globe" aria-pressed="false" data-i18n="proj.globe">지구본</button>
@@ -177,6 +179,12 @@
             <button type="button" id="country-clear" class="find-x" title="국가 지우기" aria-label="국가 지우기" data-i18n-attr="title:country.clear;aria-label:country.clear">✕</button></span>
           <span class="fchip" id="formation-chip" hidden><small data-i18n="formation">지층</small> <b id="formation-chip-name"></b> <small>Fm.</small>
             <button type="button" id="formation-clear" class="find-x" title="지층 지우기" aria-label="지층 지우기" data-i18n-attr="title:formation.clear;aria-label:formation.clear">✕</button></span>
+        </div>
+        <!-- 찾은 분류군 — 시점마다 산출 수 막대(누르면 그 시점)와 전체 산지(종합 보기). 좁은 창에서만 — 넓은 창은 시점 막대 밑 줄과
+             패널의 단추가 한다(koprifossillab 038) -->
+        <div class="find-dist" id="find-dist" hidden>
+          <div class="fd-strip" id="fd-strip"></div>
+          <button type="button" class="fd-all" id="fd-all" aria-pressed="false"></button>
         </div>
       </div>
     </div>

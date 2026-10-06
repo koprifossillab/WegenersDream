@@ -202,6 +202,12 @@
   });
   // 지도 밖으로 옮길 수 있는 폭 — 위아래 20°, 좌우 40°(연구자: 0.27 의 두 배). 가장자리 산지의 팝업이 창 밖으로 잘리지 않게도
   var EQ_MAX_BOUNDS = [[-110, -220], [110, 220]];
+  // 좁은 창(휴대폰)은 지구가 창보다 훨씬 작거나(세로) 커서(가로) 위의 폭으로는 지도가 거의 안 움직였다 — 위아래·좌우로 지구 하나만큼 더
+  // 옮기게 하고, 지구 전체가 창 폭에 드는 데까지 축소하게 한다(확대 −1, ¼ 단계, 연구자 — koprifossillab 038)
+  var NARROW = window.matchMedia ? window.matchMedia("(max-width: 760px)").matches : false;
+  // 세로로 긴 창에서는 가장 축소했을 때 창 높이가 위도 수백 도에 이른다 — 그보다 넓어야 위아래로 움직인다
+  var NARROW_MAX_BOUNDS = [[-450, -540], [450, 540]];
+  function eqBounds() { return NARROW ? NARROW_MAX_BOUNDS : EQ_MAX_BOUNDS; }
   // 커서가 몰바이데 타원 안인가 — 밖이면 위경도가 없다. 위경도로 되돌리면 극·경도가 잘려 판단할 수 없어
   // 화면 자리를 투영 평면의 자리로 바꿔 타원 식으로 본다.
   function onGlobe(containerPoint) {
@@ -343,8 +349,8 @@
   // ── 지도 ────────────────────────────────────────────────────────────
   var map = L.map("map", {
     crs: L.CRS.EPSG4326,
-    center: [0, 0], zoom: 1, minZoom: 1, maxZoom: 7,
-    maxBounds: EQ_MAX_BOUNDS, maxBoundsViscosity: 0.8,
+    center: [0, 0], zoom: 1, minZoom: NARROW ? -1 : 1, maxZoom: 7, zoomSnap: NARROW ? 0.25 : 1,
+    maxBounds: eqBounds(), maxBoundsViscosity: NARROW ? 0.6 : 0.8,
     worldCopyJump: false, attributionControl: true,
     zoomControl: false,   // 확대·축소는 휠·두 손가락·더블클릭·+/− 키로 한다 — 단추는 자리만 차지했다(wetherilli 001)
   });
@@ -354,7 +360,8 @@
   function worldZoom() {
     var size = map.getSize();
     if (!size.x || !size.y) return map.getMinZoom();
-    return Math.max(map.getMinZoom(), Math.floor(Math.log(Math.min(size.x / 512, size.y / 256)) / Math.LN2));
+    var z = Math.log(Math.min(size.x / 512, size.y / 256)) / Math.LN2, snap = map.options.zoomSnap || 1;
+    return Math.max(map.getMinZoom(), Math.floor(z / snap) * snap);
   }
   // 지구 전체의 가운데 — 몰바이데에서는 가운데 경선(lon0) 위다. [0, 0] 으로 두면 돌린 만큼 옆으로 밀린다.
   function worldCenter() { return L.latLng(0, state.proj === "moll" ? Mollweide.lon0 : 0); }
@@ -511,7 +518,7 @@
     }
     if (wasMoll !== (proj === "moll")) {
       map.options.crs = proj === "moll" ? MOLL : L.CRS.EPSG4326;
-      map.setMaxBounds(proj === "moll" ? null : EQ_MAX_BOUNDS);   // 몰바이데는 위경도 사각형으로 가둘 수 없다
+      map.setMaxBounds(proj === "moll" ? null : eqBounds());   // 몰바이데는 위경도 사각형으로 가둘 수 없다
       // 몰바이데에서는 Leaflet 의 끌기를 끄고 spin 이 받는다 — 가로는 돌리기, 세로는 옮기기(025)
       if (proj === "moll") map.dragging.disable(); else if (proj === "eq") map.dragging.enable();
       map.getContainer().classList.toggle("moll", proj === "moll");
@@ -572,6 +579,8 @@
     if (state.proj !== "moll") return;
     if (spinPending.rotate) {
       if (dx) rotateTo(Mollweide.lon0 - dx * 360 / (512 * Math.pow(2, map.getZoom())));
+      // 손가락이면 세로도 옮긴다 — 휴대폰에서는 지구가 창 폭을 거의 채워 타원 밖을 잡을 데가 없었다(koprifossillab 038)
+      if (dy && spinPending.touch) map.panBy([0, -dy], { animate: false });
     } else if (dx || dy) {
       map.panBy([-dx, -dy], { animate: false });
     }
@@ -582,7 +591,7 @@
       pointers[e.pointerId] = true;
       if (Object.keys(pointers).length > 1) { spin = null; return; }   // 두 손가락은 Leaflet 의 확대에 맡긴다
       if (state.proj !== "moll" || e.button !== 0 || e.target.closest(".leaflet-control")) return;
-      spin = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, rotate: onGlobe(map.mouseEventToContainerPoint(e)) };
+      spin = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, rotate: onGlobe(map.mouseEventToContainerPoint(e)), touch: e.pointerType === "touch" };
     });
     window.addEventListener("pointermove", function (e) {
       if (!spin || e.pointerId !== spin.id) return;
@@ -593,7 +602,7 @@
         box.classList.add("spinning");
       }
       spin.x = e.clientX; spin.y = e.clientY;
-      spinPending.dx += dx; spinPending.dy += dy; spinPending.rotate = spin.rotate;
+      spinPending.dx += dx; spinPending.dy += dy; spinPending.rotate = spin.rotate; spinPending.touch = spin.touch;
       if (!spinPending.frame) spinPending.frame = requestAnimationFrame(applySpin);
     });
     function end(e) {
@@ -939,6 +948,7 @@
     drawClimate(f);
     loadFossils(f);
     if (!opts.overview && state.overview) endOverview();      // 다른 시점으로 옮기면 그 시대의 산지로(tupandactyl 012)
+    renderFindDist();
     state.taxonReady = state.taxon && !state.overview ? searchTaxon(state.taxon) : null;
     if (state.cmp) loadCmpFrame();                            // 비교 분류군도 이 시점으로(024)
     renderAnalysis();
@@ -1991,7 +2001,60 @@
     $("chrono-note").textContent = tr("rich", { unit: p.full, taxon: state.taxon, age: fmtAge(state.frames[best].age), n: fmtNum(d.frames[best]) });
   }
 
+  // 찾기 카드의 분류군 줄(좁은 창, koprifossillab 038) — 시점 막대를 접어도 찾은 분류군이 어느 시점에 나오는지 보이고, 눌러서 간다.
+  // 막대는 시점 막대 밑 줄(renderDist)과 같은 수(state.dist.frames)를 같은 로그 높이로. 손가락으로 3 px 막대를 맞히기 어려워
+  // 줄의 어디를 누르든 가장 가까운, 산출이 있는 시점으로 간다. 옆 단추는 전체 산지(종합 보기)와 보던 시점으로 돌아가기
+  var fdReturn = null;
+  function renderFindDist() {
+    var d = state.dist, box = $("find-dist"), strip = $("fd-strip"), btn = $("fd-all");
+    box.hidden = !d || !state.taxon;
+    var on = !!state.overview;
+    btn.setAttribute("aria-pressed", String(on));
+    btn.textContent = tr(on ? "fd.back" : "fd.all");
+    btn.title = tr(on ? "fd.backTitle" : "fd.allTitle");
+    if (box.hidden) return;
+    strip.innerHTML = "";
+    strip.title = tr("fd.strip");
+    var max = 0;
+    Object.keys(d.frames).forEach(function (j) { max = Math.max(max, d.frames[j]); });
+    Object.keys(d.frames).forEach(function (j) {
+      var bar = document.createElement("span");
+      bar.style.left = ((OLDEST - Math.min(state.frames[j].age, OLDEST)) / OLDEST * 100) + "%";
+      bar.style.height = Math.max(2, Math.round(Math.log(1 + d.frames[j]) / Math.log(1 + max) * 16)) + "px";
+      strip.appendChild(bar);
+    });
+    if (!on) {
+      var now = document.createElement("i");
+      now.className = "fd-now";
+      now.style.left = ((OLDEST - Math.min(frame().age, OLDEST)) / OLDEST * 100) + "%";
+      strip.appendChild(now);
+    }
+  }
+  $("fd-strip").addEventListener("click", function (e) {
+    var d = state.dist;
+    if (!d) return;
+    var r = this.getBoundingClientRect(), age = OLDEST * (1 - (e.clientX - r.left) / r.width), best = -1, gap = Infinity;
+    Object.keys(d.frames).forEach(function (j) {
+      var g = Math.abs(state.frames[j].age - age);
+      if (d.frames[j] && g < gap) { gap = g; best = +j; }
+    });
+    if (best >= 0) show(best);
+  });
+  $("fd-all").addEventListener("click", function () {
+    if (state.overview) {
+      // 단추로 연 종합 보기면 보던 시점으로, 찾자마자 열린 것(tupandactyl 012)이면 산출이 가장 많은 시점으로
+      var back = fdReturn, d = state.dist;
+      if (back == null && d) Object.keys(d.frames).forEach(function (j) { if (back == null || d.frames[j] > d.frames[back]) back = +j; });
+      fdReturn = null;
+      show(back != null ? back : state.i);
+      return;
+    }
+    fdReturn = state.i;
+    startOverview();
+  });
+
   function renderDist() {
+    renderFindDist();
     var d = state.dist, box = $("taxon-dist"), strip = $("strip-taxon");
     box.hidden = !d || !state.taxon;
     strip.hidden = box.hidden;
@@ -2507,6 +2570,8 @@
   }
 
   // ── 최근 찾은 것(tupandactyl 027) ───────────────────────────────────
+  // 그리는 함수는 renderRecentFinds — 최근 절 단추의 renderRecent(0.25.0)와 이름이 같아 뒤의 것이 앞의 것을 덮었고, 지도를 불러올 때
+  // 최근 절 단추 대신 이 목록이 떠 있었다(최근 절 단추는 그려지지 않았다, koprifossillab 038)
   // 찾기 칸에서 찾은 분류군·나라(함께 건 것도)를 5 개까지 이 브라우저에 기억한다. 찾기 칸이 비어 있을 때 누르면 띄운다
   var RECENT_KEY = "wegener.recent", RECENT_MAX = 5;
   function recentList() {
@@ -2518,7 +2583,7 @@
     list.unshift(entry);
     try { localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, RECENT_MAX))); } catch (e) {}
   }
-  function renderRecent() {
+  function renderRecentFinds() {
     var list = recentList(), box = $("find-list");
     suggest.items = list.map(function (e) { return { kind: "recent", e: e }; });
     suggest.active = -1;
@@ -2648,7 +2713,7 @@
       clearTimeout(suggest.timer);
       suggest.seq += 1;
       var text = input.value.trim();
-      if (!text) { renderRecent(); return; }                     // 비우면 최근 찾은 것(027)
+      if (!text) { renderRecentFinds(); return; }                     // 비우면 최근 찾은 것(027)
       if (HANGUL.test(text)) {                                  // 한글 — 관용 표기와 한글 찾기 표(020·021)
         renderSuggest(aliasMatches(text), !state.taxaKo);
         if (state.taxaKo) suggest.timer = setTimeout(function () { koSuggest(text); }, 150);
@@ -2657,7 +2722,7 @@
       renderSuggest([], text.length < 2);
       if (text.length >= 2) suggest.timer = setTimeout(function () { suggestFetch(text); }, 250);
     });
-    var showRecent = function () { if (!input.value.trim()) renderRecent(); };
+    var showRecent = function () { if (!input.value.trim()) renderRecentFinds(); };
     input.addEventListener("focus", showRecent);
     input.addEventListener("click", showRecent);
     input.addEventListener("keydown", function (e) {
@@ -2670,9 +2735,16 @@
     $("find-list").addEventListener("mousedown", function (e) {
       var li = e.target.closest("li[data-k]");
       e.preventDefault();
-      if (li) pickSuggest(+li.dataset.k);
+      if (li) { pickSuggest(+li.dataset.k); if (NARROW) input.blur(); }
     });
     input.addEventListener("blur", function () { setTimeout(closeSuggest, 150); });
+    // 찾기 카드 밖을 누르면 후보·최근 찾은 것을 닫는다 — 휴대폰에서는 지도를 눌러도 칸이 포커스를 잃지 않아 최근 찾은 것이 계속
+    // 떠 있었다(연구자, koprifossillab 038). 좁은 창에서는 칸에서 손을 떼게 해(blur) 자판도 내린다
+    document.addEventListener("pointerdown", function (e) {
+      if (e.target.closest && e.target.closest("#findfloat")) return;
+      if (!$("find-list").hidden) closeSuggest();
+      if (NARROW && document.activeElement === input) input.blur();
+    }, true);
   }
 
   // ── 지구사 사건(tupandactyl 016·017) ──────────────────────────────────
@@ -4201,7 +4273,7 @@
     $("grid").addEventListener("change", function () {
       if (this.checked) gridLayer.addTo(map); else map.removeLayer(gridLayer);
     });
-    $("find-form").addEventListener("submit", function (e) { e.preventDefault(); submitFind(); });
+    $("find-form").addEventListener("submit", function (e) { e.preventDefault(); submitFind(); if (NARROW) $("find").blur(); });
     $("taxon-clear").addEventListener("click", clearTaxon);
     bindSuggest();
   }
@@ -4580,6 +4652,16 @@
     });
     // 좁은 창에서 찾기 칸을 누르면 판을 내린다 — 후보 목록이 판에 가리지 않게. 기억하지는 않는다
     $("find").addEventListener("focus", function () { if (narrow.matches) setPanel(false); });
+    // 좁은 창의 시점 막대 — 처음에는 접어 지도에 자리를 준다. 머리말의 "시점" 단추로 편다. 기억하지 않는다(koprifossillab 038)
+    var tb = $("timebar-toggle");
+    function setTimebar(open) {
+      app.classList.toggle("timebar-closed", !open);
+      tb.setAttribute("aria-expanded", String(open));
+      tb.textContent = tr(open ? "tb.close" : "tb.open");
+      tb.title = tr("tb.title");
+    }
+    setTimebar(!narrow.matches);
+    tb.addEventListener("click", function () { setTimebar(app.classList.contains("timebar-closed")); });
   })();
 
   start();
