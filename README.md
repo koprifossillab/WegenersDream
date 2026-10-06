@@ -35,7 +35,6 @@
 | 최준석 | [Tupandactyl](https://github.com/Tupandactyl) | 데이터 통합과 수정, 기능 추가 |
 | 정직한 | [jikhanjung](https://github.com/jikhanjung) | 검토와 세부 기능 추가 |
 | 이승찬 | [wetherilli](https://github.com/wetherilli) | 검토와 세부 기능 추가 |
-| — | [koprifossillab](https://github.com/koprifossillab) | 총괄 |
 
 화면에서는 ⚙ 설정 창의 "소개" 탭(소개·만든 사람들·자료)에 같은 내용이 있다(`web/viewer/templates/viewer/map.html`, 영어는 `i18n.js`) — 바꿀 때 둘 다 고친다.
 

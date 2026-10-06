@@ -364,7 +364,6 @@
     "people": "People",
     "people.tupandactyl": "Data integration and correction, new features",
     "people.review": "Review and detailed features",
-    "people.lead": "Project lead",
     "people.repo": "Paleontology & Evolution Lab, KOPRI · Code at <a href=\"https://github.com/koprifossillab/WegenersDream\" target=\"_blank\" rel=\"noopener\">github.com/koprifossillab/WegenersDream</a> (AGPL-3.0). Who did what is in the repository's history (git, devlog).",
     "notes.about": "What changed in each version (in Korean). The parenthesised labels point to the development log (devlog).",
     "close": "Close",
