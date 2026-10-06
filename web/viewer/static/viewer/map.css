@@ -109,6 +109,33 @@ body {
 .sheet h2 { margin: 0; font-size: 15px; color: var(--accent); }
 .sheet h3 { margin: 16px 0 8px; font-size: 13px; color: var(--accent); }
 .sheet-close { border: 0; background: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 2px 6px; }
+/* 설정 창의 머리·탭(koprifossillab 039) — GSM 의 설정 창처럼 이름·판·소속을 머리에, 그 밑에 탭 셋 */
+.sheet-brand h2 { display: flex; align-items: baseline; gap: 8px; }
+.sheet-brand .sb-name { font: 400 22px/1.1 "La Belle Aurore", "Segoe Script", cursive; color: var(--accent); }
+.sheet-brand .sb-ver { font-size: 12px; font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sheet-brand .sb-sub { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+.sheet-head { align-items: flex-start; }
+.sheet-tabs { position: sticky; top: 58px; z-index: 1; display: flex; gap: 2px; margin: 0 -20px; padding: 0 20px;
+  border-bottom: 1px solid var(--line); background: var(--panel); overflow-x: auto; scrollbar-width: none; }
+.sheet-tabs button { flex: none; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted);
+  font: inherit; font-size: 13.5px; padding: 9px 12px 7px; cursor: pointer; }
+.sheet-tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+.sheet-tabs button:hover { color: var(--ink); }
+.sheet-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.about p { margin: 0 0 8px; font-size: 13px; line-height: 1.6; }
+.people-list { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.people-list li { display: grid; grid-template-columns: auto auto 1fr; gap: 2px 10px; align-items: baseline; padding: 5px 0;
+  border-bottom: 1px dotted var(--line); }
+.people-list a { color: var(--accent); font-size: 12px; }
+.people-list span { color: var(--muted); }
+.people .note a { color: var(--accent); }
+.notes .note-ver { border-bottom: 1px dotted var(--line); padding: 3px 0; }
+.notes .note-ver > summary { cursor: pointer; font-size: 13px; }
+.notes .note-ver > summary small { color: var(--muted); margin-left: 6px; font-variant-numeric: tabular-nums; }
+.notes .note-ver ul { margin: 4px 0 6px; padding-left: 18px; font-size: 12.5px; line-height: 1.55; }
+.notes .note-ver li { margin-bottom: 3px; }
+.notes .note-ver p { margin: 4px 0; font-size: 12.5px; }
+.notes code { font-size: .92em; padding: 0 3px; border-radius: 3px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .sheet-close:hover { color: var(--ink); }
 /* 영어로 열 때 한국어 원문을 잠깐도 보이지 않게(<head> 의 스크립트가 붙이고 map.js 가 뗀다) */
 .i18n-pending body { visibility: hidden; }
@@ -990,6 +1017,11 @@ button, input, select { font-family: inherit; }
   .guide .guide-item > summary { font-size: 14px; padding: 7px 0; }
   .guide .note, .sources ul { font-size: 13.5px; }
   .sheet-close { font-size: 20px; padding: 6px 10px; }
+  .sheet-tabs { margin: 0 -14px; padding: 0 14px; top: 64px; }
+  .sheet-tabs button { font-size: 14.5px; padding: 10px 12px 8px; }
+  .people-list li { grid-template-columns: auto 1fr; }
+  .people-list li span { grid-column: 1 / -1; }
+  .about p, .people-list, .notes .note-ver ul { font-size: 14px; }
 }
 @media (max-width: 380px) {
   .brand strong { font-size: 16.5px; }

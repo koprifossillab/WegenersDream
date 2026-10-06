@@ -3,6 +3,12 @@
 괄호 안의 번호는 `devlog/` 의 그 문서다. **지금 무엇이 도는지는 이 파일이 아니라
 [HANDOFF.md](HANDOFF.md) 다.**
 
+## 1.2.0 — 2026-10-06 · `feature/about-tabs`
+
+- **설정 창을 탭 셋으로** — 설정(언어·화면 모드·밝기) · 소개(소개·만든 사람들·읽는 법) · 자료와 판 이력. 머리에 이름·판·소속 (koprifossillab 039)
+- **소개와 만든 사람들** — 극지연구소 고생물진화연구실, 목적, 기여자와 맡은 일. README 에도 (koprifossillab 039)
+- **판 이력** — CHANGELOG.md 를 서버가 읽어 판마다 접어 보인다(바깥 사이트에도) (koprifossillab 039)
+
 ## 1.1.3 — 2026-10-06 · `feature/mobile-find`
 
 - **휴대폰: 시점 막대를 접은 채로 시작** — 머리말의 "시점 ▾" 로 편다 (koprifossillab 038)

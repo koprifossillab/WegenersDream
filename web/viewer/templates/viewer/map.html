@@ -55,70 +55,119 @@
     </div>
   </header>
 
-  <!-- 설정 · 자료(wetherilli 003) — 언어, 출처(참고문헌), 판 -->
+  <!-- 설정 · 자료(wetherilli 003) → 탭 셋(koprifossillab 039, GSM 의 설정 창처럼) — 설정 · 소개(만든 사람들·읽는 법) · 자료와 판 이력 -->
   <dialog id="settings" class="sheet" aria-labelledby="settings-title">
     <div class="sheet-head">
-      <h2 id="settings-title" data-i18n="settings">설정 · 자료</h2>
+      <div class="sheet-brand">
+        <h2 id="settings-title"><span class="sb-name">Wegener's Dream</span> <span class="sb-ver">v{{ version }}</span></h2>
+        <p class="sb-sub" data-i18n="about.sub">베게너의 꿈 · 극지연구소 고생물진화연구실</p>
+      </div>
       <button type="button" class="sheet-close" id="settings-close" aria-label="닫기" data-i18n-attr="aria-label:close">✕</button>
     </div>
-    <section>
-      <h3 data-i18n="lang">언어</h3>
-      <div class="seg lang" role="group" aria-label="언어" data-i18n-attr="aria-label:lang">
-        <button type="button" data-lang="ko" lang="ko">한국어</button><button type="button" data-lang="en" lang="en">English</button>
-      </div>
-    </section>
-    <section>
-      <h3 data-i18n="mode">화면 모드</h3>
-      <div class="seg mode" role="group" aria-label="화면 모드" data-i18n-attr="aria-label:mode">
-        <button type="button" data-mode-pick="sci">Scientific</button><button type="button" data-mode-pick="casual">Casual</button>
-      </div>
-      <p class="note" data-i18n="mode.about">Scientific: 글씨체 Pretendard, 층서·퇴적 환경·분류 계급 이름을 영문으로(한글은 마우스를 올리면). Casual: 빈티지 책 글씨체와 한글 용어.</p>
-    </section>
-    <section>
-      <h3 data-i18n="theme">화면 밝기</h3>
-      <div class="seg theme" role="group" aria-label="화면 밝기" data-i18n-attr="aria-label:theme">
-        <button type="button" data-theme-pick="auto" data-i18n="theme.auto">자동</button><button type="button" data-theme-pick="light" data-i18n="theme.light">밝게 · 양피지</button><button type="button" data-theme-pick="dark" data-i18n="theme.dark">어둡게 · 흑단</button>
-      </div>
-    </section>
-    <!-- 읽는 법 — 패널에 늘 떠 있던 설명들(tupandactyl 002) -->
-    <!-- 읽는 법 — 주제마다 접어 둔다. 제목만 보이고 누르면 편다(연구자: 길어져 읽기 어렵다, tupandactyl 031) -->
-    <section class="guide">
-      <h3 data-i18n="guide">읽는 법</h3>
-      <details class="guide-item"><summary data-i18n="guide.t.points">포인트 — PBDB 산지</summary>
-        <p class="note" data-i18n="fossils.about">포인트 하나가 PBDB 산지 하나다. 연대 범위가 시점 ±2.5 Myr 와 겹치면 오른다 — 범위가 넓은 산지는 걸친 모든 시점에 보인다. 누르면 산출 목록을 PBDB 에서 바로 읽는다.</p>
-      </details>
-      <details class="guide-item"><summary data-i18n="guide.t.vague">▲ 모호한 연대와 연대 범위</summary>
-        <p class="note" data-i18n="vague.about">▲ 모호한 연대 — "Middle Cambrian", "Late Triassic" 처럼 절 단위로 정해지지 않은 기록(PBDB 시대 이름이 세·기·대). 걸친 모든 시점에 세모로 보이고, 자리는 시점마다 그 나이로 계산한다. 절 이름으로 정해진 범위("Norian–Rhaetian")는 ● 정해진 기록이다.</p>
-        <p class="note" data-i18n="span.about">연대 범위(max − min)가 고른 값 이하인 기록만 보인다. 시대 이름의 등급(▲)과 따로 본다 — 등급은 어떻게 매겼는지, 범위는 시간이 얼마나 불확실한지다.</p>
-      </details>
-      <details class="guide-item"><summary data-i18n="guide.t.env">퇴적 환경 옆의 수</summary>
-        <p class="note" data-i18n="env.count">퇴적 환경 옆의 수는 지금 지도의 산지 수다. 분류군을 찾는 동안에는 그 분류군의 산출 건수다.</p>
-      </details>
-      <details class="guide-item"><summary data-i18n="guide.t.taxon">분류군 찾기 — 커서·산출 시대의 수</summary>
-        <p class="note" data-i18n="guide.hover">분류군을 찾으면 산지에 커서를 대기만 해도 그 산지에서 나온 찾은 분류군 아래의 기록이 뜬다. 5종 이상이면 수만 적고, 누르면 산지의 산출 목록 전체를 PBDB 에서 읽는다.</p>
-        <p class="note" id="guide-dist"></p>
-      </details>
-      <details class="guide-item"><summary data-i18n="guide.t.formation">지층의 화석 기록</summary>
-        <p class="note" data-i18n="formation.about">지층을 걸면 패널에 그 지층 전체의 기록을 계통 나무로 모은다(지도의 시점·거르기와 상관없이). 맨 위는 동물·식물·기타, 그 밑은 문부터 접혀 있다. 수는 산출 건수다. 미동정은 과 이상에서 멈춘 동정으로, 계통이 닿는 가장 깊은 마디에 둔다. 속은 이름 차례, 종은 속 아래, 어느 산지인지는 속·종 끝에 접어 둔다. 이름을 누르면 그 분류군으로 찾는다.</p>
-      </details>
-      <details class="guide-item"><summary data-i18n="guide.t.chrono">층서표</summary>
-        <p class="note" data-i18n="chrono.about">이름은 국제지질연대층서표 한글판(2023/04), 경계 나이는 ICS 2024/12 판이다. 지도는 5 Myr 간격이라, 고른 단위의 가운데에 가장 가까운 지도를 보인다.</p>
-      </details>
-      <details class="guide-item"><summary data-i18n="guide.t.ko">학명의 우리말 표기(Casual)</summary>
-        <p class="note guide-ko" data-i18n-html="guide.ko">속·종 이름은 Covington(2010)의 고전 라틴어 발음을 바탕으로,
-        국립국어원 외래어 표기법의 「라틴어의 표기 원칙」 전부와 「기타 언어의 표기 원칙」 제1·5·6·8항, 제9항 (나), 제10·11·14·15항,
-        「영어의 표기 세칙」 제3항 2와 제7항을 따라 옮겼다. 라틴어에 없는 몇몇 글자 조합에 한해서는 관례를 존중했다.<br>
-        <small class="ref">Covington, M. A. 2010. <i>Latin Pronunciation Demystified</i>. Program in Linguistics, University of Georgia.
-        <a href="http://www.ai.uga.edu/mc/latinpro.pdf" target="_blank" rel="noopener">ai.uga.edu/mc/latinpro.pdf</a></small></p>
-      </details>
-    </section>
-    <section class="sources">
-      <h3 data-i18n="sources">자료</h3>
-      <ul id="sources"></ul>
-      <p class="note" data-i18n-html="sources.about">배경·해안선·국경·화석 좌표는 모두 PALEOMAP 판 모델 틀이다. 화석 좌표는 산지의 지금 좌표를 <b>지도 시점의 나이로</b> 해안선과 같은 판 모델(v19o)로 돌린 것이라, 범위가 넓은 산지도 시점마다 그때 자리에 그려진다. 그 나이에 판이 없는 드문 산지(0.1% 미만)만 PBDB 고좌표(연대 중간값)를 쓴다 — 팝업에 적는다.</p>
-      <p class="note" id="relief-note"></p>
-      <p class="note">Wegener's Dream {{ version }}{% if built_at %} · <span data-i18n="data">자료</span> {{ built_at|slice:":10" }}{% endif %}</p>
-    </section>
+    <nav class="sheet-tabs" role="tablist" aria-label="설정 · 자료" data-i18n-attr="aria-label:settings">
+      <button type="button" role="tab" id="stab-look-t" aria-controls="stab-look" aria-selected="true" data-stab="look" data-i18n="stab.look">설정</button>
+      <button type="button" role="tab" id="stab-about-t" aria-controls="stab-about" aria-selected="false" data-stab="about" data-i18n="stab.about">소개</button>
+      <button type="button" role="tab" id="stab-sources-t" aria-controls="stab-sources" aria-selected="false" data-stab="sources" data-i18n="stab.sources">자료 · 판 이력</button>
+    </nav>
+
+    <div class="stab-body" id="stab-look" role="tabpanel" aria-labelledby="stab-look-t">
+      <section>
+        <h3 data-i18n="lang">언어</h3>
+        <div class="seg lang" role="group" aria-label="언어" data-i18n-attr="aria-label:lang">
+          <button type="button" data-lang="ko" lang="ko">한국어</button><button type="button" data-lang="en" lang="en">English</button>
+        </div>
+      </section>
+      <section>
+        <h3 data-i18n="mode">화면 모드</h3>
+        <div class="seg mode" role="group" aria-label="화면 모드" data-i18n-attr="aria-label:mode">
+          <button type="button" data-mode-pick="sci">Scientific</button><button type="button" data-mode-pick="casual">Casual</button>
+        </div>
+        <p class="note" data-i18n="mode.about">Scientific: 글씨체 Pretendard, 층서·퇴적 환경·분류 계급 이름을 영문으로(한글은 마우스를 올리면). Casual: 빈티지 책 글씨체와 한글 용어.</p>
+      </section>
+      <section>
+        <h3 data-i18n="theme">화면 밝기</h3>
+        <div class="seg theme" role="group" aria-label="화면 밝기" data-i18n-attr="aria-label:theme">
+          <button type="button" data-theme-pick="auto" data-i18n="theme.auto">자동</button><button type="button" data-theme-pick="light" data-i18n="theme.light">밝게 · 양피지</button><button type="button" data-theme-pick="dark" data-i18n="theme.dark">어둡게 · 흑단</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="stab-body" id="stab-about" role="tabpanel" aria-labelledby="stab-about-t" hidden>
+      <section class="about">
+        <h3 data-i18n="about">소개</h3>
+        <p data-i18n="about.lead">Wegener's Dream(베게너의 꿈)은 극지연구소 고생물진화연구실이 만드는 고지리 화석 지도다. 전 세계의 화석 기록과 고지구 자료를 하나의 판 모델 위에 통합해, 시간에 걸친 생물군의 분포와 다양성 변화를 추적하는 것을 목적으로 한다.</p>
+        <p data-i18n="about.data">화석 산지는 Paleobiology Database(PBDB), 고지리·해안선·지표 기온은 주로 PALEOMAP(Scotese) 계열의 자료이고, 산지의 좌표는 시점마다 그 나이의 판 위치로 다시 계산한다. 현생누대 109 시점과 에디아카라기 한 시점을 넘겨 보고, 분류군·국가·지층으로 찾는다.</p>
+        <p data-i18n="about.name">이름은 대륙이동설을 내놓은 알프레트 베게너(1880–1930)에게서 왔다 — 그가 그리던, 움직이는 대륙 위의 생물 기록.</p>
+      </section>
+      <section class="people">
+        <h3 data-i18n="people">만든 사람들</h3>
+        <ul class="people-list">
+          <li><b>최준석</b> <a href="https://github.com/Tupandactyl" target="_blank" rel="noopener">Tupandactyl</a>
+            <span data-i18n="people.tupandactyl">데이터 통합과 수정, 기능 추가</span></li>
+          <li><b>정직한</b> <a href="https://github.com/jikhanjung" target="_blank" rel="noopener">jikhanjung</a>
+            <span data-i18n="people.review">검토와 세부 기능 추가</span></li>
+          <li><b>이승찬</b> <a href="https://github.com/wetherilli" target="_blank" rel="noopener">wetherilli</a>
+            <span data-i18n="people.review">검토와 세부 기능 추가</span></li>
+          <li><b>koprifossillab</b> <a href="https://github.com/koprifossillab" target="_blank" rel="noopener">koprifossillab</a>
+            <span data-i18n="people.lead">총괄</span></li>
+        </ul>
+        <p class="note" data-i18n-html="people.repo">극지연구소 고생물진화연구실 · 코드는 <a href="https://github.com/koprifossillab/WegenersDream" target="_blank" rel="noopener">github.com/koprifossillab/WegenersDream</a>(AGPL-3.0). 누가 무엇을 했는지는 저장소의 기록(git·devlog)에 있다.</p>
+      </section>
+      <!-- 읽는 법 — 패널에 늘 떠 있던 설명들(tupandactyl 002) -->
+      <!-- 읽는 법 — 주제마다 접어 둔다. 제목만 보이고 누르면 편다(연구자: 길어져 읽기 어렵다, tupandactyl 031) -->
+      <section class="guide">
+        <h3 data-i18n="guide">읽는 법</h3>
+        <details class="guide-item"><summary data-i18n="guide.t.points">포인트 — PBDB 산지</summary>
+          <p class="note" data-i18n="fossils.about">포인트 하나가 PBDB 산지 하나다. 연대 범위가 시점 ±2.5 Myr 와 겹치면 오른다 — 범위가 넓은 산지는 걸친 모든 시점에 보인다. 누르면 산출 목록을 PBDB 에서 바로 읽는다.</p>
+        </details>
+        <details class="guide-item"><summary data-i18n="guide.t.vague">▲ 모호한 연대와 연대 범위</summary>
+          <p class="note" data-i18n="vague.about">▲ 모호한 연대 — "Middle Cambrian", "Late Triassic" 처럼 절 단위로 정해지지 않은 기록(PBDB 시대 이름이 세·기·대). 걸친 모든 시점에 세모로 보이고, 자리는 시점마다 그 나이로 계산한다. 절 이름으로 정해진 범위("Norian–Rhaetian")는 ● 정해진 기록이다.</p>
+          <p class="note" data-i18n="span.about">연대 범위(max − min)가 고른 값 이하인 기록만 보인다. 시대 이름의 등급(▲)과 따로 본다 — 등급은 어떻게 매겼는지, 범위는 시간이 얼마나 불확실한지다.</p>
+        </details>
+        <details class="guide-item"><summary data-i18n="guide.t.env">퇴적 환경 옆의 수</summary>
+          <p class="note" data-i18n="env.count">퇴적 환경 옆의 수는 지금 지도의 산지 수다. 분류군을 찾는 동안에는 그 분류군의 산출 건수다.</p>
+        </details>
+        <details class="guide-item"><summary data-i18n="guide.t.taxon">분류군 찾기 — 커서·산출 시대의 수</summary>
+          <p class="note" data-i18n="guide.hover">분류군을 찾으면 산지에 커서를 대기만 해도 그 산지에서 나온 찾은 분류군 아래의 기록이 뜬다. 5종 이상이면 수만 적고, 누르면 산지의 산출 목록 전체를 PBDB 에서 읽는다.</p>
+          <p class="note" id="guide-dist"></p>
+        </details>
+        <details class="guide-item"><summary data-i18n="guide.t.formation">지층의 화석 기록</summary>
+          <p class="note" data-i18n="formation.about">지층을 걸면 패널에 그 지층 전체의 기록을 계통 나무로 모은다(지도의 시점·거르기와 상관없이). 맨 위는 동물·식물·기타, 그 밑은 문부터 접혀 있다. 수는 산출 건수다. 미동정은 과 이상에서 멈춘 동정으로, 계통이 닿는 가장 깊은 마디에 둔다. 속은 이름 차례, 종은 속 아래, 어느 산지인지는 속·종 끝에 접어 둔다. 이름을 누르면 그 분류군으로 찾는다.</p>
+        </details>
+        <details class="guide-item"><summary data-i18n="guide.t.chrono">층서표</summary>
+          <p class="note" data-i18n="chrono.about">이름은 국제지질연대층서표 한글판(2023/04), 경계 나이는 ICS 2024/12 판이다. 지도는 5 Myr 간격이라, 고른 단위의 가운데에 가장 가까운 지도를 보인다.</p>
+        </details>
+        <details class="guide-item"><summary data-i18n="guide.t.ko">학명의 우리말 표기(Casual)</summary>
+          <p class="note guide-ko" data-i18n-html="guide.ko">속·종 이름은 Covington(2010)의 고전 라틴어 발음을 바탕으로,
+          국립국어원 외래어 표기법의 「라틴어의 표기 원칙」 전부와 「기타 언어의 표기 원칙」 제1·5·6·8항, 제9항 (나), 제10·11·14·15항,
+          「영어의 표기 세칙」 제3항 2와 제7항을 따라 옮겼다. 라틴어에 없는 몇몇 글자 조합에 한해서는 관례를 존중했다.<br>
+          <small class="ref">Covington, M. A. 2010. <i>Latin Pronunciation Demystified</i>. Program in Linguistics, University of Georgia.
+          <a href="http://www.ai.uga.edu/mc/latinpro.pdf" target="_blank" rel="noopener">ai.uga.edu/mc/latinpro.pdf</a></small></p>
+        </details>
+      </section>
+    </div>
+
+
+    <div class="stab-body" id="stab-sources" role="tabpanel" aria-labelledby="stab-sources-t" hidden>
+      <section class="sources">
+        <h3 data-i18n="sources">자료</h3>
+        <ul id="sources"></ul>
+        <p class="note" data-i18n-html="sources.about">배경·해안선·국경·화석 좌표는 모두 PALEOMAP 판 모델 틀이다. 화석 좌표는 산지의 지금 좌표를 <b>지도 시점의 나이로</b> 해안선과 같은 판 모델(v19o)로 돌린 것이라, 범위가 넓은 산지도 시점마다 그때 자리에 그려진다. 그 나이에 판이 없는 드문 산지(0.1% 미만)만 PBDB 고좌표(연대 중간값)를 쓴다 — 팝업에 적는다.</p>
+        <p class="note" id="relief-note"></p>
+        <p class="note">Wegener's Dream {{ version }}{% if built_at %} · <span data-i18n="data">자료</span> {{ built_at|slice:":10" }}{% endif %}</p>
+      </section>
+      <!-- 판 이력 — CHANGELOG.md 를 서버가 읽어 그린다(views.patch_notes). 한국어만 -->
+      <section class="notes">
+        <h3 data-i18n="stab.notes">판 이력</h3>
+        <p class="note" data-i18n="notes.about">판마다 바뀐 것. 괄호 안은 그 일의 개발 기록(devlog)이다.</p>
+        {% for n in notes %}<details class="note-ver"{% if forloop.first %} open{% endif %}>
+          <summary><b>{{ n.version }}</b>{% if n.date %} <small>{{ n.date }}</small>{% endif %}</summary>
+          {% if n.lead %}<p>{{ n.lead|safe }}</p>{% endif %}
+          {% if n.items %}<ul>{% for it in n.items %}<li>{{ it|safe }}</li>{% endfor %}</ul>{% endif %}
+        </details>{% empty %}<p class="note">—</p>{% endfor %}
+      </section>
+    </div>
+
   </dialog>
 
   <!-- 분석 그래프 크게(tupandactyl 024) -->

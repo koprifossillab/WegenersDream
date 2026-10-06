@@ -25,6 +25,20 @@
 자료가 모두 **PALEOMAP 판 모델 틀**이라 서로 맞는다. PBDB 기본 모델(`gplates`)을
 쓰면 점이 배경과 수 도씩 어긋난다 — [devlog 001](devlog/20260929_001_시작.md).
 
+## 소개 · 만든 사람들
+
+극지연구소 고생물진화연구실이 만든다. 전 세계의 화석 기록과 고지구 자료를 하나의 판 모델 위에 통합해, 시간에 걸친 생물군의
+분포와 다양성 변화를 추적하는 것이 목적이다. 이름은 대륙이동설을 내놓은 알프레트 베게너(1880–1930)에게서 왔다.
+
+| 사람 | GitHub | 맡은 일 |
+|---|---|---|
+| 최준석 | [Tupandactyl](https://github.com/Tupandactyl) | 데이터 통합과 수정, 기능 추가 |
+| 정직한 | [jikhanjung](https://github.com/jikhanjung) | 검토와 세부 기능 추가 |
+| 이승찬 | [wetherilli](https://github.com/wetherilli) | 검토와 세부 기능 추가 |
+| — | [koprifossillab](https://github.com/koprifossillab) | 총괄 |
+
+화면에서는 ⚙ 설정 창의 "소개" 탭에 같은 내용이 있다(`web/viewer/templates/viewer/map.html`, 영어는 `i18n.js`) — 바꿀 때 둘 다 고친다.
+
 ## 구조
 
 ```

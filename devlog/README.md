@@ -115,3 +115,4 @@
 | koprifossillab 036 | 2026-10-02 | [휴대폰의 팝업 터치·시점 막대·패널 끌기](20261002_koprifossillab_036_mobile_touch.md) |
 | koprifossillab 037 | 2026-10-06 | [주간 갱신이 남의 폴더 시각에서 멈췄다](20261006_koprifossillab_037_refresh_dir_times.md) |
 | koprifossillab 038 | 2026-10-06 | [휴대폰: 시점 막대 접기, 찾기 카드의 분류군 줄, 지도 옮기기](20261006_koprifossillab_038_mobile_find.md) |
+| koprifossillab 039 | 2026-10-06 | [설정 창을 탭 셋으로: 설정 · 소개 · 자료와 판 이력](20261006_koprifossillab_039_about_tabs.md) |

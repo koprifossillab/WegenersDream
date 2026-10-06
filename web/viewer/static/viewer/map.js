@@ -4486,7 +4486,27 @@
   (function initSettings() {
     var sheet = $("settings");
     if (!sheet.showModal) return;   // 아주 옛 브라우저 — 단추를 눌러도 아무 일이 없다
-    $("settings-open").addEventListener("click", function () { sheet.showModal(); });
+    // 탭 셋(koprifossillab 039) — 설정 · 소개(만든 사람들·읽는 법) · 자료와 판 이력. 열 때마다 설정 탭부터
+    var tabs = sheet.querySelectorAll("[data-stab]");
+    function pick(name) {
+      tabs.forEach(function (t) {
+        var on = t.dataset.stab === name;
+        t.setAttribute("aria-selected", String(on));
+        t.tabIndex = on ? 0 : -1;
+        $("stab-" + t.dataset.stab).hidden = !on;
+      });
+    }
+    tabs.forEach(function (t, k) {
+      t.addEventListener("click", function () { pick(t.dataset.stab); });
+      t.addEventListener("keydown", function (e) {                // 좌우 화살표로 옆 탭
+        var d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+        if (!d) return;
+        var next = tabs[(k + d + tabs.length) % tabs.length];
+        pick(next.dataset.stab);
+        next.focus();
+      });
+    });
+    $("settings-open").addEventListener("click", function () { pick("look"); sheet.showModal(); });
     $("settings-close").addEventListener("click", function () { sheet.close(); });
     sheet.addEventListener("click", function (e) { if (e.target === sheet) sheet.close(); });
   })();   // <head> 가 가려 둔 것을 벗긴다
