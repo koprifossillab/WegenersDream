@@ -84,8 +84,8 @@ WEGENER_TAG=v1.1.1 docker compose -f deploy/docker-compose.yml build web
 #   또는: cd /srv/WegenersDream && WEGENER_TAG=v1.1.1 docker compose pull
 
 # 가공물이 바뀌었으면 — index.json 을 맨 나중에 바꾼다(컨테이너가 없는 파일을 가리키지 않게)
-rsync -a --exclude index.json data/derived/ /srv/WegenersDream/data/
-rsync -a data/derived/index.json /srv/WegenersDream/data/index.json
+rsync -a --omit-dir-times --exclude index.json data/derived/ /srv/WegenersDream/data/
+rsync -a --omit-dir-times data/derived/index.json /srv/WegenersDream/data/index.json
 
 cd /srv/WegenersDream && WEGENER_TAG=v1.1.1 docker compose up -d web
 deploy/host/smoke.sh http://172.16.116.98/WegenersDream/

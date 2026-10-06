@@ -113,3 +113,4 @@
 | tupandactyl 031 | 2026-10-01 | [지층 화석 나무를 동물·식물·기타로, 읽는 법을 접어서, 찾기 후보 차례](20261001_tupandactyl_031_fauna_guide_tidy.md) |
 | koprifossillab 035 | 2026-10-02 | [휴대폰 화면](20261002_koprifossillab_035_mobile_ui.md) |
 | koprifossillab 036 | 2026-10-02 | [휴대폰의 팝업 터치·시점 막대·패널 끌기](20261002_koprifossillab_036_mobile_touch.md) |
+| koprifossillab 037 | 2026-10-06 | [주간 갱신이 남의 폴더 시각에서 멈췄다](20261006_koprifossillab_037_refresh_dir_times.md) |

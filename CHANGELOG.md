@@ -3,6 +3,11 @@
 괄호 안의 번호는 `devlog/` 의 그 문서다. **지금 무엇이 도는지는 이 파일이 아니라
 [HANDOFF.md](HANDOFF.md) 다.**
 
+## 1.1.2 — 2026-10-06 · `feature/refresh-dir-times`
+
+- **주간 갱신이 운영에 옮기다 멈추던 것** — 다른 계정이 만든 폴더(`taxa_ko`)의 시각을 못 바꿔 rsync 가 실패하고 `index.json` 이 옛것으로
+  남았다(10-05). 운영에 옮기는 rsync 가 폴더 시각을 맞추지 않는다(`--omit-dir-times`). README·docs/백업.md 의 명령도 같이 (koprifossillab 037)
+
 ## 1.1.1 — 2026-10-02 · `feature/mobile-touch`
 
 - **휴대폰의 산지 팝업** — 작게(폭 270 px·창 높이의 34 %), 팝업 전체가 한 스크롤 칸. 팝업 안을 문지르면 안쪽이 먼저 밀리고 끝에 닿으면 지도가
