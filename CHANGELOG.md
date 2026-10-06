@@ -3,6 +3,10 @@
 괄호 안의 번호는 `devlog/` 의 그 문서다. **지금 무엇이 도는지는 이 파일이 아니라
 [HANDOFF.md](HANDOFF.md) 다.**
 
+## 1.2.2 — 2026-10-06 · `feature/people-list`
+
+- **만든 사람들에서 koprifossillab 을 뺀다** — 화면(설정 창의 소개 탭)과 README (koprifossillab 041)
+
 ## 1.2.1 — 2026-10-06 · `feature/settings-tabs`
 
 - **설정 창의 탭을 다시 묶는다** — 설정(언어·화면 모드·밝기·읽는 법) · 소개(소개·만든 사람들·자료) · 판 이력 (koprifossillab 040)
