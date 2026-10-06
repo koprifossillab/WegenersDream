@@ -237,6 +237,15 @@
     // 패널·출처
     "panel.close": ["패널 접기 ▾", "Hide panel ▾"],
     "panel.open": ["패널 펼치기 ▴", "Show panel ▴"],
+    // 휴대폰의 시점 막대 접기와 찾기 카드의 분류군 줄(koprifossillab 038)
+    "tb.open": ["시점 ▾", "Time ▾"],
+    "tb.close": ["시점 ▴", "Time ▴"],
+    "tb.title": ["시점 막대 펴기·접기", "Show or hide the timeline"],
+    "fd.all": ["◎ 전체 산지", "◎ All localities"],
+    "fd.back": ["◀ 시점별 산지", "◀ By time"],
+    "fd.allTitle": ["찾은 분류군의 모든 시대 산지를 오늘날 자리로 본다", "Every locality of the taxon, all ages, at present-day positions"],
+    "fd.backTitle": ["그때 자리의 산지로 — 보던 시점, 없으면 산출이 가장 많은 시점", "Back to localities at their past positions — the time you were viewing, or the richest one"],
+    "fd.strip": ["시점마다 산출 수 — 누르면 그 시점으로", "Occurrences per time slice — tap to go there"],
     "attribution": ["PaleoDEM · PaleoCoastlines (Scotese 외) · PBDB — CC BY 4.0", "PaleoDEM · PaleoCoastlines (Scotese et al.) · PBDB — CC BY 4.0"],
   };
 
