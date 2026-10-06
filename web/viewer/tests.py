@@ -56,6 +56,27 @@ class MapPageTest(DataDirMixin, SimpleTestCase):
         self.assertContains(response, "자료가 아직 없다")
 
 
+class PatchNotesTest(DataDirMixin, SimpleTestCase):
+    """설정 창의 판 이력 — CHANGELOG.md 맨 위 판이 화면에 있고, 마크다운은 굵게·코드만 HTML 이 된다(koprifossillab 039)."""
+
+    def test_current_version_is_listed(self):
+        from django.conf import settings
+        response = self.client.get("/")
+        self.assertContains(response, 'id="stab-sources"')
+        self.assertContains(response, "<summary><b>" + settings.WEGENER_VERSION + "</b>")
+
+    def test_parse(self):
+        from .patchnotes import parse
+        notes = parse("# 판 이력\n\n## 2.0.0 — 2026-10-07 · `feature/x`\n\n머리말\n\n- **굵게** 와 `코드` <b>날것</b>\n"
+                      "  이어지는 줄\n- [링크](a.md)\n\n## 1.9.0\n\n- 날짜 없는 판\n")
+        self.assertEqual([n["version"] for n in notes], ["2.0.0", "1.9.0"])
+        self.assertEqual(notes[0]["date"], "2026-10-07")
+        self.assertEqual(notes[0]["lead"], "머리말")
+        self.assertEqual(notes[0]["items"][0], "<b>굵게</b> 와 <code>코드</code> &lt;b&gt;날것&lt;/b&gt; 이어지는 줄")
+        self.assertEqual(notes[0]["items"][1], "링크")
+        self.assertEqual(notes[1]["date"], "")
+
+
 class DataFileTest(DataDirMixin, SimpleTestCase):
     def test_serves_index_and_frames(self):
         response = self.client.get("/data/index.json")

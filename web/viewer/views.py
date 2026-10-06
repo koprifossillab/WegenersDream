@@ -13,7 +13,7 @@ from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_GET, require_http_methods
 
-from . import labels
+from . import labels, patchnotes
 
 # 내줄 수 있는 것은 이 꼴뿐이다. 자료 폴더에 무엇이 더 놓여 있어도 밖에 나가지 않는다.
 SERVED = {".json": "application/json", ".webp": "image/webp", ".png": "image/png"}
@@ -30,10 +30,19 @@ def load_index():
         return None
 
 
+def patch_notes():
+    """판 이력 — 설정 창의 탭(koprifossillab 039). CHANGELOG.md 는 이미지에 함께 구워지므로 그때그때 읽는다."""
+    try:
+        return patchnotes.parse((Path(settings.REPO_DIR) / "CHANGELOG.md").read_text(encoding="utf-8"))
+    except OSError:
+        return []
+
+
 @require_GET
 def map_page(request):
     index = load_index()
     return render(request, "viewer/map.html", {
+        "notes": patch_notes(),
         "version": settings.WEGENER_VERSION,
         "has_data": index is not None,
         "frame_count": len(index["frames"]) if index else 0,
