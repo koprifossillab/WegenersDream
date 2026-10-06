@@ -18,11 +18,8 @@
 `build`(배경 포함, 7 분 남짓). 몰바이데 배경이 없으면 투영 고르기가 숨는다.
 
 **배포**: paleoserver — **http://paleolab/WegenersDream/**(`172.16.116.98`) = `v1.1.1`(Docker Hub 이미지). 컨테이너 `wegenersdream-web-1`
-**10-05 주간 갱신이 운영 옮기기에서 멈췄다**(koprifossillab 037) — 가공물은 모두 옮겨졌고 `index.json` 만 09-30 것, 바깥 사이트 자료도
-10-01 것이다. `/healthz` 가 `degraded`. 원인은 1.1.2 에서 고쳤다. 손으로 마무리하기 전까지 그대로이고, 안 하면 10-12 정기 실행이 맞춘다.
-마무리는 paleoadmin 셸에서: `rsync -a --omit-dir-times ~/projects/WegenersDream/data/derived/index.json /srv/WegenersDream/data/index.json`,
-`deploy/host/smoke.sh`, 그리고 바깥 사이트 자료(weekly_refresh.sh 의 5 단계 — `tar -czf` → `gh release upload site-data --clobber` →
-`gh workflow run pages.yml`).
+**10-05 주간 갱신**은 운영 옮기기에서 멈췄다가(폴더 시각, 1.1.2 에서 고침) 10-06 에 손으로 마무리했다 — 운영·바깥 사이트 모두 PBDB 10-04,
+`/healthz` ok(koprifossillab 037). 다음 정기 실행은 10-12(월).
 
 **연구소 밖**: **https://koprifossillab.github.io/WegenersDream/** — 같은 뷰어의 고정 사본(GitHub Pages, tupandactyl 029). `deploy/static_site.py` 로
 굽고 `.github/workflows/pages.yml` 이 올린다. 자료는 릴리스 `site-data` 의 `wegener-data.tar.gz`(주간 갱신이 덮어쓴다). Pages(Source "GitHub Actions")는
