@@ -153,8 +153,10 @@ EOF
 
 # ── 4. 운영에 옮기기 — index.json 을 맨 나중에 ───────────────────────────
 STEP=deploy
-rsync -a --exclude index.json "$REPO/data/derived/" "$SRV/data/" || fail "rsync 실패"
-rsync -a "$REPO/data/derived/index.json" "$SRV/data/index.json" || fail "index.json rsync 실패"
+# 폴더 시각은 맞추지 않는다(--omit-dir-times) — 다른 계정이 만든 폴더(taxa_ko, jschoi)는 paleoadmin 이 시각을 못 바꿔 rsync 가
+# 코드 23 으로 끝났고, 파일은 다 옮기고도 index.json 을 남긴 채 실패로 멈췄다(10-05, koprifossillab 037). 파일 시각은 그대로 맞춘다
+rsync -a --omit-dir-times --exclude index.json "$REPO/data/derived/" "$SRV/data/" || fail "rsync 실패"
+rsync -a --omit-dir-times "$REPO/data/derived/index.json" "$SRV/data/index.json" || fail "index.json rsync 실패"
 "$REPO/deploy/host/smoke.sh" >/dev/null || fail "smoke 실패 — 운영을 확인한다"
 
 # ── 5. 바깥에서 보는 사이트(GitHub Pages, tupandactyl 029) ────────────────
