@@ -8,7 +8,7 @@
 패키지 `wegenerweb` (020, CLAUDE.md "이름"). **로컬 실행·시험의 `MIH_*` 환경변수는 이제 안 먹는다.**
 
 **저장소** https://github.com/koprifossillab/WegenersDream (09-30 에 `MIH` 에서 바꿈 — 옛 주소는 GitHub 가 넘겨 준다).
-**브랜치** `main` = `1.2.1` (10-06, PR #1~#49) · 병합을 기다리는 브랜치는 없다. 0.11.1 부터 GitHub PR 로 병합하고,
+**브랜치** `main` = `1.2.2` (10-06, PR #1~#50) · 병합을 기다리는 브랜치는 없다. 0.11.1 부터 GitHub PR 로 병합하고,
 판을 올리면 CHANGELOG 로 GitHub 릴리스를 만든다(v0.11.2 부터).
 다음 코드 작업은 각자 자기 계정에서 `feature/<기능 이름>` 브랜치를 `main` 에서 만들고, 끝나면 PR 을 만든다
 (CLAUDE.md "커밋과 PR"). **병합 직전에 `deploy/host/premerge.sh <PR>`**(충돌·뒤처짐·판·CI, wetherilli 010).
@@ -17,13 +17,13 @@
 몰바이데 `moll-*`(024)가 있어야 한다. `python -m pipeline fetch`(PBDB 시대 이름 목록 `intervals.json` 이 든다) 다음
 `build`(배경 포함, 7 분 남짓). 몰바이데 배경이 없으면 투영 고르기가 숨는다.
 
-**배포**: paleoserver — **http://paleolab/WegenersDream/**(`172.16.116.98`) = `v1.2.1`(Docker Hub 이미지). 컨테이너 `wegenersdream-web-1`
+**배포**: paleoserver — **http://paleolab/WegenersDream/**(`172.16.116.98`) = `v1.2.2`(Docker Hub 이미지). 컨테이너 `wegenersdream-web-1`
 **10-05 주간 갱신**은 운영 옮기기에서 멈췄다가(폴더 시각, 1.1.2 에서 고침) 10-06 에 손으로 마무리했다 — 운영·바깥 사이트 모두 PBDB 10-04,
 `/healthz` ok(koprifossillab 037). 다음 정기 실행은 10-12(월).
 
 **연구소 밖**: **https://koprifossillab.github.io/WegenersDream/** — 같은 뷰어의 고정 사본(GitHub Pages, tupandactyl 029). `deploy/static_site.py` 로
 굽고 `.github/workflows/pages.yml` 이 올린다. 자료는 릴리스 `site-data` 의 `wegener-data.tar.gz`(주간 갱신이 덮어쓴다). Pages(Source "GitHub Actions")는
-10-02 에 켰고 v1.2.1 이 올라가 있다. 배포 환경 `github-pages` 는 `main` 브랜치와 `v*` 태그에서만 올릴 수 있다 — 릴리스로 도는
+10-02 에 켰고 v1.2.2 가 올라가 있다. 배포 환경 `github-pages` 는 `main` 브랜치와 `v*` 태그에서만 올릴 수 있다 — 릴리스로 도는
 작업은 태그 위라, 태그 규칙이 없으면 배포 단계가 막힌다(10-02 v1.1.0 에서 한 번 막혀 더했다). 손으로 다시 올리려면 `gh workflow run pages.yml`.
 (`127.0.0.1:8095`), nginx `snippets/WegenersDream-subpath.conf`, paleolab 첫 화면 카드. 운영 compose·`.env` 는
 `/srv/WegenersDream/`, 자료는 `/srv/WegenersDream/data`(읽기 전용), 명칭 덮어쓰기·비밀키는 `/srv/WegenersDream/state`.
@@ -217,3 +217,4 @@ playwright 의 헤드리스 크롬은 사내 TLS 검사 장비의 인증서(KOPR
 | 1.1.3 | 휴대폰 — 시점 막대 접어서 시작, 찾기 카드의 분류군 줄(시점별 산출·전체 산지), 더 축소·이동, 몰바이데 손가락 끌기. 최근 찾은 것·최근 절 단추의 함수 이름 충돌 | koprifossillab 038 |
 | 1.2.0 | 설정 창 탭 셋(설정 · 소개 · 자료와 판 이력), 연구실 소개·만든 사람들, CHANGELOG 로 그린 판 이력 | koprifossillab 039 |
 | 1.2.1 | 설정 창 탭 다시 묶기 — 설정(읽는 법) · 소개(만든 사람들·자료) · 판 이력 | koprifossillab 040 |
+| 1.2.2 | 만든 사람들에서 koprifossillab 을 뺀다 | koprifossillab 041 |

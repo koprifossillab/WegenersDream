@@ -93,14 +93,14 @@ CI(`.github/workflows/test.yml`)가 PR·push 마다 둘 다 돌리고 이미지�
 
 ```bash
 # 이미지: 서버에서 굽거나, 릴리스된 판을 Docker Hub 에서 받는다
-WEGENER_TAG=v1.2.1 docker compose -f deploy/docker-compose.yml build web
-#   또는: cd /srv/WegenersDream && WEGENER_TAG=v1.2.1 docker compose pull
+WEGENER_TAG=v1.2.2 docker compose -f deploy/docker-compose.yml build web
+#   또는: cd /srv/WegenersDream && WEGENER_TAG=v1.2.2 docker compose pull
 
 # 가공물이 바뀌었으면 — index.json 을 맨 나중에 바꾼다(컨테이너가 없는 파일을 가리키지 않게)
 rsync -a --omit-dir-times --exclude index.json data/derived/ /srv/WegenersDream/data/
 rsync -a --omit-dir-times data/derived/index.json /srv/WegenersDream/data/index.json
 
-cd /srv/WegenersDream && WEGENER_TAG=v1.2.1 docker compose up -d web
+cd /srv/WegenersDream && WEGENER_TAG=v1.2.2 docker compose up -d web
 deploy/host/smoke.sh http://172.16.116.98/WegenersDream/
 ```
 
