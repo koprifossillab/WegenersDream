@@ -62,7 +62,7 @@ class PatchNotesTest(DataDirMixin, SimpleTestCase):
     def test_current_version_is_listed(self):
         from django.conf import settings
         response = self.client.get("/")
-        self.assertContains(response, 'id="stab-sources"')
+        self.assertContains(response, 'id="stab-notes"')
         self.assertContains(response, "<summary><b>" + settings.WEGENER_VERSION + "</b>")
 
     def test_parse(self):

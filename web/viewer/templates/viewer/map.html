@@ -55,7 +55,7 @@
     </div>
   </header>
 
-  <!-- 설정 · 자료(wetherilli 003) → 탭 셋(koprifossillab 039, GSM 의 설정 창처럼) — 설정 · 소개(만든 사람들·읽는 법) · 자료와 판 이력 -->
+  <!-- 설정 · 자료(wetherilli 003) → 탭 셋(koprifossillab 039·040, GSM 의 설정 창처럼) — 설정(읽는 법) · 소개(만든 사람들·자료) · 판 이력 -->
   <dialog id="settings" class="sheet" aria-labelledby="settings-title">
     <div class="sheet-head">
       <div class="sheet-brand">
@@ -67,7 +67,7 @@
     <nav class="sheet-tabs" role="tablist" aria-label="설정 · 자료" data-i18n-attr="aria-label:settings">
       <button type="button" role="tab" id="stab-look-t" aria-controls="stab-look" aria-selected="true" data-stab="look" data-i18n="stab.look">설정</button>
       <button type="button" role="tab" id="stab-about-t" aria-controls="stab-about" aria-selected="false" data-stab="about" data-i18n="stab.about">소개</button>
-      <button type="button" role="tab" id="stab-sources-t" aria-controls="stab-sources" aria-selected="false" data-stab="sources" data-i18n="stab.sources">자료 · 판 이력</button>
+      <button type="button" role="tab" id="stab-notes-t" aria-controls="stab-notes" aria-selected="false" data-stab="notes" data-i18n="stab.notes">판 이력</button>
     </nav>
 
     <div class="stab-body" id="stab-look" role="tabpanel" aria-labelledby="stab-look-t">
@@ -89,29 +89,6 @@
         <div class="seg theme" role="group" aria-label="화면 밝기" data-i18n-attr="aria-label:theme">
           <button type="button" data-theme-pick="auto" data-i18n="theme.auto">자동</button><button type="button" data-theme-pick="light" data-i18n="theme.light">밝게 · 양피지</button><button type="button" data-theme-pick="dark" data-i18n="theme.dark">어둡게 · 흑단</button>
         </div>
-      </section>
-    </div>
-
-    <div class="stab-body" id="stab-about" role="tabpanel" aria-labelledby="stab-about-t" hidden>
-      <section class="about">
-        <h3 data-i18n="about">소개</h3>
-        <p data-i18n="about.lead">Wegener's Dream(베게너의 꿈)은 극지연구소 고생물진화연구실이 만드는 고지리 화석 지도다. 전 세계의 화석 기록과 고지구 자료를 하나의 판 모델 위에 통합해, 시간에 걸친 생물군의 분포와 다양성 변화를 추적하는 것을 목적으로 한다.</p>
-        <p data-i18n="about.data">화석 산지는 Paleobiology Database(PBDB), 고지리·해안선·지표 기온은 주로 PALEOMAP(Scotese) 계열의 자료이고, 산지의 좌표는 시점마다 그 나이의 판 위치로 다시 계산한다. 현생누대 109 시점과 에디아카라기 한 시점을 넘겨 보고, 분류군·국가·지층으로 찾는다.</p>
-        <p data-i18n="about.name">이름은 대륙이동설을 내놓은 알프레트 베게너(1880–1930)에게서 왔다 — 그가 그리던, 움직이는 대륙 위의 생물 기록.</p>
-      </section>
-      <section class="people">
-        <h3 data-i18n="people">만든 사람들</h3>
-        <ul class="people-list">
-          <li><b>최준석</b> <a href="https://github.com/Tupandactyl" target="_blank" rel="noopener">Tupandactyl</a>
-            <span data-i18n="people.tupandactyl">데이터 통합과 수정, 기능 추가</span></li>
-          <li><b>정직한</b> <a href="https://github.com/jikhanjung" target="_blank" rel="noopener">jikhanjung</a>
-            <span data-i18n="people.review">검토와 세부 기능 추가</span></li>
-          <li><b>이승찬</b> <a href="https://github.com/wetherilli" target="_blank" rel="noopener">wetherilli</a>
-            <span data-i18n="people.review">검토와 세부 기능 추가</span></li>
-          <li><b>koprifossillab</b> <a href="https://github.com/koprifossillab" target="_blank" rel="noopener">koprifossillab</a>
-            <span data-i18n="people.lead">총괄</span></li>
-        </ul>
-        <p class="note" data-i18n-html="people.repo">극지연구소 고생물진화연구실 · 코드는 <a href="https://github.com/koprifossillab/WegenersDream" target="_blank" rel="noopener">github.com/koprifossillab/WegenersDream</a>(AGPL-3.0). 누가 무엇을 했는지는 저장소의 기록(git·devlog)에 있다.</p>
       </section>
       <!-- 읽는 법 — 패널에 늘 떠 있던 설명들(tupandactyl 002) -->
       <!-- 읽는 법 — 주제마다 접어 둔다. 제목만 보이고 누르면 편다(연구자: 길어져 읽기 어렵다, tupandactyl 031) -->
@@ -147,8 +124,27 @@
       </section>
     </div>
 
-
-    <div class="stab-body" id="stab-sources" role="tabpanel" aria-labelledby="stab-sources-t" hidden>
+    <div class="stab-body" id="stab-about" role="tabpanel" aria-labelledby="stab-about-t" hidden>
+      <section class="about">
+        <h3 data-i18n="about">소개</h3>
+        <p data-i18n="about.lead">Wegener's Dream(베게너의 꿈)은 극지연구소 고생물진화연구실이 만드는 고지리 화석 지도다. 전 세계의 화석 기록과 고지구 자료를 하나의 판 모델 위에 통합해, 시간에 걸친 생물군의 분포와 다양성 변화를 추적하는 것을 목적으로 한다.</p>
+        <p data-i18n="about.data">화석 산지는 Paleobiology Database(PBDB), 고지리·해안선·지표 기온은 주로 PALEOMAP(Scotese) 계열의 자료이고, 산지의 좌표는 시점마다 그 나이의 판 위치로 다시 계산한다. 현생누대 109 시점과 에디아카라기 한 시점을 넘겨 보고, 분류군·국가·지층으로 찾는다.</p>
+        <p data-i18n="about.name">이름은 대륙이동설을 내놓은 알프레트 베게너(1880–1930)에게서 왔다 — 그가 그리던, 움직이는 대륙 위의 생물 기록.</p>
+      </section>
+      <section class="people">
+        <h3 data-i18n="people">만든 사람들</h3>
+        <ul class="people-list">
+          <li><b>최준석</b> <a href="https://github.com/Tupandactyl" target="_blank" rel="noopener">Tupandactyl</a>
+            <span data-i18n="people.tupandactyl">데이터 통합과 수정, 기능 추가</span></li>
+          <li><b>정직한</b> <a href="https://github.com/jikhanjung" target="_blank" rel="noopener">jikhanjung</a>
+            <span data-i18n="people.review">검토와 세부 기능 추가</span></li>
+          <li><b>이승찬</b> <a href="https://github.com/wetherilli" target="_blank" rel="noopener">wetherilli</a>
+            <span data-i18n="people.review">검토와 세부 기능 추가</span></li>
+          <li><b>koprifossillab</b> <a href="https://github.com/koprifossillab" target="_blank" rel="noopener">koprifossillab</a>
+            <span data-i18n="people.lead">총괄</span></li>
+        </ul>
+        <p class="note" data-i18n-html="people.repo">극지연구소 고생물진화연구실 · 코드는 <a href="https://github.com/koprifossillab/WegenersDream" target="_blank" rel="noopener">github.com/koprifossillab/WegenersDream</a>(AGPL-3.0). 누가 무엇을 했는지는 저장소의 기록(git·devlog)에 있다.</p>
+      </section>
       <section class="sources">
         <h3 data-i18n="sources">자료</h3>
         <ul id="sources"></ul>
@@ -156,6 +152,11 @@
         <p class="note" id="relief-note"></p>
         <p class="note">Wegener's Dream {{ version }}{% if built_at %} · <span data-i18n="data">자료</span> {{ built_at|slice:":10" }}{% endif %}</p>
       </section>
+    </div>
+
+
+    <div class="stab-body" id="stab-notes" role="tabpanel" aria-labelledby="stab-notes-t" hidden>
+
       <!-- 판 이력 — CHANGELOG.md 를 서버가 읽어 그린다(views.patch_notes). 한국어만 -->
       <section class="notes">
         <h3 data-i18n="stab.notes">판 이력</h3>
