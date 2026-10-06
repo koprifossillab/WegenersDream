@@ -355,7 +355,6 @@
     // 설정 창의 탭·소개·만든 사람들·판 이력(koprifossillab 039)
     "stab.look": "Settings",
     "stab.about": "About",
-    "stab.sources": "Sources · releases",
     "stab.notes": "Release notes",
     "about": "About",
     "about.sub": "Wegener's Dream · Paleontology & Evolution Lab, Korea Polar Research Institute",
