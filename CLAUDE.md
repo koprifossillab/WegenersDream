@@ -12,6 +12,11 @@
 함정이 있는지. 할 일은 [TODOs.md](TODOs.md), 판마다 무엇이 바뀌었는지는 [CHANGELOG.md](CHANGELOG.md),
 **왜 그렇게 했는지는 `devlog/`** 다.
 
+## 공통 규약 (kopri-devdocs guides)
+
+형제 저장소들이 같은 사고를 겪고 도달한 규약은 `.guides/` 에 있다 — 지도 뷰어 갈래(상류마다 문 하나·키는 브라우저로 안 나간다·캐시 순위·이용 조건과 연구실 내부용·정적 공개판)는 `.guides/web/map-viewers.md`, 배포·데이터 안전·운영(옛 이미지 정리 포함)은 `.guides/web/README.md`, 브랜치·판 세션·병렬 Claude 세션·devlog 는 `.guides/workflow.md`.
+**없으면 kopri-devdocs 클론이 안 걸린 것이다** — `../kopri-devdocs` 를 형제로 두고 `ln -s ../kopri-devdocs/guides .guides`. 이 저장소에는 커밋하지 않는다(kopri-devdocs 는 private, `.gitignore` 에 있다).
+
 ## 이름
 
 이름은 **Wegener's Dream**, 한국어 **베게너의 꿈**(대륙이동설의 알프레트 베게너 — 그가 그리던 움직이는 대륙
