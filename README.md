@@ -102,6 +102,9 @@ rsync -a --omit-dir-times data/derived/index.json /srv/WegenersDream/data/index.
 
 cd /srv/WegenersDream && WEGENER_TAG=v1.2.2 docker compose up -d web
 deploy/host/smoke.sh http://172.16.116.98/WegenersDream/
+
+# smoke 가 통과했으면 옛 이미지를 정리한다 — 최근 3개 + 지금 판 + 앞 판만 남긴다
+deploy/host/prune_images.sh koprifossillab/wegenersdream v1.2.2 <앞 판>   # --dry-run 으로 목록만
 ```
 
 **매주 월요일 02:30** paleoadmin 의 cron 이 [deploy/host/weekly_refresh.sh](deploy/host/weekly_refresh.sh) 를 돌린다 — 운영 자료·PBDB
