@@ -118,3 +118,4 @@
 | koprifossillab 039 | 2026-10-06 | [설정 창을 탭 셋으로: 설정 · 소개 · 자료와 판 이력](20261006_koprifossillab_039_about_tabs.md) |
 | koprifossillab 040 | 2026-10-06 | [설정 창의 탭을 다시 묶는다: 설정과 읽는 법 · 소개와 자료 · 판 이력](20261006_koprifossillab_040_settings_tabs_regroup.md) |
 | koprifossillab 041 | 2026-10-06 | [만든 사람들에서 koprifossillab 을 뺀다](20261006_koprifossillab_041_people_list.md) |
+| koprifossillab 042 | 2026-10-07 | [운영에 띄운 뒤 옛 이미지를 정리한다](20261007_koprifossillab_042_prune_old_images.md) |
