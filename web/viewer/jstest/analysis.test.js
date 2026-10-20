@@ -43,5 +43,11 @@ quality.cases.forEach(function (c) {
   check(got === want, "identMarks " + c[0].identified_name + " 기대 " + want + " 얻음 " + got);
 });
 
+// 대멸종 경계를 걸친 범위(koprifossillab 046)
+quality.straddle.forEach(function (c) {
+  var got = A.straddles(c[0], c[1], quality.boundaries, quality.rules).join(",");
+  check(got === c[2].join(","), "straddles " + c[0] + "–" + c[1] + " 기대 " + c[2] + " 얻음 " + got);
+});
+
 if (fail) { console.log(fail + " 개 틀림"); process.exit(1); }
 console.log("분석 셈 시험 통과");

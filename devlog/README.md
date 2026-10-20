@@ -123,3 +123,4 @@
 | koprifossillab 043 | 2026-10-20 | [분포 분석이 어떻게 세었는지 적는다: 좌표 틀·세는 규칙·단위, 분석 엄밀 표기](20261020_koprifossillab_043_analysis_honest_labels.md) |
 | koprifossillab 044 | 2026-10-20 | [시점 몫으로 센다: 산지 수·산출 수·고위도 분위·몬테카를로 띠, 점 진하기](20261020_koprifossillab_044_frame_share.md) |
 | koprifossillab 045 | 2026-10-20 | [동정 표지와 동정 거르기: cf.·aff.·?·속 미동정](20261020_koprifossillab_045_ident_marks.md) |
+| koprifossillab 046 | 2026-10-20 | [대멸종 경계를 걸친 연대 범위를 표시하고 거를 수 있게](20261020_koprifossillab_046_boundary_marks.md) |

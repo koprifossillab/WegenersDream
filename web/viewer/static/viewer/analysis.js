@@ -7,6 +7,7 @@
  *   (산출마다 따로 뽑으면 한 산지의 기록이 여러 시점에 흩어져 분산을 낮게 잡는다). 씨앗을 고정해 늘 같은 띠가 나온다
  * - identMarks: PBDB 산출(show=ident)의 동정 표지 — g 속 불확실·s 종 불확실·h 속까지 동정 안 됨·n 새 이름(koprifossillab 045).
  *   규칙은 pipeline/quality.py(index.json rules.quality), 보기는 pipeline/tests/quality_cases.json
+ * - straddles: 연대 범위가 양쪽으로 넘는 대멸종 경계(koprifossillab 046) — quality.straddles 와 같다
  */
 (function (root) {
   "use strict";
@@ -92,6 +93,15 @@
     return out;
   }
 
-  root.WegenerAnalysis = { share: share, weightedQuantile: weightedQuantile, rng: rng, monteCarlo: monteCarlo, identMarks: identMarks };
+  // boundaries: [{ id, old, young }](점 사건은 old = young). 범위가 그 경계를 허용(rules.boundary_tolerance_ma)보다 더 양쪽으로 넘으면
+  function straddles(old, young, boundaries, rules) {
+    old = +old; young = +young;
+    if (old < young) { var t = old; old = young; young = t; }
+    var tol = rules.boundary_tolerance_ma;
+    return boundaries.filter(function (b) { return young < b.young - tol && old > b.old + tol; }).map(function (b) { return b.id; });
+  }
+
+  root.WegenerAnalysis = { share: share, weightedQuantile: weightedQuantile, rng: rng, monteCarlo: monteCarlo, identMarks: identMarks,
+                           straddles: straddles };
   if (typeof module !== "undefined") module.exports = root.WegenerAnalysis;
 })(typeof window !== "undefined" ? window : globalThis);
