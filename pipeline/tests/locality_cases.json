@@ -1,0 +1,46 @@
+{
+ "note": "고유 산지-시간 열쇠(common.locality_key · analysis.js localityKey)의 보기 — 파이썬과 JS 시험이 함께 쓴다(koprifossillab 047). [위도, 경도, 지층, max_ma, min_ma, 열쇠]",
+ "decimals": 2,
+ "cases": [
+  [
+   51.234,
+   -1.5,
+   "Kimmeridge Clay Formation",
+   157.3,
+   152.1,
+   "51.23|-1.50|kimmeridge clay|157.3|152.1"
+  ],
+  [
+   51.2341,
+   -1.5001,
+   "Kimmeridge Clay Fm.",
+   157.3,
+   152.1,
+   "51.23|-1.50|kimmeridge clay|157.3|152.1"
+  ],
+  [
+   51.2341,
+   -1.5001,
+   "kimmeridge clay",
+   152.1,
+   157.3,
+   "51.23|-1.50|kimmeridge clay|157.3|152.1"
+  ],
+  [
+   10,
+   20,
+   "",
+   66,
+   56,
+   "10.00|20.00||66|56"
+  ],
+  [
+   10,
+   20,
+   null,
+   72.2,
+   66.0,
+   "10.00|20.00||72.2|66"
+  ]
+ ]
+}

@@ -91,6 +91,9 @@ ANALYSIS = {
     "mc_runs": 200,             # 몬테카를로 되풀이 — 산출 5,000 건이면 브라우저에서 1 초 안팎
     "mc_seed": 20261020,        # 고정 씨앗 — 같은 자료면 늘 같은 띠(재현 묶음에 적는다)
     "share_opacity_floor": 0.15,  # 몫으로 흐리게 할 때 가장 흐린 점 — 더 흐리면 눌러지지 않는 것처럼 보인다
+    # 고유 산지-시간(koprifossillab 047, P01 §7) — 좌표(소수 둘째 자리, 약 1 km)·지층 이름·연대 범위가 같은 산지를 하나로 센다.
+    # 한 단면의 층준마다, 한 논문의 표본마다 나눈 산지가 따로 세지는 의사 반복을 줄인다. 지도의 점은 그대로
+    "locality_decimals": 2,
 }
 
 
@@ -108,3 +111,18 @@ def environment_class(environment):
     """퇴적 환경 → 바다(m)·뭍(t)·해안/기타(o). 갈래는 environments.py 의 나무 한 곳에 있다."""
     from .environments import classify
     return classify(environment)[0]
+
+
+_FORMATION_TAIL = re.compile(r"\s+(formation|fm\.?)$")
+
+
+def formation_key(name):
+    """지층 이름 견주기 — 대소문자와 끝의 "Formation"·"Fm" 은 가리지 않는다(뷰어의 지층 찾기 formKey 와 같다)."""
+    return _FORMATION_TAIL.sub("", str(name or "").lower()).strip()
+
+
+def locality_key(lat, lng, formation, max_ma, min_ma, decimals=ANALYSIS["locality_decimals"]):
+    """고유 산지-시간의 열쇠(koprifossillab 047) — 뷰어의 analysis.js localityKey 와 같다(보기 tests/locality_cases.json)."""
+    old, young = (max_ma, min_ma) if max_ma >= min_ma else (min_ma, max_ma)
+    num = lambda v: str(float(v)).removesuffix(".0")       # JS 의 String(수)와 같은 꼴 — 66.0 → "66", 72.2 → "72.2"
+    return "|".join([f"{float(lat):.{decimals}f}", f"{float(lng):.{decimals}f}", formation_key(formation), num(old), num(young)])

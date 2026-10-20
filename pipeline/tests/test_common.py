@@ -170,3 +170,14 @@ class QualityTest(unittest.TestCase):
         cases = json.loads((Path(__file__).parent / "quality_cases.json").read_text(encoding="utf-8"))
         for old, young, want in cases["straddle"]:
             self.assertEqual(straddles(old, young, cases["boundaries"]), want, msg=(old, young))
+
+
+class LocalityKeyTest(unittest.TestCase):
+    """고유 산지-시간 열쇠(koprifossillab 047) — 보기는 뷰어의 analysis.js 시험과 같은 파일이다."""
+
+    def test_cases(self):
+        from pipeline.common import ANALYSIS, locality_key
+        cases = json.loads((Path(__file__).parent / "locality_cases.json").read_text(encoding="utf-8"))
+        self.assertEqual(cases["decimals"], ANALYSIS["locality_decimals"])
+        for lat, lng, formation, old, young, want in cases["cases"]:
+            self.assertEqual(locality_key(lat, lng, formation, old, young), want)

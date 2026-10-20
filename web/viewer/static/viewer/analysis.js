@@ -8,6 +8,7 @@
  * - identMarks: PBDB 산출(show=ident)의 동정 표지 — g 속 불확실·s 종 불확실·h 속까지 동정 안 됨·n 새 이름(koprifossillab 045).
  *   규칙은 pipeline/quality.py(index.json rules.quality), 보기는 pipeline/tests/quality_cases.json
  * - straddles: 연대 범위가 양쪽으로 넘는 대멸종 경계(koprifossillab 046) — quality.straddles 와 같다
+ * - localityKey: 고유 산지-시간의 열쇠(koprifossillab 047) — common.locality_key 와 같다(보기 pipeline/tests/locality_cases.json)
  */
 (function (root) {
   "use strict";
@@ -101,7 +102,15 @@
     return boundaries.filter(function (b) { return young < b.young - tol && old > b.old + tol; }).map(function (b) { return b.id; });
   }
 
+  // 좌표(소수 decimals 자리)·지층 이름(끝의 Formation·Fm 과 대소문자를 가리지 않는다)·연대 범위
+  function localityKey(lat, lng, formation, old, young, decimals) {
+    old = +old; young = +young;
+    if (old < young) { var t = old; old = young; young = t; }
+    var form = String(formation || "").toLowerCase().replace(/\s+(formation|fm\.?)$/, "").trim();
+    return [(+lat).toFixed(decimals), (+lng).toFixed(decimals), form, String(old), String(young)].join("|");
+  }
+
   root.WegenerAnalysis = { share: share, weightedQuantile: weightedQuantile, rng: rng, monteCarlo: monteCarlo, identMarks: identMarks,
-                           straddles: straddles };
+                           straddles: straddles, localityKey: localityKey };
   if (typeof module !== "undefined") module.exports = root.WegenerAnalysis;
 })(typeof window !== "undefined" ? window : globalThis);
