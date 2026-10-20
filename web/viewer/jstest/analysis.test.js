@@ -36,5 +36,12 @@ var hits = 0, r = A.rng(1);
 for (var k = 0; k < 20000; k++) { var age = 56 + 16.2 * r(); if (age >= 57.5 && age <= 62.5) hits += 1; }
 check(near(hits / 20000, A.share(72.2, 56, 57.5, 62.5), 0.02), "뽑기의 평균 ≈ 몫 " + hits / 20000);
 
+// 동정 표지(koprifossillab 045) — 보기와 규칙은 pipeline/tests/quality_cases.json(파이썬 시험이 규칙이 quality.py 와 같은지 본다)
+var quality = require(path.join(__dirname, "../../../pipeline/tests/quality_cases.json"));
+quality.cases.forEach(function (c) {
+  var got = A.identMarks(c[0], quality.rules).split("").sort().join(""), want = c[1].split("").sort().join("");
+  check(got === want, "identMarks " + c[0].identified_name + " 기대 " + want + " 얻음 " + got);
+});
+
 if (fail) { console.log(fail + " 개 틀림"); process.exit(1); }
 console.log("분석 셈 시험 통과");

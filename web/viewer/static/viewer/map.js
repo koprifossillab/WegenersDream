@@ -20,6 +20,8 @@
   // 분포 분석의 셈(analysis.js, koprifossillab 044) — 시점 몫·몬테카를로의 값은 index.json 의 rules.analysis(pipeline/common.py ANALYSIS).
   // 옛 index.json 이라 그 칸이 없으면 몫으로 세는 기능은 숨는다(숫자를 여기 다시 적지 않는다)
   var AN = window.WegenerAnalysis, ANALYSIS = null;
+  // 동정 품질 표지(koprifossillab 045) — rules.quality(pipeline/quality.py). 없으면(옛 index.json) 표지·거르기가 숨는다
+  var QUALITY = null;
   try { var rigorStored = localStorage.getItem(RIGOR_KEY); if (rigorStored === "1" || rigorStored === "0") RIGOR = rigorStored === "1"; } catch (e) { /* 막힌 저장소 */ }
   I18N.apply();
   var DATA = app.dataset.dataBase.replace(/x$/, "");
@@ -71,7 +73,9 @@
     payload: null,
     colorBy: "env",                         // 점 색: env(퇴적기원) · age(기 단위 시대)
     opacity: 0.6,                           // 점 불투명도 — 겹친 점과 밑그림이 함께 보이게
-    shareOpacity: false,                    // 점 진하기를 시점 몫으로(koprifossillab 044) — 열 때마다 끈다
+    shareOpacity: false,
+    dropUncertain: false,                   // 동정 거르기 — 속이 불확실한 산출(cf.·aff.·?) 빼기(koprifossillab 045)
+    dropCoarse: false,                      //            — 속까지 동정 안 된 산출(indet.) 빼기                    // 점 진하기를 시점 몫으로(koprifossillab 044) — 열 때마다 끈다
     showWide: true,                         // 모호한 연대(절 단위로 정해지지 않은) 산지를 보일지(016)
     maxSpan: Infinity,                      // 연대 범위(max_ma − min_ma)가 이 이하인 산지만(018)
     taxonRank: "",                          // 찾은 분류군의 계급 — 상태 줄과 같은 시대 다른 산지(012)
@@ -1180,7 +1184,28 @@
 
   // 산지 행의 연대가 절 단위로 정해졌는가 — 가공물의 precise 칸, 없으면(옛 가공물) 시대 이름으로 가른다.
   // 몫으로 세는가 — 엄밀 표기를 켰고 index.json 에 셈의 규칙이 왔을 때
-  function syncShareRow() { var row = $("share-opacity-row"); if (row) row.hidden = !shareOn(); }
+  // 동정 표지를 다나·거르나 — 엄밀 표기를 켰고 규칙이 왔을 때. 거르기 기본은 끔(연구자: 표시만, P01 §11.1)
+  function qualOn() { return RIGOR && !!QUALITY && !!AN; }
+  function marksOf(rec) { return QUALITY && AN ? AN.identMarks(rec, QUALITY) : ""; }
+  // 거르기에 걸리는 산출인가 — g(속 불확실)·h(속까지 동정 안 됨)를 뺄 때
+  function qualDrops(m) {
+    if (!qualOn() || !m) return false;
+    return (state.dropUncertain && m.indexOf("g") >= 0) || (state.dropCoarse && m.indexOf("h") >= 0);
+  }
+  // 이름 옆 표지 — 엄밀 표기일 때만. 수식어는 PBDB 의 원 글자(cf. · aff. · ? …)
+  function qualBadge(rec, m) {
+    if (!qualOn() || !m) return "";
+    var bits = [];
+    if (m.indexOf("g") >= 0) bits.push(tr("q.genus", { r: rec.primary_reso || rec.subgenus_reso || "?" }));
+    if (m.indexOf("s") >= 0) bits.push(tr("q.species", { r: rec.species_reso || "?" }));
+    if (m.indexOf("h") >= 0) bits.push(tr("q.coarse"));
+    if (m.indexOf("n") >= 0) bits.push(tr("q.new"));
+    return ' <small class="qmark" title="' + esc(tr("q.title")) + '">' + esc(bits.join(" · ")) + "</small>";
+  }
+  function syncShareRow() {
+    var row = $("share-opacity-row"); if (row) row.hidden = !shareOn();
+    var q = $("qual-row"); if (q) q.hidden = !qualOn();
+  }
   function shareOn() { return RIGOR && !!ANALYSIS && !!AN; }
   // 산지(산출)가 지도 시점 f 에 속할 몫 — 연대 범위가 시점 창과 겹친 길이 ÷ 범위 길이(P01 §5.1)
   function frameShare(f, maxMa, minMa) { var w = win(f); return AN.share(maxMa, minMa, w[0], w[1]); }
@@ -1397,7 +1422,7 @@
       if (d.dataset.loaded) return;
       d.dataset.loaded = "1";
       var r = recs[+d.dataset.k], box = d.querySelector(".taxa-box"), no = r.collection_no;
-      var all = getJSON(PBDB + "occs/list.json?coll_id=" + no + "&show=class&vocab=pbdb&limit=500");
+      var all = getJSON(PBDB + "occs/list.json?coll_id=" + no + "&show=class,ident&vocab=pbdb&limit=500");
       var hit = state.taxon ? getJSON(PBDB + "occs/list.json?coll_id=" + no + "&" + baseParam(state.taxon) + "&vocab=pbdb&limit=500")
         .catch(function () { return {}; }) : Promise.resolve({});
       Promise.all([all, hit]).then(function (res) {
@@ -1406,7 +1431,7 @@
         var items = (res[0].records || []).map(function (x) {
           var grp = [x.phylum, x["class"]].filter(function (v) { return v && v !== "NO_CLASS_SPECIFIED"; }).join(" · ");
           var name = taxonLink(x.accepted_name || x.identified_name, taxonHtml(x.accepted_name || x.identified_name, rankOf(x)));
-          return { hit: !!mark[x.occurrence_no], html: "<li>" + (mark[x.occurrence_no] ? "<b>" + name + "</b>" : name) + (grp ? " <small>" + esc(grp) + "</small>" : "") + "</li>" };
+          return { hit: !!mark[x.occurrence_no], html: "<li>" + (mark[x.occurrence_no] ? "<b>" + name + "</b>" : name) + qualBadge(x, marksOf(x)) + (grp ? " <small>" + esc(grp) + "</small>" : "") + "</li>" };
         }).sort(function (a, b) { return b.hit - a.hit; });
         box.className = items.length ? "" : "muted";
         box.innerHTML = items.length ? '<ul class="taxa">' + items.map(function (x) { return x.html; }).join("") + "</ul>" +
@@ -1534,11 +1559,11 @@
       cell.innerHTML = lithHtml(r);
       popup.update();
     }).catch(function () { var cell = el.querySelector(".lith"); cell.textContent = tr("pop.noLith"); });
-    getJSON(PBDB + "occs/list.json?coll_id=" + no + "&show=class&vocab=pbdb&limit=500").then(function (data) {
+    getJSON(PBDB + "occs/list.json?coll_id=" + no + "&show=class,ident&vocab=pbdb&limit=500").then(function (data) {
       var items = (data.records || []).map(function (r) {
         var grp = [r.phylum, r["class"]].filter(function (x) { return x && x !== "NO_CLASS_SPECIFIED"; }).join(" · ");
         var nm = r.accepted_name || r.identified_name;
-        return "<li>" + taxonLink(nm, taxonHtml(nm, rankOf(r))) + (grp ? " <small>" + esc(grp) + "</small>" : "") + "</li>";
+        return "<li>" + taxonLink(nm, taxonHtml(nm, rankOf(r))) + qualBadge(r, marksOf(r)) + (grp ? " <small>" + esc(grp) + "</small>" : "") + "</li>";
       });
       box.className = items.length ? "" : "muted";
       box.innerHTML = items.length ? '<ul class="taxa">' + items.join("") + "</ul>" +
@@ -1887,6 +1912,7 @@
     // 같은 이름(채택명·원 동정명)의 산출은 한 줄로 묶고 건수를 붙인다 — 한 종이 수십 건인 산지가 있다.
     var lines = [], byKey = {};
     row.occs.forEach(function (o) {
+      if (qualDrops(o.q)) return;                     // 동정으로 거른 산출은 목록에서도 뺀다
       var key = o.accepted + "\u0000" + (o.identified || "");
       if (byKey[key]) { byKey[key].n += 1; return; }
       lines.push(byKey[key] = { o: o, n: 1 });
@@ -1895,7 +1921,7 @@
       var o = l.o, shown = taxonHtml(o.accepted, o.rank);
       if (o.identified && o.identified !== o.accepted) shown += " <small>(" + esc(koTaxon(o.identified, o.rank)) + ")</small>";
       return "<li>" + shown + (o.rank && o.rank !== "species" ? " <small>" + esc(RANK_KO[o.rank] || o.rank) + "</small>" : "") +
-        (l.n > 1 ? " <small>" + tr("tip.times", { n: l.n }) + "</small>" : "") + "</li>";
+        (l.n > 1 ? " <small>" + tr("tip.times", { n: l.n }) + "</small>" : "") + (o.rec ? qualBadge(o.rec, o.q) : "") + "</li>";
     }).join("") + "</ul>";
   }
 
@@ -1940,12 +1966,12 @@
       };
       if (base.stageTotal > OCC_LIMIT) return overlap();
       return getJSON(PBDB + "occs/list.json?" + baseParam(name) + cc +
-                     "&show=env,paleoloc&pgm=scotese&vocab=pbdb&limit=" + (OCC_LIMIT + 1)).then(function (d) {
+                     "&show=env,paleoloc,ident&pgm=scotese&vocab=pbdb&limit=" + (OCC_LIMIT + 1)).then(function (d) {
         var recs = d.records || [];
         if (recs.length <= OCC_LIMIT) {
           base.occs = recs.map(function (r) {
             return { old: +r.max_ma, young: +r.min_ma, env: r.environment || "", early: r.early_interval, late: r.late_interval,
-                     plat: r.paleolat == null || r.paleolat === "" ? null : +r.paleolat, coll: r.collection_no };
+                     plat: r.paleolat == null || r.paleolat === "" ? null : +r.paleolat, coll: r.collection_no, q: marksOf(r) };
           });
         }
         return base.occs ? base : overlap();
@@ -1984,7 +2010,7 @@
       // 산출 하나하나 — 켠 환경만, 지도와 같은 규칙으로. 모호한 연대는(보이기로 했으면) 걸친 모든 단위·시점에
       // 더한다(015) — 지도에 그 모든 시점에서 보이는 것과 맞춘다.
       base.occs.forEach(function (o) {
-        if (!state.enabled[termKey(o.env)]) return;
+        if (!state.enabled[termKey(o.env)] || qualDrops(o.q)) return;
         var precise = isPrecise(o.early, o.late);
         if (!ageOk(precise, o.old, o.young)) return;
         total += 1;
@@ -2017,7 +2043,8 @@
       });
     }
     state.dist = { key: base.key, stages: base.stages, app: base.app, units: units, frames: frames, total: total, shares: shares, band: band,
-                   exact: !!base.occs, filtered: !!base.occs && (!allEnvEnabled() || state.maxSpan !== Infinity) };
+                   exact: !!base.occs, filtered: !!base.occs && (!allEnvEnabled() || state.maxSpan !== Infinity ||
+                     (qualOn() && (state.dropUncertain || state.dropCoarse))) };
     renderDist();
     renderChrono();
     renderAnalysis();
@@ -2153,7 +2180,7 @@
     return PBDB + "occs/list.json?" + baseParam(name) +
       "&max_ma=" + w[1] + "&min_ma=" + w[0] +
       (state.country ? "&cc=" + encodeURIComponent(state.country) : "") + stratParam() +
-      "&timerule=overlap&pgm=scotese&show=paleoloc,coll,class,env,loc&vocab=pbdb&limit=" + TAXON_LIMIT;
+      "&timerule=overlap&pgm=scotese&show=paleoloc,coll,class,env,loc,ident&vocab=pbdb&limit=" + TAXON_LIMIT;
   }
 
   // ── 산출 시대 차례로 보기 ───────────────────────────────────────────
@@ -2260,7 +2287,7 @@
       row[COLUMNS.n_occs] += 1;
       var taxon = r.accepted_name || r.identified_name;
       if (row.matched.indexOf(taxon) < 0) row.matched.push(taxon);
-      row.occs.push({ accepted: taxon, identified: r.identified_name, rank: rankOf(r) });
+      row.occs.push({ accepted: taxon, identified: r.identified_name, rank: rankOf(r), q: marksOf(r), rec: r });
     });
     return rows;
   }
@@ -2367,8 +2394,15 @@
     if (!state.taxon || !rows) return;
     placeTaxa(rows);
     var shown = 0, occs = 0, visible = [];
+    // 동정 거르기(koprifossillab 045) — 산지에 남은 산출 수. 하나도 안 남으면 그 산지는 그리지 않는다
+    var kept = function (row) {
+      if (!row.occs) return row[COLUMNS.n_occs];
+      return row.occs.filter(function (o) { return !qualDrops(o.q); }).length;
+    };
+    var qualHidden = 0;
     var ok = function (row) {
-      return passes(row[COLUMNS.environment], row[COLUMNS.cc], row[COLUMNS.precise], row[COLUMNS.max_ma], row[COLUMNS.min_ma], row[COLUMNS.formation]);
+      return passes(row[COLUMNS.environment], row[COLUMNS.cc], row[COLUMNS.precise], row[COLUMNS.max_ma], row[COLUMNS.min_ma], row[COLUMNS.formation]) &&
+        kept(row) > 0;
     };
     var inCountry = function (row) { return !state.country || row[COLUMNS.cc] === state.country; };
     rows.forEach(function (row) { if (ok(row)) visible.push(row); });
@@ -2382,12 +2416,15 @@
     drawCoeval(visible);            // 먼저 그려 찾은 분류군의 점 밑에 깐다
     var f = frame(), useShare = shareOn(), shareColls = 0, shareOccs = 0;
     rows.forEach(function (row) {
+      if (passes(row[COLUMNS.environment], row[COLUMNS.cc], row[COLUMNS.precise], row[COLUMNS.max_ma], row[COLUMNS.min_ma], row[COLUMNS.formation]))
+        qualHidden += row[COLUMNS.n_occs] - kept(row);
       if (!ok(row)) return;
       shown += 1;
-      occs += row[COLUMNS.n_occs];
+      var n = kept(row);
+      occs += n;
       var share = useShare ? frameShare(f, row[COLUMNS.max_ma], row[COLUMNS.min_ma]) : null;
       shareColls += share || 0;
-      shareOccs += (share || 0) * row[COLUMNS.n_occs];
+      shareOccs += (share || 0) * n;
       marker([row[COLUMNS.paleolat], row[COLUMNS.paleolng]],
              pointColor(row[COLUMNS.environment], row[COLUMNS.max_ma], row[COLUMNS.min_ma]), true, !row[COLUMNS.precise], share)
         .bindTooltip(function () { return taxonTip(row); },
@@ -2400,6 +2437,7 @@
       age: fmtAge(frame().age), n: fmtNum(shown), occ: fmtNum(occs),
       country: state.country ? ", " + countryName(state.country) : "" }) +
       (useShare ? tr("share.taxon", { n: shareText(shareColls), occ: shareText(shareOccs) }) : "") +
+      (qualHidden ? tr("q.hidden", { n: fmtNum(qualHidden) }) : "") +
       (state.taxaTruncated ? tr("taxon.truncated", { n: fmtNum(TAXON_LIMIT) }) : "");
     state.taxaVisible = visible;
     renderLegend();
@@ -3021,7 +3059,7 @@
     state.frames.forEach(function (f) {
       var lats = [], weights = [], useShare = shareOn();
       base.occs.forEach(function (o) {
-        if (o.plat == null || !state.enabled[termKey(o.env)]) return;
+        if (o.plat == null || !state.enabled[termKey(o.env)] || qualDrops(o.q)) return;
         if (!ageOk(isPrecise(o.early, o.late), o.old, o.young) || !inWin(f, o.old, o.young)) return;
         lats.push(o.plat);
         weights.push(useShare ? frameShare(f, o.old, o.young) : 1);
@@ -4402,6 +4440,7 @@
       if (index.rules) {
         WINDOW_MA = index.rules.window_ma;
         ANALYSIS = index.rules.analysis || null;
+        QUALITY = index.rules.quality || null;
         syncShareRow();
         (index.rules.vague_intervals || []).forEach(function (name) { VAGUE[name] = true; });
       }
@@ -4507,6 +4546,15 @@
   });
   // "점 진하기를 시점 몫으로"(koprifossillab 044) — 몫으로 셀 때만 보인다. 기억하지 않는다(지도를 다르게 읽게 하는 선택이라 열 때마다 끈다)
   $("share-opacity").addEventListener("change", function () { state.shareOpacity = this.checked; redraw(); });
+  // 동정 거르기(koprifossillab 045) — 기본은 끔, 기억하지 않는다
+  ["drop-uncertain", "drop-coarse"].forEach(function (id) {
+    $(id).addEventListener("change", function () {
+      state.dropUncertain = $("drop-uncertain").checked;
+      state.dropCoarse = $("drop-coarse").checked;
+      drawTaxa();
+      if (state.distBase) computeDist();
+    });
+  });
   document.querySelectorAll(".mode [data-mode-pick]").forEach(function (b) {
     b.setAttribute("aria-pressed", String(b.dataset.modePick === I18N.mode));
     b.addEventListener("click", function () { I18N.setMode(b.dataset.modePick); });

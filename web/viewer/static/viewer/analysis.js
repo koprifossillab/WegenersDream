@@ -5,6 +5,8 @@
  * - weightedQuantile: 몫으로 가중한 분위수(고위도 곡선)
  * - monteCarlo: 산지마다 범위 안에서 나이를 균등하게 뽑아 시점에 넣기를 되풀이 — 시점마다 수의 띠. 한 산지의 산출은 같은 나이를 함께 쓴다
  *   (산출마다 따로 뽑으면 한 산지의 기록이 여러 시점에 흩어져 분산을 낮게 잡는다). 씨앗을 고정해 늘 같은 띠가 나온다
+ * - identMarks: PBDB 산출(show=ident)의 동정 표지 — g 속 불확실·s 종 불확실·h 속까지 동정 안 됨·n 새 이름(koprifossillab 045).
+ *   규칙은 pipeline/quality.py(index.json rules.quality), 보기는 pipeline/tests/quality_cases.json
  */
 (function (root) {
   "use strict";
@@ -79,6 +81,17 @@
     });
   }
 
-  root.WegenerAnalysis = { share: share, weightedQuantile: weightedQuantile, rng: rng, monteCarlo: monteCarlo };
+  function identMarks(rec, rules) {
+    var out = "", reso = function (k) { return String(rec[k] || "").trim(); };
+    var has = function (list, v) { return (list || []).indexOf(v) >= 0; };
+    if (has(rules.uncertain_reso, reso("primary_reso")) || has(rules.uncertain_reso, reso("subgenus_reso"))) out += "g";
+    if (has(rules.uncertain_species_reso, reso("species_reso"))) out += "s";
+    var rank = reso("identified_rank");
+    if (rank && !has(rules.genus_or_below, rank)) out += "h";
+    if (["primary_reso", "subgenus_reso", "species_reso"].some(function (k) { return has(rules.new_reso, reso(k)); })) out += "n";
+    return out;
+  }
+
+  root.WegenerAnalysis = { share: share, weightedQuantile: weightedQuantile, rng: rng, monteCarlo: monteCarlo, identMarks: identMarks };
   if (typeof module !== "undefined") module.exports = root.WegenerAnalysis;
 })(typeof window !== "undefined" ? window : globalThis);
