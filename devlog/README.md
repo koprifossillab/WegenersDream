@@ -119,4 +119,4 @@
 | koprifossillab 040 | 2026-10-06 | [설정 창의 탭을 다시 묶는다: 설정과 읽는 법 · 소개와 자료 · 판 이력](20261006_koprifossillab_040_settings_tabs_regroup.md) |
 | koprifossillab 041 | 2026-10-06 | [만든 사람들에서 koprifossillab 을 뺀다](20261006_koprifossillab_041_people_list.md) |
 | koprifossillab 042 | 2026-10-07 | [운영에 띄운 뒤 옛 이미지를 정리한다](20261007_koprifossillab_042_prune_old_images.md) |
-| koprifossillab P01 | 2026-10-20 | [분석의 바탕을 엄밀하게: 산출 단위 표·좌표 틀 하나·연대 가중·품질 표지·재현 묶음 — 계획](20261020_koprifossillab_P01_analysis_rigor.md) |
+| koprifossillab P01 | 2026-10-20 | [분석의 바탕을 엄밀하게: 산출 단위 표·좌표 틀 하나·연대 가중·품질 표지·재현 묶음, Scientific 모드의 특징으로 — 계획](20261020_koprifossillab_P01_analysis_rigor.md) |
