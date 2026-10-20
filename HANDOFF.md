@@ -8,7 +8,10 @@
 패키지 `wegenerweb` (020, CLAUDE.md "이름"). **로컬 실행·시험의 `MIH_*` 환경변수는 이제 안 먹는다.**
 
 **저장소** https://github.com/koprifossillab/WegenersDream (09-30 에 `MIH` 에서 바꿈 — 옛 주소는 GitHub 가 넘겨 준다).
-**브랜치** `main` = `1.2.2` (10-06, PR #1~#50) · 병합을 기다리는 브랜치는 없다. 0.11.1 부터 GitHub PR 로 병합하고,
+**브랜치** `main` = `1.3.0` (10-20, PR #52) · **병합을 기다리는 PR 다섯이 차례로 쌓여 있다** — 분석 엄밀성 계획
+[koprifossillab P01](devlog/20261020_koprifossillab_P01_analysis_rigor.md) 의 가2~가6: #53 시점 몫(1.4.0) → #54 동정 표지(1.5.0) → #55 대멸종
+경계(1.6.0) → #56 고유 산지-시간(1.7.0) → #57 재현 묶음(1.8.0). 뒤의 것이 앞의 것 위에 있으니 **이 차례로** 병합한다. 셋째부터는
+`index.json` 의 새 칸(`rules.analysis`·`rules.quality`)을 쓴다 — 병합·배포한 뒤 **`build --no-relief` 로 다시 가공해야** 켜진다(그 전에는 숨는다). 0.11.1 부터 GitHub PR 로 병합하고,
 판을 올리면 CHANGELOG 로 GitHub 릴리스를 만든다(v0.11.2 부터).
 다음 코드 작업은 각자 자기 계정에서 `feature/<기능 이름>` 브랜치를 `main` 에서 만들고, 끝나면 PR 을 만든다
 (CLAUDE.md "커밋과 PR"). **병합 직전에 `deploy/host/premerge.sh <PR>`**(충돌·뒤처짐·판·CI, wetherilli 010).
