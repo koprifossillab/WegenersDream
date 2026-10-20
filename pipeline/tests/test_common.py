@@ -4,7 +4,10 @@
 """
 import unittest
 
-from pipeline.common import age_key, belongs, environment_class, parse_dem_name, period
+import json
+from pathlib import Path
+
+from pipeline.common import WINDOW_MA, age_key, belongs, environment_class, frame_share, parse_dem_name, period
 from pipeline.fossils import assign
 from pipeline.intervals import QUATERNARY, is_vague, types_from
 
@@ -129,3 +132,18 @@ class EnvironmentTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FrameShareTest(unittest.TestCase):
+    """시점 몫(koprifossillab 044) — 보기는 뷰어의 analysis.js 시험과 같은 파일이다."""
+    cases = json.loads((Path(__file__).parent / "share_cases.json").read_text(encoding="utf-8"))
+
+    def test_cases(self):
+        for old, young, lo, hi, want in self.cases["cases"]:
+            self.assertAlmostEqual(frame_share(old, young, lo, hi), want, places=6, msg=(old, young, lo, hi))
+
+    def test_sums_to_one_on_the_5myr_grid(self):
+        # 0~540 Ma 의 5 Myr 시점 창은 빈틈없이 이어진다(0 Ma 창은 0 에서 잘린다)
+        for old, young in self.cases["sum"]:
+            total = sum(frame_share(old, young, max(0.0, a - WINDOW_MA), a + WINDOW_MA) for a in range(0, 545, 5))
+            self.assertAlmostEqual(total, 1.0, places=6, msg=(old, young))

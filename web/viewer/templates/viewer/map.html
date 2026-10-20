@@ -103,6 +103,9 @@
           <p class="note" data-i18n="vague.about">▲ 모호한 연대 — "Middle Cambrian", "Late Triassic" 처럼 절 단위로 정해지지 않은 기록(PBDB 시대 이름이 세·기·대). 걸친 모든 시점에 세모로 보이고, 자리는 시점마다 그 나이로 계산한다. 절 이름으로 정해진 범위("Norian–Rhaetian")는 ● 정해진 기록이다.</p>
           <p class="note" data-i18n="span.about">연대 범위(max − min)가 고른 값 이하인 기록만 보인다. 시대 이름의 등급(▲)과 따로 본다 — 등급은 어떻게 매겼는지, 범위는 시간이 얼마나 불확실한지다.</p>
         </details>
+        <details class="guide-item"><summary data-i18n="guide.t.share">시점 몫 — 분석 엄밀 표기</summary>
+          <p class="note" data-i18n="share.about">지도는 연대 범위가 시점 ±2.5 Myr 와 겹치는 산지를 모두 올려, 범위가 긴 산지는 여러 시점에 겹쳐 보인다. 분석 엄밀 표기를 켜면 수를 셀 때 산지가 그 시점에 속할 몫(겹친 길이 ÷ 범위 길이, 범위 안에서 나이가 고르다고 본 기댓값)으로도 센다 — 한 산지의 몫은 모든 시점을 합해 1 이다. 시점 막대 밑 막대의 툴팁에는 산지마다 범위 안의 나이를 고르게 뽑아 되풀이한 몬테카를로의 95% 띠, 고위도 곡선은 몫으로 가중한 분위수다. 최근 5 Ma 의 절 시점은 5 Ma 지도와 창이 겹쳐 그 둘레의 합은 1 을 넘을 수 있다.</p>
+        </details>
         <details class="guide-item"><summary data-i18n="guide.t.env">퇴적 환경 옆의 수</summary>
           <p class="note" data-i18n="env.count">퇴적 환경 옆의 수는 지금 지도의 산지 수다. 분류군을 찾는 동안에는 그 분류군의 산출 건수다.</p>
         </details>
@@ -264,6 +267,7 @@
           <label><input type="radio" name="color-by" value="age"> <span data-i18n="colorby.age">시대(기)</span></label>
         </div>
         <label class="opacity"><span data-i18n="opacity">포인트 불투명도</span> <input type="range" id="point-opacity" min="15" max="100" step="5" value="60" aria-label="포인트 불투명도" data-i18n-attr="aria-label:opacity"> <output id="point-opacity-value">60%</output></label>
+        <label id="share-opacity-row" hidden><input type="checkbox" id="share-opacity"> <span data-i18n="share.opacity">점 진하기를 시점 몫으로</span> <small data-i18n="share.opacity.small">(범위가 길수록 흐리게)</small></label>
         <div class="shapes">
           <span><i class="shape solid"></i> <span data-i18n="shape.solid">절 단위로 정해진 기록</span></span>
           <label><input type="checkbox" id="show-wide" checked> <i class="shape tri"></i> <span data-i18n="shape.tri">모호한 연대 기록도 보기</span></label>
@@ -405,6 +409,7 @@
 <script src="{% static 'viewer/i18n.js' %}?v={{ version }}"></script>
 <script src="{% static 'viewer/globe.js' %}?v={{ version }}"></script>
 <script src="{% static 'viewer/translit.js' %}?v={{ version }}"></script>
+<script src="{% static 'viewer/analysis.js' %}?v={{ version }}"></script>
 <script src="{% static 'viewer/map.js' %}?v={{ version }}"></script>
 </body>
 </html>

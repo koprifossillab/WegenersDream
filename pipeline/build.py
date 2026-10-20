@@ -11,7 +11,7 @@ import json
 from datetime import datetime, timezone
 
 from . import climate, coastlines, countries, fossils, lithology, relief, terrain
-from .common import DERIVED, EDIACARAN_AGE, PLATE_ONLY_FROM_MA, WINDOW_MA, manifest, period, source_path
+from .common import ANALYSIS, DERIVED, EDIACARAN_AGE, PLATE_ONLY_FROM_MA, WINDOW_MA, manifest, period, source_path
 from .environments import classify, tree_for_index
 from .intervals import VAGUE_TYPES, load_types, vague_names
 from .timescale import containing, units
@@ -137,7 +137,8 @@ def build(skip_relief=False):
         # 채집지를 시점에 올리는 규칙. 뷰어의 분류군 찾기가 같은 값으로 거른다(두 곳에 적지 않는다).
         # vague_intervals — 모호한 등급(세·기·대 …)의 PBDB 시대 이름. 뷰어가 PBDB 에 바로 물은 결과를 같은 규칙으로 가른다(016)
         "rules": {"window_ma": WINDOW_MA, "vague_types": list(VAGUE_TYPES),
-                  "vague_intervals": vague_names(load_types())},
+                  "vague_intervals": vague_names(load_types()),
+                  "analysis": ANALYSIS},     # 분포 분석의 셈(koprifossillab P01·044) — 몫의 정의·몬테카를로
         "timescale": {"names": "국제지질연대층서표 한글판 v2023/04", "boundaries": "ICS v2024/12",
                       "units": scale},
         "environments": tree_for_index(env_counts),

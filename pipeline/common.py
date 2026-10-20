@@ -81,6 +81,29 @@ def belongs(max_ma, min_ma, age_ma):
     return max_ma >= age_ma - WINDOW_MA and min_ma <= age_ma + WINDOW_MA
 
 
+# ── 분포 분석의 셈(koprifossillab P01) ─────────────────────────────────
+# 지도에 올리는 규칙(belongs, 겹침)은 그대로 두고, **수를 셀 때만** 산지가 시점에 속할 몫으로 센다 — 범위가 긴 산지가 걸친 모든 시점에
+# 1 씩 더해지지 않게(P01 §5). 몫 = 연대 범위가 시점 창과 겹친 길이 ÷ 범위 길이(범위 안에서 나이가 균등하다고 본 기대값). 시점 창이
+# 빈틈없이 이어지면 한 산지의 몫 합은 1 이다. 뷰어는 같은 정의를 analysis.js 에 두고, 두 시험이 같은 보기(tests/share_cases.json)를 쓴다.
+# 몬테카를로 띠의 되풀이 수·씨앗, 몫으로 점을 흐리게 할 때의 아랫값은 index.json 의 rules.analysis 로 뷰어에 간다.
+ANALYSIS = {
+    "share": "overlap_length / age_range",
+    "mc_runs": 200,             # 몬테카를로 되풀이 — 산출 5,000 건이면 브라우저에서 1 초 안팎
+    "mc_seed": 20261020,        # 고정 씨앗 — 같은 자료면 늘 같은 띠(재현 묶음에 적는다)
+    "share_opacity_floor": 0.15,  # 몫으로 흐리게 할 때 가장 흐린 점 — 더 흐리면 눌러지지 않는 것처럼 보인다
+}
+
+
+def frame_share(max_ma, min_ma, lo, hi):
+    """연대 범위 [min_ma, max_ma] 가 시점 창 [lo, hi] 에 속할 몫(0~1). 범위 길이가 0 이면 그 나이가 창 안이면 1."""
+    old, young = (max_ma, min_ma) if max_ma >= min_ma else (min_ma, max_ma)
+    span = old - young
+    if span <= 1e-9:
+        return 1.0 if lo <= old <= hi else 0.0
+    overlap = min(old, hi) - max(young, lo)
+    return min(1.0, overlap / span) if overlap > 0 else 0.0
+
+
 def environment_class(environment):
     """퇴적 환경 → 바다(m)·뭍(t)·해안/기타(o). 갈래는 environments.py 의 나무 한 곳에 있다."""
     from .environments import classify
