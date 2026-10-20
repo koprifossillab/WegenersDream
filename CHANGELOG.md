@@ -3,6 +3,15 @@
 괄호 안의 번호는 `devlog/` 의 그 문서다. **지금 무엇이 도는지는 이 파일이 아니라
 [HANDOFF.md](HANDOFF.md) 다.**
 
+## 1.3.0 — 2026-10-20 · `feature/analysis-honest-labels`
+
+- **분석 엄밀 표기** — 설정 창의 화면 모드 밑. 분포 분석의 수치에 단위(속·산출·산지), 다양성 곡선 밑에 세는 규칙(PBDB 절 단위 major,
+  거르기가 들지 않는다). Scientific 은 기본으로 켜고 Casual 은 끈다 — 모드마다 따로 기억한다 (koprifossillab 043)
+- **고위도 곡선의 좌표 틀을 늘 적는다** — PBDB 고좌표(Scotese 2021, 연대 중간값)로, 지도의 점(v19o)과 1–2° 다를 수 있다. 큰 분류군에서도 (koprifossillab 043)
+- **산출이 많은 분류군의 시점 막대·차례로 보기에 모호한 연대의 산출도 든다** — PBDB 절 단위 수를 timerule=overlap 으로 따로 받는다. 기 칩·합·
+  다양성 곡선은 그대로 (koprifossillab 043)
+- 산지 단위로 그린 고위도 곡선의 커서 값이 "산출" 이라 적던 것, 차례로 보기가 늘 "(절 단위)" 를 붙이던 것 (koprifossillab 043)
+
 ## 1.2.2 — 2026-10-06 · `feature/people-list`
 
 - **만든 사람들에서 koprifossillab 을 뺀다** — 화면(설정 창의 소개 탭)과 README (koprifossillab 041)

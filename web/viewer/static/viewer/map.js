@@ -14,6 +14,10 @@
   var SCI = I18N.mode === "sci" && !EN;
   // Casual 모드의 한글 — 속·종 학명의 음차(translit.js), 연대 이름(층서표의 한글), 암상(index.json 의 lithology). tupandactyl 020
   var KO = !EN && !SCI;
+  // 분석 엄밀 표기(koprifossillab 043, P01 §9) — 분포 분석의 수치마다 단위와 세는 규칙을 적는다. 기본은 모드가 정하고(Scientific 켬·
+  // Casual 끔) 설정 창에서 모드마다 따로 바꾼다. 수의 옳고 그름을 바로잡는 것(좌표 틀 표시 등)은 이 설정과 상관없이 두 모드 모두다
+  var RIGOR_KEY = "wegener.rigor." + I18N.mode, RIGOR = I18N.mode === "sci";
+  try { var rigorStored = localStorage.getItem(RIGOR_KEY); if (rigorStored === "1" || rigorStored === "0") RIGOR = rigorStored === "1"; } catch (e) { /* 막힌 저장소 */ }
   I18N.apply();
   var DATA = app.dataset.dataBase.replace(/x$/, "");
   var LABELS_URL = app.dataset.labelsUrl;
@@ -1907,7 +1911,18 @@
       });
       var base = { key: key, name: name, stages: stages, app: (both[1].records || [])[0] || null, occs: null,
                    stageTotal: stages.reduce(function (a, s) { return a + s.n; }, 0) };
-      if (base.stageTotal > OCC_LIMIT) return base;
+      // 산출을 하나하나 셀 수 없으면 절 단위 수로 돌아간다. 그때 시점(막대·차례로 보기·고위도의 시점)은 **timerule=overlap** 의 절 수로
+      // 잡는다 — 기본(major)은 절보다 두 배 넘게 넓은 산출을 세지 않아, 모호한 연대의 산출만 있는 시점이 빠졌다(PBDB_받기_검토 §3.6).
+      // 기 칩·산출 수·다양성 곡선은 major 그대로다 — overlap 은 한 산출을 걸친 절마다 세어(삼엽충 45,222 → 85,068) 합이 부푼다
+      var overlap = function () {
+        return getJSON(PBDB + "occs/diversity.json?" + baseParam(name) + cc + "&count=genera&time_reso=stage&timerule=overlap&vocab=pbdb")
+          .then(function (d) {
+            base.stagesOverlap = (d.records || []).filter(function (r) { return +r.n_occs > 0; })
+              .map(function (r) { return { name: r.interval_name, base: +r.max_ma, top: +r.min_ma, n: +r.n_occs }; });
+            return base;
+          }).catch(function () { return base; });
+      };
+      if (base.stageTotal > OCC_LIMIT) return overlap();
       return getJSON(PBDB + "occs/list.json?" + baseParam(name) + cc +
                      "&show=env,paleoloc&pgm=scotese&vocab=pbdb&limit=" + (OCC_LIMIT + 1)).then(function (d) {
         var recs = d.records || [];
@@ -1917,8 +1932,8 @@
                      plat: r.paleolat == null || r.paleolat === "" ? null : +r.paleolat };
           });
         }
-        return base;
-      }).catch(function () { return base; });
+        return base.occs ? base : overlap();
+      }).catch(function () { return overlap(); });
     });
   }
 
@@ -1966,10 +1981,12 @@
         });
       });
     } else {
-      // 절 단위 수 — 퇴적기원을 거를 수 없다
+      // 절 단위 수 — 퇴적기원을 거를 수 없다. 기 칩·합은 major, 시점은 overlap 의 절 수(fetchSeries)
       base.stages.forEach(function (s) {
         total += s.n;
         addUnits((s.base + s.top) / 2, s.n);
+      });
+      (base.stagesOverlap || base.stages).forEach(function (s) {
         state.frames.forEach(function (f, j) {
           if (inWin(f, s.base, s.top)) frames[j] = (frames[j] || 0) + s.n;
         });
@@ -2148,7 +2165,8 @@
     show(j);
     var next = tour.list[tour.k + 1];
     if (next !== undefined) getJSON(taxonUrl(state.taxon, state.frames[next].age)).catch(function () {});
-    $("tour-status").textContent = tr("tour.step", { k: tour.k + 1, total: tour.list.length, age: fmtAge(state.frames[j].age), n: fmtNum(state.dist.frames[j]) });
+    $("tour-status").textContent = tr("tour.step", { k: tour.k + 1, total: tour.list.length, age: fmtAge(state.frames[j].age), n: fmtNum(state.dist.frames[j]) }) +
+      (state.dist.exact ? "" : tr("dist.stage"));
     Promise.resolve(state.taxonReady).catch(function () {}).then(function () {
       if (!tour.on) return;
       tour.timer = setTimeout(function () { tour.k += 1; tourStep(); }, +$("tour-speed").value);
@@ -2951,6 +2969,8 @@
     rt: function (s) { return s.rt; }, g: function (s) { return s.g; }, n: function (s) { return s.n; },
     per: function (s) { return s.n ? s.rt / s.n * 100 : null; },
   };
+  // 엄밀 표기(RIGOR)일 때 커서 값에 붙이는 단위
+  var DIV_UNIT = { rt: "unit.genera", g: "unit.genera", n: "unit.occs", per: "unit.per" };
   function seriesList() {
     var out = [];
     if (state.distBase) out.push({ key: "A", name: state.taxon, rank: state.taxonRank, base: state.distBase, cls: "a" });
@@ -3037,9 +3057,12 @@
       });
     });
     axisX(g, x, dom, H - B0, W);
+    var unitKey = DIV_UNIT[$("div-metric").value] || DIV_UNIT.rt;
     hoverChart(svg, x, dom, list, function (st, it) {
       var v = metric(st);
-      return v == null ? "—" : fmtNum(Math.round(v * 10) / 10);
+      if (v == null) return "—";
+      v = fmtNum(Math.round(v * 10) / 10);
+      return RIGOR ? tr(unitKey, { n: v }) : v;
     }, L0, W - R0);
     return true;
   }
@@ -3129,7 +3152,8 @@
       guide.setAttribute("x1", x(hit.f.age)); guide.setAttribute("x2", x(hit.f.age)); guide.setAttribute("visibility", "visible");
       var parts = list.map(function (it) {
         var p = (it.lat || []).filter(function (q) { return q.age === hit.f.age; })[0];
-        return p ? '<b class="' + it.cls + '">' + it.key + "</b> " + tr("lat.read", { med: latText(p.med), q1: latText(p.q1), q3: latText(p.q3), n: fmtNum(p.n) }) : "";
+        // 산출이 많은 분류군은 산지 단위로 묻는다(buildLatFrames) — 그때 n 은 산지 수다
+        return p ? '<b class="' + it.cls + '">' + it.key + "</b> " + tr(p.colls ? "lat.readColls" : "lat.read", { med: latText(p.med), q1: latText(p.q1), q3: latText(p.q3), n: fmtNum(p.n) }) : "";
       }).filter(Boolean);
       if (read) read.innerHTML = fmtAge(hit.f.age) + (parts.length ? " · " + parts.join(" · ") : "");
     };
@@ -3143,7 +3167,7 @@
     base.latLoading = true;
     var cc = (state.country ? "&cc=" + encodeURIComponent(state.country) : "") + stratParam();
     var todo = state.frames.map(function (f, j) { return { f: f, j: j }; }).filter(function (t) {
-      return base.stages.some(function (st) { return inWin(t.f, st.base, st.top); });
+      return (base.stagesOverlap || base.stages).some(function (st) { return inWin(t.f, st.base, st.top); });
     });
     var done = 0, out = [];
     var next = function () {
@@ -3201,9 +3225,9 @@
         t.textContent = latText(lat);
       }
       if (a[k]) svgEl("rect", { x: mid - a[k] / max * half, y: yy + .5, width: a[k] / max * half, height: rowH - 1, "class": "bar a" }, g)
-        .appendChild(document.createElementNS(SVGNS, "title")).textContent = "A " + latText(90 - k * 10) + "–" + latText(80 - k * 10) + " · " + a[k];
+        .appendChild(document.createElementNS(SVGNS, "title")).textContent = "A " + latText(90 - k * 10) + "–" + latText(80 - k * 10) + " · " + (RIGOR ? tr("unit.colls", { n: fmtNum(a[k]) }) : a[k]);
       if (b[k]) svgEl("rect", { x: mid, y: yy + .5, width: b[k] / max * half, height: rowH - 1, "class": "bar b" }, g)
-        .appendChild(document.createElementNS(SVGNS, "title")).textContent = "B " + latText(90 - k * 10) + "–" + latText(80 - k * 10) + " · " + b[k];
+        .appendChild(document.createElementNS(SVGNS, "title")).textContent = "B " + latText(90 - k * 10) + "–" + latText(80 - k * 10) + " · " + (RIGOR ? tr("unit.colls", { n: fmtNum(b[k]) }) : b[k]);
     }
     svgEl("line", { x1: mid, x2: mid, y1: 0, y2: H, "class": "grid" }, g);
     svgEl("line", { x1: 30, x2: W, y1: 2 + 9 * rowH, y2: 2 + 9 * rowH, "class": "grid eq" }, g);
@@ -3241,7 +3265,10 @@
     var big = seriesList().filter(function (it) { return !it.base.occs && !it.base.latFrames; });
     var byColls = seriesList().some(function (it) { return it.base.latFrames; });
     var note = $("lat-note");
-    note.innerHTML = esc(big.length ? tr("lat.big", { n: fmtNum(OCC_LIMIT) }) : tr("lat.about")) + (byColls ? " " + esc(tr("lat.colls")) : "");
+    // 좌표 틀은 늘 적는다(두 모드) — 지도의 점(v19o, 시점마다 계산)과 틀이 다르다(P01 §4). 같은 틀로 옮기는 것은 산출 단위 사본 뒤(P01 나3)
+    note.innerHTML = esc(tr("lat.frame")) + " " + esc(big.length ? tr("lat.big", { n: fmtNum(OCC_LIMIT) }) : tr("lat.about")) + (byColls ? " " + esc(tr("lat.colls")) : "");
+    // 다양성 곡선이 어떻게 세었나 — 늘 PBDB 절 단위(major)라 퇴적기원·연대 범위 거르기가 들지 않는다
+    $("div-note").textContent = RIGOR ? tr("div.rule") : "";
     big.forEach(function (it) {
       var b = document.createElement("button");
       b.type = "button"; b.className = "tool lat-build";
@@ -3260,7 +3287,8 @@
       stat.innerHTML = [line("A", now.a, "a"), line("B", now.b, "b"),
         now.a && now.b ? tr("now.overlap", { shared: fmtNum(now.shared), both: fmtNum(now.both), a: fmtNum(now.cellsA), b: fmtNum(now.cellsB),
           j: now.union ? (now.both / now.union).toFixed(2) : "—" }) : ""].filter(Boolean).join("<br>") +
-        (state.cmp && state.cmp.truncated ? "<br>" + tr("cmp.truncated", { n: fmtNum(TAXON_LIMIT) }) : "");
+        (state.cmp && state.cmp.truncated ? "<br>" + tr("cmp.truncated", { n: fmtNum(TAXON_LIMIT) }) : "") +
+        "<br><small>" + esc(tr("now.frame")) + "</small>";
     } else stat.innerHTML = state.overview ? tr("now.overview") : "";
     if ($("anal-dialog").open) renderBig();
   }
@@ -4427,6 +4455,13 @@
   document.documentElement.classList.remove("i18n-pending");
 
   // ── 화면 모드(tupandactyl 011) ───────────────────────────────────────
+  // 분석 엄밀 표기 — 지금 모드의 값만 바꾼다(다른 모드의 기본은 그대로)
+  $("rigor").checked = RIGOR;
+  $("rigor").addEventListener("change", function () {
+    RIGOR = $("rigor").checked;
+    try { localStorage.setItem(RIGOR_KEY, RIGOR ? "1" : "0"); } catch (e) { /* 막힌 저장소 */ }
+    renderAnalysis();
+  });
   document.querySelectorAll(".mode [data-mode-pick]").forEach(function (b) {
     b.setAttribute("aria-pressed", String(b.dataset.modePick === I18N.mode));
     b.addEventListener("click", function () { I18N.setMode(b.dataset.modePick); });

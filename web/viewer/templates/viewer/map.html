@@ -83,6 +83,8 @@
           <button type="button" data-mode-pick="sci">Scientific</button><button type="button" data-mode-pick="casual">Casual</button>
         </div>
         <p class="note" data-i18n="mode.about">Scientific: 글씨체 Pretendard, 층서·퇴적 환경·분류 계급 이름을 영문으로(한글은 마우스를 올리면). Casual: 빈티지 책 글씨체와 한글 용어.</p>
+        <label class="rigor"><input type="checkbox" id="rigor"> <span data-i18n="rigor">분석 엄밀 표기</span></label>
+        <p class="note" data-i18n="rigor.about">분포 분석의 수치마다 단위(속·산출·산지)와 세는 규칙을 적는다. Scientific 은 기본으로 켜고 Casual 은 끈다 — 모드마다 따로 기억한다.</p>
       </section>
       <section>
         <h3 data-i18n="theme">화면 밝기</h3>
@@ -326,6 +328,7 @@
               <button type="button" class="tool anal-big" id="anal-big" data-i18n="anal.big">크게</button></h3>
             <svg class="chart-svg" id="chart-div" role="img" aria-label="다양성 그래프" data-i18n-attr="aria-label:anal.div"></svg>
             <p class="chart-read"></p>
+            <p class="note" id="div-note"></p>
           </div>
           <div class="chart">
             <h3 data-i18n="anal.lat">고위도 — 중앙값·사분위</h3>
