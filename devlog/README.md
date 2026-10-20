@@ -120,3 +120,4 @@
 | koprifossillab 041 | 2026-10-06 | [만든 사람들에서 koprifossillab 을 뺀다](20261006_koprifossillab_041_people_list.md) |
 | koprifossillab 042 | 2026-10-07 | [운영에 띄운 뒤 옛 이미지를 정리한다](20261007_koprifossillab_042_prune_old_images.md) |
 | koprifossillab P01 | 2026-10-20 | [분석의 바탕을 엄밀하게: 산출 단위 표·좌표 틀 하나·연대 가중·품질 표지·재현 묶음, Scientific 모드의 특징으로 — 계획](20261020_koprifossillab_P01_analysis_rigor.md) |
+| koprifossillab 043 | 2026-10-20 | [분포 분석이 어떻게 세었는지 적는다: 좌표 틀·세는 규칙·단위, 분석 엄밀 표기](20261020_koprifossillab_043_analysis_honest_labels.md) |
