@@ -3491,6 +3491,76 @@
     return rows.length;
   }
 
+  // ── 재현 묶음(koprifossillab 048, P01 §8 의 가벼운 판) ─────────────────────
+  // 지금 보이는 산지 CSV 에 "어떻게 얻었나" 를 함께 담은 zip — 판·가공 시각·PBDB 받은 날(산지 파일)·규칙·화면의 거르기·이 세션에서 PBDB 에 물은
+  // 주소와 시각. 분류군 찾기·분포는 실시간 PBDB 라 **같은 수를 다시 얻는 것은 보장하지 않는다** — 그때 물은 주소까지가 재현의 한계(README 에 적는다).
+  // 사본으로 다시 셀 수 있게 되는 것은 산출 단위 사본(P01 나6) 뒤
+  function csvText(rows, keys) {
+    keys = keys || Object.keys(rows[0] || { collection_no: "" });
+    var cell = function (v) { v = v == null ? "" : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    return "\ufeff" + [keys.join(",")].concat(rows.map(function (r) { return keys.map(function (k) { return cell(r[k]); }).join(","); })).join("\n") + "\n";
+  }
+  function exportBundle() {
+    var f = frame(), rows = exportRows(), created = new Date();
+    // 산지마다 분석의 칸 — 몫·고유 산지-시간 열쇠·걸친 대멸종 경계
+    rows.forEach(function (r) {
+      if (r.map_age === "all") return;
+      r.time_share = ANALYSIS && AN ? +frameShare(f, r.max_ma, r.min_ma).toFixed(4) : "";
+      r.locality_key = ANALYSIS && AN && ANALYSIS.locality_decimals != null
+        ? AN.localityKey(r.lat, r.lng, r.formation, r.max_ma, r.min_ma, ANALYSIS.locality_decimals) : "";
+      r.spans_boundary = QUALITY && AN ? AN.straddles(r.max_ma, r.min_ma, boundaries(), QUALITY).join(" ") : "";
+    });
+    var series = [], d = state.dist;
+    if (d && state.taxon) {
+      var lat = state.distBase ? latSeries(state.distBase) || [] : [];
+      state.frames.forEach(function (fr, j) {
+        if (!d.frames[j] && !(d.shares && d.shares[j])) return;
+        var l = lat.filter(function (p) { return p.j === j; })[0] || {};
+        series.push({ map_age: fr.age, taxon: plainName(state.taxon), occurrences: d.frames[j] || 0, counting: d.exact ? "occurrence" : "pbdb_stage_overlap",
+          time_share: d.shares ? +(d.shares[j] || 0).toFixed(3) : "", mc_lo: d.band ? d.band[j].lo : "", mc_hi: d.band ? d.band[j].hi : "",
+          lat_median: l.med != null ? +l.med.toFixed(2) : "", lat_q1: l.q1 != null ? +l.q1.toFixed(2) : "", lat_q3: l.q3 != null ? +l.q3.toFixed(2) : "",
+          lat_weighted: l.weighted ? 1 : 0, lat_coords: l.colls ? "pbdb_paleo_localities" : "pbdb_paleo_occurrences" });
+      });
+    }
+    var origin = performance.timeOrigin || Date.now() - performance.now();
+    var requests = (performance.getEntriesByType ? performance.getEntriesByType("resource") : [])
+      .filter(function (e) { return e.name.indexOf(PBDB) === 0; })
+      .map(function (e) { return { url: e.name, at: new Date(origin + e.startTime).toISOString() }; });
+    var off = Object.keys(state.enabled).filter(function (t) { return !state.enabled[t]; });
+    var manifest = {
+      app: "Wegener's Dream", version: app.dataset.version || "", created_at: created.toISOString(), page: location.href,
+      data_built_at: state.indexMeta && state.indexMeta.built_at, pbdb_localities: state.indexMeta && state.indexMeta.pbdb,
+      plate_model: "PALEOMAP v19o (localities rotated per map age; PBDB Scotese 2021 mid-age paleocoordinates where rotated = 0)",
+      timescale: state.indexMeta && state.indexMeta.timescale, rules: state.indexMeta && state.indexMeta.rules,
+    };
+    var query = {
+      map_age: f.age, map_window_ma: win(f), taxon: state.taxon ? plainName(state.taxon) : null, taxon_rank: state.taxonRank || null,
+      compare_taxon: state.cmp ? plainName(state.cmp.name) : null, country: state.country || null, formation: state.formation || null,
+      environments_off: off, max_age_range_myr: state.maxSpan === Infinity ? null : state.maxSpan, show_vague_ages: state.showWide,
+      rigorous_labels: RIGOR, time_share: shareOn(), unique_locality_times: locOn(),
+      quality_filters: { uncertain_genus: !!state.dropUncertain, above_genus: !!state.dropCoarse, spans_mass_extinction: !!state.dropStraddle },
+      monte_carlo: ANALYSIS ? { runs: ANALYSIS.mc_runs, seed: ANALYSIS.mc_seed } : null, pbdb_requests: requests,
+    };
+    var readme = tr("bundle.readme", { version: manifest.version, created: manifest.created_at, built: manifest.data_built_at || "—",
+      pbdb: (manifest.pbdb_localities && manifest.pbdb_localities.receipt && manifest.pbdb_localities.receipt.retrieved_at) || "—" });
+    var files = [
+      { name: "README.txt", text: readme },
+      { name: "manifest.json", text: JSON.stringify(manifest, null, 1) + "\n" },
+      { name: "query.json", text: JSON.stringify(query, null, 1) + "\n" },
+      { name: "localities.csv", text: csvText(rows) },
+    ];
+    if (series.length) files.push({ name: "series.csv", text: csvText(series) });
+    var stem = "wegener_" + (state.overview ? "all-ages" : String(f.age).replace(".", "_") + "Ma") +
+      (state.taxon ? "_" + plainName(state.taxon).replace(/\s+/g, "-") : "") + (state.country ? "_" + state.country : "");
+    var bytes = AN.zipStore(files, created);
+    var url = URL.createObjectURL(new Blob([bytes], { type: "application/zip" }));
+    var a = document.createElement("a");
+    a.href = url; a.download = stem + "_bundle.zip";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+    return rows.length;
+  }
+
   // ── 국가 ────────────────────────────────────────────────────────────
   // 목록은 index.json 의 countries(PBDB 산지에 나오는 국가 코드 + Natural Earth 한글 이름).
   // PBDB 는 영국을 UK, 대양을 O1~O7 로 적는다 — 국경선 파일은 ISO(GB)다.
@@ -4032,7 +4102,9 @@
     out.hidden = false;
     out.innerHTML = '<div class="export-menu"><button type="button" data-kind="png">' + esc(tr("export.png")) + "</button>" +
       '<button type="button" data-kind="csv">' + esc(tr("export.csv")) + "</button>" +
-      '<button type="button" data-kind="geojson">' + esc(tr("export.geojson")) + "</button></div>";
+      '<button type="button" data-kind="geojson">' + esc(tr("export.geojson")) + "</button>" +
+      // 재현 묶음은 분석 엄밀 표기일 때만(P01 §9 — Casual 은 지금의 셋)
+      (RIGOR ? '<button type="button" data-kind="bundle">' + esc(tr("export.bundle")) + "</button>" : "") + "</div>";
     out.querySelectorAll("[data-kind]").forEach(function (b) {
       b.addEventListener("click", function () {
         var kind = b.dataset.kind;
@@ -4042,7 +4114,7 @@
             .then(function () { b.disabled = false; out.hidden = true; out.dataset.menu = ""; });
           return;
         }
-        var n = exportData(kind);
+        var n = kind === "bundle" ? exportBundle() : exportData(kind);
         b.textContent = tr("export.saved", { n: fmtNum(n) });
         setTimeout(function () { out.hidden = true; out.dataset.menu = ""; }, 1200);
       });
@@ -4497,6 +4569,9 @@
         (index.rules.vague_intervals || []).forEach(function (name) { VAGUE[name] = true; });
       }
       BUILT = index.built_at || "";
+      // 재현 묶음(koprifossillab 048)에 적을 것 — 가공 시각·PBDB 받은 날·규칙·층서표 판
+      state.indexMeta = { built_at: index.built_at || null, pbdb: index.pbdb ? { receipt: index.pbdb.receipt || null } : null,
+                          rules: index.rules || null, timescale: index.timescale ? { names: index.timescale.names, boundaries: index.timescale.boundaries } : null };
       $("slider").max = SLIDER_MAX;
       OLDEST = Math.max.apply(null, [OLDEST].concat(index.frames.map(function (f) { return f.age; })));
       document.querySelector(".timebar .ticks span").textContent = fmtAge(OLDEST);
