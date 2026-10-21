@@ -105,6 +105,10 @@ ANALYSIS = {
     "coverage_quorums": [0.4, 0.5, 0.6, 0.7],
     "coverage_max_extrapolation": 2,
     "bin_rule": "mid",
+    # 범위 밖 기록 — 시공간 외톨이 시험(koprifossillab 055, P02 §2.4). CoordinateCleaner cf_outl(Zizka et al. 2019)의 기본값: 사분위 범위의
+    # 5 배 밖, 범위 안의 무작위 나이로 5 번 되풀이해 반 넘게 걸리면, 기록 10 건 미만인 무리는 시험하지 않는다. 속마다 시험하고, 큰 속은 기준
+    # 2,000 건을 뽑아 견준다(브라우저에서 돌리려고)
+    "outlier": {"mltpl": 5, "replicates": 5, "flag_thresh": 0.5, "size_thresh": 10, "max_reference": 2000},
     # 산출 사본의 조각(koprifossillab 050, P01 §3.2) — 조각 하나의 어림 크기, 그리고 미리 센 요약을 쓰는 큰 분류군의 문턱(연구자, P01 §11.4)
     "chunk_bytes": 1_000_000,
     "summary_min_occs": 50_000,

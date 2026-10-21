@@ -11,6 +11,9 @@
  * - localityKey: 고유 산지-시간의 열쇠(koprifossillab 047) — common.locality_key 와 같다(보기 pipeline/tests/locality_cases.json)
  * - gridCell: 등면적 격자 칸(Equal Earth, rules.analysis.grid_km) — common.grid_cell 과 같다(koprifossillab 053, 보기 pipeline/tests/grid_cases.json)
  * - coverageRarefy: 표본 범위 표준화 풍부도(Chao et al. 2014, incidence) — common.coverage_rarefy 와 같다(koprifossillab 054, 보기 pipeline/tests/coverage_cases.json)
+ * - outliers: 시공간 외톨이 시험(koprifossillab 055) — CoordinateCleaner cf_outl 을 따른 것. 무리(속)마다 기록들 사이의 시간 차(범위 안의 무작위
+ *   나이)와 거리(오늘날 좌표, 현의 길이) 평균을 각각 그 무리의 최댓값으로 나눠 더하고, q75 + mltpl × IQR 을 넘으면 외톨이. replicates 번 되풀이해
+ *   flag_thresh 넘게 걸리면 표시. 정리(cleaning) 단계에서 빼는 것이 관행이다
  * - zipStore: 재현 묶음(koprifossillab 048)의 zip — 압축 없이(STORE) 담는다. 글자 파일 몇 개라 라이브러리를 들이지 않는다
  */
 (function (root) {
@@ -166,6 +169,53 @@
     return { s: sExt, coverage: covObs, t: T + tStar };
   }
 
+  // records: [{ old, young, lat, lng, group }] → 외톨이인가(true/false) 배열. opts: rules.analysis.outlier
+  function outliers(records, opts, seed) {
+    var out = records.map(function () { return false; }), random = rng(seed || 1), groups = {};
+    records.forEach(function (r, i) { if (r.group != null && r.lat != null && r.lng != null) (groups[r.group] = groups[r.group] || []).push(i); });
+    var quant = function (sorted, p) {
+      var k = (sorted.length - 1) * p, lo = Math.floor(k), hi = Math.ceil(k);
+      return sorted[lo] + (sorted[hi] - sorted[lo]) * (k - lo);
+    };
+    Object.keys(groups).forEach(function (g) {
+      var idx = groups[g], n = idx.length;
+      if (n < opts.size_thresh) return;
+      // 오늘날 좌표의 단위 벡터 — 거리는 현의 길이(대권 거리와 같은 차례)
+      var xyz = idx.map(function (i) {
+        var la = records[i].lat * Math.PI / 180, lo = records[i].lng * Math.PI / 180;
+        return [Math.cos(la) * Math.cos(lo), Math.cos(la) * Math.sin(lo), Math.sin(la)];
+      });
+      var ref = idx.map(function (_, k) { return k; });
+      if (n > opts.max_reference) {              // 큰 무리는 기준을 뽑아 견준다
+        for (var s = ref.length - 1; s > 0; s--) { var j = Math.floor(random() * (s + 1)), t = ref[s]; ref[s] = ref[j]; ref[j] = t; }
+        ref = ref.slice(0, opts.max_reference);
+      }
+      var hits = new Array(n).fill(0);
+      for (var rep = 0; rep < opts.replicates; rep++) {
+        var ages = idx.map(function (i) { var r = records[i], a = Math.min(r.old, r.young), b = Math.max(r.old, r.young); return a + (b - a) * random(); });
+        var dt = new Array(n), dg = new Array(n), mt = 0, mg = 0;
+        for (var a = 0; a < n; a++) {
+          var st = 0, sg = 0;
+          for (var q = 0; q < ref.length; q++) {
+            var b = ref[q];
+            st += Math.abs(ages[a] - ages[b]);
+            var dx = xyz[a][0] - xyz[b][0], dy = xyz[a][1] - xyz[b][1], dz = xyz[a][2] - xyz[b][2];
+            sg += Math.sqrt(dx * dx + dy * dy + dz * dz);
+          }
+          dt[a] = st / ref.length; dg[a] = sg / ref.length;
+          if (dt[a] > mt) mt = dt[a];
+          if (dg[a] > mg) mg = dg[a];
+        }
+        var sum = dt.map(function (v, k) { return (mt ? v / mt : 0) + (mg ? dg[k] / mg : 0); });
+        var sorted = sum.slice().sort(function (p, r) { return p - r; });
+        var q1 = quant(sorted, 0.25), q3 = quant(sorted, 0.75), cut = q3 + opts.mltpl * (q3 - q1);
+        sum.forEach(function (v, k) { if (v > cut) hits[k] += 1; });
+      }
+      hits.forEach(function (h, k) { if (h / opts.replicates > opts.flag_thresh) out[idx[k]] = true; });
+    });
+    return out;
+  }
+
   var CRC_TABLE = null;
   function crc32(bytes) {
     if (!CRC_TABLE) {
@@ -211,6 +261,6 @@
 
   root.WegenerAnalysis = { share: share, weightedQuantile: weightedQuantile, rng: rng, monteCarlo: monteCarlo, identMarks: identMarks,
                            straddles: straddles, localityKey: localityKey, crc32: crc32, zipStore: zipStore,
-                           equalEarth: equalEarth, gridCell: gridCell, coverageRarefy: coverageRarefy };
+                           equalEarth: equalEarth, gridCell: gridCell, coverageRarefy: coverageRarefy, outliers: outliers };
   if (typeof module !== "undefined") module.exports = root.WegenerAnalysis;
 })(typeof window !== "undefined" ? window : globalThis);

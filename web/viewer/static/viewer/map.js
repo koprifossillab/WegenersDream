@@ -79,7 +79,8 @@
     byGrid: true,                           // 공간을 등면적 격자 칸으로 세기(koprifossillab 053) — 연구 관행(P02 §2.2)이라 기본 켬
     dropUncertain: false,                   // 동정 거르기 — 속이 불확실한 산출(cf.·aff.·?) 빼기(koprifossillab 045)
     dropCoarse: false,                      //            — 속까지 동정 안 된 산출(indet.) 빼기
-    dropStraddle: false,                    // 대멸종 경계를 걸친 연대 범위의 산지 빼기(koprifossillab 046)                    // 점 진하기를 시점 몫으로(koprifossillab 044) — 열 때마다 끈다
+    dropStraddle: false,                    // 대멸종 경계를 걸친 연대 범위의 산지 빼기(koprifossillab 046)
+    dropOutlier: true,                      // 시공간 외톨이 빼기(koprifossillab 055) — 정리 단계에서 빼는 관행이라 기본 켬(P02 §2.4)                    // 점 진하기를 시점 몫으로(koprifossillab 044) — 열 때마다 끈다
     showWide: true,                         // 모호한 연대(절 단위로 정해지지 않은) 산지를 보일지(016)
     maxSpan: Infinity,                      // 연대 범위(max_ma − min_ma)가 이 이하인 산지만(018)
     taxonRank: "",                          // 찾은 분류군의 계급 — 상태 줄과 같은 시대 다른 산지(012)
@@ -1208,8 +1209,10 @@
   function straddleText(list) { return list.map(function (b) { return b.en; }).join(" · "); }
   function marksOf(rec) { return QUALITY && AN ? AN.identMarks(rec, QUALITY) : ""; }
   // 거르기에 걸리는 산출인가 — g(속 불확실)·h(속까지 동정 안 됨)를 뺄 때
-  function qualDrops(m) {
-    if (!qualOn() || !m) return false;
+  function qualDrops(m, out) {
+    if (!qualOn()) return false;
+    if (out && state.dropOutlier) return true;                // 시공간 외톨이(055)
+    if (!m) return false;
     return (state.dropUncertain && m.indexOf("g") >= 0) || (state.dropCoarse && m.indexOf("h") >= 0);
   }
   // 경계를 걸친 범위로 거르나 — 산지(산출)의 연대 범위로
@@ -1963,7 +1966,7 @@
     // 같은 이름(채택명·원 동정명)의 산출은 한 줄로 묶고 건수를 붙인다 — 한 종이 수십 건인 산지가 있다.
     var lines = [], byKey = {};
     row.occs.forEach(function (o) {
-      if (qualDrops(o.q)) return;                     // 동정으로 거른 산출은 목록에서도 뺀다
+      if (qualDrops(o.q, o.rec && outlierNos[o.rec.occurrence_no])) return;   // 거른 산출은 목록에서도 뺀다
       var key = o.accepted + "\u0000" + (o.identified || "");
       if (byKey[key]) { byKey[key].n += 1; return; }
       lines.push(byKey[key] = { o: o, n: 1 });
@@ -1972,7 +1975,8 @@
       var o = l.o, shown = taxonHtml(o.accepted, o.rank);
       if (o.identified && o.identified !== o.accepted) shown += " <small>(" + esc(koTaxon(o.identified, o.rank)) + ")</small>";
       return "<li>" + shown + (o.rank && o.rank !== "species" ? " <small>" + esc(RANK_KO[o.rank] || o.rank) + "</small>" : "") +
-        (l.n > 1 ? " <small>" + tr("tip.times", { n: l.n }) + "</small>" : "") + (o.rec ? qualBadge(o.rec, o.q) : "") + "</li>";
+        (l.n > 1 ? " <small>" + tr("tip.times", { n: l.n }) + "</small>" : "") + (o.rec ? qualBadge(o.rec, o.q) : "") +
+        (qualOn() && o.rec && outlierNos[o.rec.occurrence_no] ? ' <small class="qmark">' + esc(tr("q.outlier")) + "</small>" : "") + "</li>";
     }).join("") + "</ul>";
   }
 
@@ -2085,9 +2089,24 @@
                           loc: c[cc.locality], ref: r[oc.reference_no], no: r[oc.occurrence_no], name: r[oc.name] });
             });
           });
+          markOutliers(occs);
           return { occs: occs, snapshot: snap };
         });
       });
+    });
+  }
+  // 시공간 외톨이(koprifossillab 055, P02 §2.4) — 속마다, 오늘날 좌표(고유 산지-시간 열쇠의 좌표)와 범위 안의 무작위 나이로. 사본의 산출에만
+  var outlierNos = {};
+  function markOutliers(occs) {
+    if (!ANALYSIS || !ANALYSIS.outlier || !AN) return;
+    var recs = occs.map(function (o) {
+      var p = String(o.loc || "").split("|");
+      return { old: o.old, young: o.young, lat: p.length > 1 ? +p[0] : null, lng: p.length > 1 ? +p[1] : null, group: o.genus || null };
+    });
+    AN.outliers(recs, ANALYSIS.outlier, ANALYSIS.mc_seed).forEach(function (bad, k) {
+      if (!bad) return;
+      occs[k].out = true;
+      outlierNos[occs[k].no] = true;
     });
   }
   // 산출의 그 시점 위도 — 사본이면 산지를 그 시점 나이로 돌린 좌표(최근 절 시점은 그 절이 쓰는 0·5 Ma 지도의 것), 아니면 PBDB 고좌표
@@ -2142,7 +2161,7 @@
       // 산출 하나하나 — 켠 환경만, 지도와 같은 규칙으로. 모호한 연대는(보이기로 했으면) 걸친 모든 단위·시점에
       // 더한다(015) — 지도에 그 모든 시점에서 보이는 것과 맞춘다.
       base.occs.forEach(function (o) {
-        if (!state.enabled[termKey(o.env)] || qualDrops(o.q) || straddleDrops(o.old, o.young)) return;
+        if (!state.enabled[termKey(o.env)] || qualDrops(o.q, o.out) || straddleDrops(o.old, o.young)) return;
         var precise = isPrecise(o.early, o.late);
         if (!ageOk(precise, o.old, o.young)) return;
         total += 1;
@@ -2176,7 +2195,7 @@
     }
     state.dist = { key: base.key, stages: base.stages, app: base.app, units: units, frames: frames, total: total, shares: shares, band: band,
                    exact: !!base.occs, snapshot: base.snapshot || null, summary: !!base.summary, filtered: !!base.occs && (!allEnvEnabled() || state.maxSpan !== Infinity ||
-                     (qualOn() && (state.dropUncertain || state.dropCoarse || state.dropStraddle))) };
+                     (qualOn() && (state.dropUncertain || state.dropCoarse || state.dropStraddle || state.dropOutlier))) };
     renderDist();
     renderChrono();
     renderAnalysis();
@@ -2529,7 +2548,7 @@
     // 동정 거르기(koprifossillab 045) — 산지에 남은 산출 수. 하나도 안 남으면 그 산지는 그리지 않는다
     var kept = function (row) {
       if (!row.occs) return row[COLUMNS.n_occs];
-      return row.occs.filter(function (o) { return !qualDrops(o.q); }).length;
+      return row.occs.filter(function (o) { return !qualDrops(o.q, o.rec && outlierNos[o.rec.occurrence_no]); }).length;
     };
     var qualHidden = 0;
     var ok = function (row) {
@@ -3190,7 +3209,7 @@
     state.frames.forEach(function (f) {
       var w = win(f), colls = {};
       base.occs.forEach(function (o) {
-        if (!o.genus || !state.enabled[termKey(o.env)] || qualDrops(o.q) || straddleDrops(o.old, o.young)) return;
+        if (!o.genus || !state.enabled[termKey(o.env)] || qualDrops(o.q, o.out) || straddleDrops(o.old, o.young)) return;
         // 시점에 넣기 — 연대 범위의 가운데가 창에 든 산지 하나씩, 모호한 연대는 뺀다(palaeoverse bin_time "mid", 054)
         var precise = isPrecise(o.early, o.late), mid = (+o.old + +o.young) / 2;
         if (!precise || !ageOk(precise, o.old, o.young) || mid < w[0] || mid > w[1]) return;
@@ -3236,7 +3255,7 @@
       var lats = [], weights = [], useShare = shareOn(), useGrid = gridOn(), cells = {};
       base.occs.forEach(function (o) {
         var lat = occLat(o, f);
-        if (lat == null || !state.enabled[termKey(o.env)] || qualDrops(o.q) || straddleDrops(o.old, o.young)) return;
+        if (lat == null || !state.enabled[termKey(o.env)] || qualDrops(o.q, o.out) || straddleDrops(o.old, o.young)) return;
         if (!ageOk(isPrecise(o.early, o.late), o.old, o.young) || !inWin(f, o.old, o.young)) return;
         var w = useShare ? frameShare(f, o.old, o.young) : 1, lng = occLng(o, f);
         if (useGrid && lng != null) {
@@ -3693,7 +3712,9 @@
       compare_taxon: state.cmp ? plainName(state.cmp.name) : null, country: state.country || null, formation: state.formation || null,
       environments_off: off, max_age_range_myr: state.maxSpan === Infinity ? null : state.maxSpan, show_vague_ages: state.showWide,
       rigorous_labels: RIGOR, time_share: shareOn(), grid_cells_km: gridOn() ? ANALYSIS.grid_km : null,
-      quality_filters: { uncertain_genus: !!state.dropUncertain, above_genus: !!state.dropCoarse, spans_mass_extinction: !!state.dropStraddle },
+      quality_filters: { uncertain_genus: !!state.dropUncertain, above_genus: !!state.dropCoarse, spans_mass_extinction: !!state.dropStraddle,
+                         spatiotemporal_outliers: !!state.dropOutlier },
+      outlier_test: ANALYSIS ? ANALYSIS.outlier : null,
       monte_carlo: ANALYSIS ? { runs: ANALYSIS.mc_runs, seed: ANALYSIS.mc_seed } : null, pbdb_requests: requests,
     };
     var readme = tr("bundle.readme", { version: manifest.version, created: manifest.created_at, built: manifest.data_built_at || "—",
@@ -3709,7 +3730,7 @@
       (state.taxon ? "_" + plainName(state.taxon).replace(/\s+/g, "-") : "") + (state.country ? "_" + state.country : "");
     // 사본에서 센 분류군이면(051) 센 산출 하나하나와 그 문헌, 사본의 sha256 — 그 주의 백업으로 같은 수를 다시 얻을 수 있다(P01 나6)
     var base = state.distBase, occs = base && base.occs && base.snapshot ? base.occs.filter(function (o) {
-      return state.enabled[termKey(o.env)] && !qualDrops(o.q) && !straddleDrops(o.old, o.young) && ageOk(isPrecise(o.early, o.late), o.old, o.young);
+      return state.enabled[termKey(o.env)] && !qualDrops(o.q, o.out) && !straddleDrops(o.old, o.young) && ageOk(isPrecise(o.early, o.late), o.old, o.young);
     }) : null;
     var withCopy = (occsIndex || Promise.resolve(null)).then(function (ix) {
       if (!ix) return;
@@ -3719,7 +3740,7 @@
       files.push({ name: "occurrences.csv", text: csvText(occs.map(function (o) {
         var lat = occLat(o, f);
         return { occurrence_no: o.no, collection_no: o.coll, accepted_name: o.name, genus: o.genus, max_ma: o.old, min_ma: o.young,
-                 environment: o.env, id_marks: o.q, reference_no: o.ref, locality_key: o.loc, map_age: f.age,
+                 environment: o.env, id_marks: o.q, outlier: o.out ? 1 : 0, reference_no: o.ref, locality_key: o.loc, map_age: f.age,
                  in_this_map: inWin(f, o.old, o.young) ? 1 : 0, time_share: ANALYSIS && AN ? +frameShare(f, o.old, o.young).toFixed(4) : "",
                  paleolat_this_map: lat == null ? "" : lat };
       })) });
@@ -4866,11 +4887,12 @@
   $("share-opacity").addEventListener("change", function () { state.shareOpacity = this.checked; redraw(); });
   $("by-grid").addEventListener("change", function () { state.byGrid = this.checked; redraw(); if (state.distBase) computeDist(); else renderAnalysis(); });
   // 동정 거르기(koprifossillab 045) — 기본은 끔, 기억하지 않는다
-  ["drop-uncertain", "drop-coarse", "drop-straddle"].forEach(function (id) {
+  ["drop-uncertain", "drop-coarse", "drop-straddle", "drop-outlier"].forEach(function (id) {
     $(id).addEventListener("change", function () {
       state.dropUncertain = $("drop-uncertain").checked;
       state.dropCoarse = $("drop-coarse").checked;
       state.dropStraddle = $("drop-straddle").checked;
+      state.dropOutlier = $("drop-outlier").checked;
       drawTaxa();
       if (state.distBase) computeDist();
     });
