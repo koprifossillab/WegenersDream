@@ -8,11 +8,13 @@
 패키지 `wegenerweb` (020, CLAUDE.md "이름"). **로컬 실행·시험의 `MIH_*` 환경변수는 이제 안 먹는다.**
 
 **저장소** https://github.com/koprifossillab/WegenersDream (09-30 에 `MIH` 에서 바꿈 — 옛 주소는 GitHub 가 넘겨 준다).
-**브랜치** `main` = `1.9.0` (10-21, PR #53~#58 — 분석 엄밀성 계획 [koprifossillab P01](devlog/20261020_koprifossillab_P01_analysis_rigor.md)
-의 가 단계 043~048 과 나 단계 049~051) · 병합을 기다리는 브랜치는 없다. **운영에서 켜지려면**: 1.9.0 을 띄운 뒤 PBDB 를 다시 받아
-(`fetch --refresh-pbdb` — 이제 산출·분류 나무·참고문헌도 받는다, 6 분 남짓) `build --no-relief` 로 굽는다(산출 사본 조각 2~3 분 더). 그 전에는
-`index.json` 에 `rules.analysis`·`rules.quality`·`occurrences` 가 없어 새 기능이 숨고 분포는 PBDB 에 바로 묻는다. 첫 주간 갱신에서 받기 시간·
-백업 크기·정적 공개판 자료 크기(270 → 570 MB 남짓)를 본다. 남은 질문은 P01 §11.3·§11.4(5·8·11·12·13). 0.11.1 부터 GitHub PR 로 병합하고,
+**브랜치** `main` = `1.12.0` (10-21, PR #53~#62 — 분석 엄밀성 [P01](devlog/20261020_koprifossillab_P01_analysis_rigor.md) 043~051, 연구 관행
+[P02](devlog/20261021_koprifossillab_P02_research_conventions.md) 053~055, 주간 갱신 rsync 고침 052) · 병합을 기다리는 브랜치는 없다.
+**운영 이미지는 v1.12.0(10-21)이지만 운영 자료는 아직 10-04 의 것이다** — 10-05~10-19 주간 갱신이 jschoi 소유의 `/srv/WegenersDream/data/taxa_ko`
+권한에서 멈췄다(052). paleoadmin 으로 `mv /srv/WegenersDream/data/taxa_ko /srv/WegenersDream/data/taxa_ko.jschoi-20261021` 뒤
+`deploy/host/weekly_refresh.sh` 를 돌리면(15 분 남짓 — PBDB 산출 사본 받기·조각 굽기 포함) 새 분석 기능(`rules.analysis`·`rules.quality`·`occurrences`)이
+켜진다. 안 하면 10-27 02:30 cron 이 하되, 옮기기 전이면 같은 자리에서 또 멈춘다(rsync -rlt 고침은 그 실행의 다음 주부터 — 도는 스크립트는 당기기 전의
+판이다). 첫 갱신에서 받기 시간·백업 크기·정적 공개판 자료 크기(270 → 570 MB 남짓)를 본다. 0.11.1 부터 GitHub PR 로 병합하고,
 판을 올리면 CHANGELOG 로 GitHub 릴리스를 만든다(v0.11.2 부터).
 다음 코드 작업은 각자 자기 계정에서 `feature/<기능 이름>` 브랜치를 `main` 에서 만들고, 끝나면 PR 을 만든다
 (CLAUDE.md "커밋과 PR"). **병합 직전에 `deploy/host/premerge.sh <PR>`**(충돌·뒤처짐·판·CI, wetherilli 010).
@@ -21,13 +23,13 @@
 몰바이데 `moll-*`(024)가 있어야 한다. `python -m pipeline fetch`(PBDB 시대 이름 목록 `intervals.json` 이 든다) 다음
 `build`(배경 포함, 7 분 남짓). 몰바이데 배경이 없으면 투영 고르기가 숨는다.
 
-**배포**: paleoserver — **http://paleolab/WegenersDream/**(`172.16.116.98`) = `v1.2.2`(Docker Hub 이미지). 컨테이너 `wegenersdream-web-1`
+**배포**: paleoserver — **http://paleolab/WegenersDream/**(`172.16.116.98`) = `v1.12.0`(Docker Hub 이미지, 10-21). 컨테이너 `wegenersdream-web-1`
 **10-05 주간 갱신**은 운영 옮기기에서 멈췄다가(폴더 시각, 1.1.2 에서 고침) 10-06 에 손으로 마무리했다 — 운영·바깥 사이트 모두 PBDB 10-04,
 `/healthz` ok(koprifossillab 037). 다음 정기 실행은 10-12(월).
 
 **연구소 밖**: **https://koprifossillab.github.io/WegenersDream/** — 같은 뷰어의 고정 사본(GitHub Pages, tupandactyl 029). `deploy/static_site.py` 로
 굽고 `.github/workflows/pages.yml` 이 올린다. 자료는 릴리스 `site-data` 의 `wegener-data.tar.gz`(주간 갱신이 덮어쓴다). Pages(Source "GitHub Actions")는
-10-02 에 켰고 v1.2.2 가 올라가 있다. 배포 환경 `github-pages` 는 `main` 브랜치와 `v*` 태그에서만 올릴 수 있다 — 릴리스로 도는
+10-02 에 켰고 릴리스마다 올라간다(바깥 사이트의 자료는 주간 갱신이 올린 `site-data` — 지금 10-04 의 것). 배포 환경 `github-pages` 는 `main` 브랜치와 `v*` 태그에서만 올릴 수 있다 — 릴리스로 도는
 작업은 태그 위라, 태그 규칙이 없으면 배포 단계가 막힌다(10-02 v1.1.0 에서 한 번 막혀 더했다). 손으로 다시 올리려면 `gh workflow run pages.yml`.
 (`127.0.0.1:8095`), nginx `snippets/WegenersDream-subpath.conf`, paleolab 첫 화면 카드. 운영 compose·`.env` 는
 `/srv/WegenersDream/`, 자료는 `/srv/WegenersDream/data`(읽기 전용), 명칭 덮어쓰기·비밀키는 `/srv/WegenersDream/state`.
