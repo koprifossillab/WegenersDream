@@ -6,6 +6,7 @@ USAGE = """사용법: python -m pipeline <명령>
 
   fetch            원본 받기·검증 (PaleoDEM, PaleoCoastlines, PBDB)
   fetch --refresh-pbdb   PBDB 를 새로 받는다 (Zenodo 두 개는 고정이라 다시 받지 않는다)
+  fetch --refresh-pbdb --allow-shrink   PBDB 가 지난 사본보다 5% 넘게 줄어도 받는다(PBDB 가 실제로 정리한 날)
   build            배경·해안선·화석·국경·목록 만들기
   build --no-relief  배경 그림·지형(합해 10 분 남짓)은 지난 것을 두고 나머지만
   all              fetch 뒤 build

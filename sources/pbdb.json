@@ -23,5 +23,20 @@
     "url": "https://paleobiodb.org/data1.2/taxa/list.txt?all_taxa&rank=genus,subgenus,species&taxon_status=valid&show=size&vocab=pbdb",
     "path": "data/sources/pbdb/taxa.csv",
     "note": "유효한 속·아속·종 이름표(약 36 만, 산출이 있는 것 28 만). Casual 모드의 한글 찾기 — 이름마다 한글 음차를 미리 만들어 한글 → 학명 표로 쓴다(tupandactyl 021). 산지를 새로 받을 때 함께 새로 받는다."
+  },
+  "occurrences": {
+    "url": "https://paleobiodb.org/data1.2/occs/list.csv?all_records&show=class,ident&vocab=pbdb",
+    "path": "data/sources/pbdb/occurrences.csv",
+    "note": "산출 전체(약 178 만, 330 MB 남짓) — 분포 분석의 사본(koprifossillab P01 §3, 049). 좌표·산지 칸은 산지 표에서 잇는다(paleoloc·coll 을 받지 않는다). show=ident 는 동정 수식어(quality.py). 산지와 같은 때에 받아 바꿔 끼운다"
+  },
+  "taxonomy": {
+    "url": "https://paleobiodb.org/data1.2/taxa/list.csv?all_taxa&show=seq&vocab=pbdb",
+    "path": "data/sources/pbdb/taxonomy.csv",
+    "note": "분류 나무 전체(약 41 만 이름, 동의어 포함) — lft·rgt 로 산출을 나무 순서로 늘어놓아 어떤 분류군이든 한 구간이 되게 한다(P01 §3.2). lft 는 PBDB 가 나무를 다시 세우면 바뀌므로 산출과 같은 때에 받는다"
+  },
+  "references": {
+    "url": "https://paleobiodb.org/data1.2/refs/list.csv?all_records&show=formatted&vocab=pbdb",
+    "path": "data/sources/pbdb/references.csv",
+    "note": "참고문헌(약 9.6 만) — 재현 묶음의 문헌 목록, CC BY 의 원 저자 표시(P01 §8). occs/refs 의 all_records 는 PBDB 가 500 을 낸다(10-21)"
   }
 }
