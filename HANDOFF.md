@@ -8,10 +8,11 @@
 패키지 `wegenerweb` (020, CLAUDE.md "이름"). **로컬 실행·시험의 `MIH_*` 환경변수는 이제 안 먹는다.**
 
 **저장소** https://github.com/koprifossillab/WegenersDream (09-30 에 `MIH` 에서 바꿈 — 옛 주소는 GitHub 가 넘겨 준다).
-**브랜치** `main` = `1.8.0` (10-21, PR #53~#57 — 분석 엄밀성 계획 [koprifossillab P01](devlog/20261020_koprifossillab_P01_analysis_rigor.md)
-의 가 단계, 043~048) · 병합을 기다리는 브랜치는 없다. **1.4.0 부터의 기능은 `index.json` 의 새 칸(`rules.analysis`·`rules.quality`)을 쓴다 —
-운영에 1.8.0 을 띄운 뒤 `build --no-relief` 로 다시 가공해야 켜진다**(그 전에는 숨고 나머지는 그대로). 나 단계(산출 단위 사본)는 P01 §11·§11.3 의
-질문에 답을 받은 뒤다. 0.11.1 부터 GitHub PR 로 병합하고,
+**브랜치** `main` = `1.9.0` (10-21, PR #53~#58 — 분석 엄밀성 계획 [koprifossillab P01](devlog/20261020_koprifossillab_P01_analysis_rigor.md)
+의 가 단계 043~048 과 나 단계 049~051) · 병합을 기다리는 브랜치는 없다. **운영에서 켜지려면**: 1.9.0 을 띄운 뒤 PBDB 를 다시 받아
+(`fetch --refresh-pbdb` — 이제 산출·분류 나무·참고문헌도 받는다, 6 분 남짓) `build --no-relief` 로 굽는다(산출 사본 조각 2~3 분 더). 그 전에는
+`index.json` 에 `rules.analysis`·`rules.quality`·`occurrences` 가 없어 새 기능이 숨고 분포는 PBDB 에 바로 묻는다. 첫 주간 갱신에서 받기 시간·
+백업 크기·정적 공개판 자료 크기(270 → 570 MB 남짓)를 본다. 남은 질문은 P01 §11.3·§11.4(5·8·11·12·13). 0.11.1 부터 GitHub PR 로 병합하고,
 판을 올리면 CHANGELOG 로 GitHub 릴리스를 만든다(v0.11.2 부터).
 다음 코드 작업은 각자 자기 계정에서 `feature/<기능 이름>` 브랜치를 `main` 에서 만들고, 끝나면 PR 을 만든다
 (CLAUDE.md "커밋과 PR"). **병합 직전에 `deploy/host/premerge.sh <PR>`**(충돌·뒤처짐·판·CI, wetherilli 010).
