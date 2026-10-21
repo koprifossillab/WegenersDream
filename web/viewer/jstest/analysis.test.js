@@ -49,5 +49,12 @@ quality.straddle.forEach(function (c) {
   check(got === c[2].join(","), "straddles " + c[0] + "–" + c[1] + " 기대 " + c[2] + " 얻음 " + got);
 });
 
+// 고유 산지-시간 열쇠(koprifossillab 047) — 보기는 pipeline/tests/locality_cases.json
+var loc = require(path.join(__dirname, "../../../pipeline/tests/locality_cases.json"));
+loc.cases.forEach(function (c) {
+  var got = A.localityKey(c[0], c[1], c[2], c[3], c[4], loc.decimals);
+  check(got === c[5], "localityKey 기대 " + c[5] + " 얻음 " + got);
+});
+
 if (fail) { console.log(fail + " 개 틀림"); process.exit(1); }
 console.log("분석 셈 시험 통과");

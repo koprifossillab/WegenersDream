@@ -74,6 +74,7 @@
     colorBy: "env",                         // 점 색: env(퇴적기원) · age(기 단위 시대)
     opacity: 0.6,                           // 점 불투명도 — 겹친 점과 밑그림이 함께 보이게
     shareOpacity: false,
+    byLocality: false,                      // 고유 산지-시간으로도 세기(koprifossillab 047) — 기본 단위는 산지(연구자의 결정을 기다린다)
     dropUncertain: false,                   // 동정 거르기 — 속이 불확실한 산출(cf.·aff.·?) 빼기(koprifossillab 045)
     dropCoarse: false,                      //            — 속까지 동정 안 된 산출(indet.) 빼기
     dropStraddle: false,                    // 대멸종 경계를 걸친 연대 범위의 산지 빼기(koprifossillab 046)                    // 점 진하기를 시점 몫으로(koprifossillab 044) — 열 때마다 끈다
@@ -1228,6 +1229,20 @@
   function shareOn() { return RIGOR && !!ANALYSIS && !!AN; }
   // 산지(산출)가 지도 시점 f 에 속할 몫 — 연대 범위가 시점 창과 겹친 길이 ÷ 범위 길이(P01 §5.1)
   function frameShare(f, maxMa, minMa) { var w = win(f); return AN.share(maxMa, minMa, w[0], w[1]); }
+  // 고유 산지-시간으로도 세나(koprifossillab 047) — 몫과 같은 조건에 "고유 산지-시간으로도 세기" 를 켰을 때
+  function locOn() { return shareOn() && state.byLocality && ANALYSIS.locality_decimals != null; }
+  // 지도 좌표(그 시점의 고좌표 — 같은 현재 좌표·같은 판이면 같다)·지층·연대 범위로 묶은 수와 몫의 합
+  function localityGroups(rows, col, f) {
+    var seen = {}, n = 0, share = 0;
+    rows.forEach(function (row) {
+      var k = AN.localityKey(row[col.paleolat], row[col.paleolng], row[col.formation], row[col.max_ma], row[col.min_ma], ANALYSIS.locality_decimals);
+      if (seen[k]) return;
+      seen[k] = row;
+      n += 1;
+      share += f ? frameShare(f, row[col.max_ma], row[col.min_ma]) : 0;
+    });
+    return { n: n, share: share, rows: Object.keys(seen).map(function (k) { return seen[k]; }) };
+  }
   function shareText(v) { return (Math.round(v * 10) / 10).toLocaleString(EN ? "en" : "ko", { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
 
   function rowPrecise(row, col) {
@@ -1257,7 +1272,7 @@
     spanNote(payload.rows.filter(function (row) {
       return (!state.country || row[col.cc] === state.country) && tooWide(rowPrecise(row, col), row[col.max_ma], row[col.min_ma]);
     }).length, tr("what.coll"));
-    var shown = 0, wide = 0, shareSum = 0, f = frame(), useShare = shareOn();
+    var shown = 0, wide = 0, shareSum = 0, f = frame(), useShare = shareOn(), shownRows = [];
     payload.rows.forEach(function (row) {
       var precise = rowPrecise(row, col);
       if (!passes(row[col.environment], row[col.cc], precise, row[col.max_ma], row[col.min_ma], row[col.formation])) return;
@@ -1265,6 +1280,7 @@
       if (!precise) wide += 1;
       var share = useShare ? frameShare(f, row[col.max_ma], row[col.min_ma]) : null;
       shareSum += share || 0;
+      shownRows.push(row);
       marker([row[col.paleolat], row[col.paleolng]], pointColor(row[col.environment], row[col.max_ma], row[col.min_ma]),
              false, !precise, share)
         .on("click", function (e) { openCollection(e.latlng, row, col); })
@@ -1272,7 +1288,8 @@
     });
     $("fossil-count").textContent = (shown === payload.rows.length ? tr("fossil.all", { n: fmtNum(shown) })
       : tr("fossil.some", { n: fmtNum(shown), total: fmtNum(payload.rows.length) })) + (wide ? tr("fossil.vague", { n: fmtNum(wide) }) : "") +
-      (useShare ? tr("share.colls", { n: shareText(shareSum) }) : "");
+      (useShare ? tr("share.colls", { n: shareText(shareSum) }) : "") +
+      (locOn() ? (function (g) { return tr("loc.colls", { n: fmtNum(g.n), s: shareText(g.share) }); })(localityGroups(shownRows, col, f)) : "");
     renderLegend();
   }
 
@@ -2464,6 +2481,7 @@
       age: fmtAge(frame().age), n: fmtNum(shown), occ: fmtNum(occs),
       country: state.country ? ", " + countryName(state.country) : "" }) +
       (useShare ? tr("share.taxon", { n: shareText(shareColls), occ: shareText(shareOccs) }) : "") +
+      (locOn() ? (function (g) { return tr("loc.taxon", { n: fmtNum(g.n), s: shareText(g.share) }); })(localityGroups(visible, COLUMNS, f)) : "") +
       (qualHidden ? tr("q.hidden", { n: fmtNum(qualHidden) }) : "") +
       (state.taxaTruncated ? tr("taxon.truncated", { n: fmtNum(TAXON_LIMIT) }) : "");
     state.taxaVisible = visible;
@@ -3316,6 +3334,12 @@
     svg.setAttribute("viewBox", "0 0 " + W + " " + H);
     var A = state.overview ? null : state.taxaVisible, B = state.cmp && !state.overview ? state.cmp.visible : null;
     if (!A && !B) return null;
+    // 고유 산지-시간으로 셀 때는 묶은 대표 산지로 띠·수치를 센다(koprifossillab 047). 같은 산지(Jaccard 의 공유)는 산지 번호라 묶지 않은 것으로
+    var A0 = A, B0 = B;
+    if (locOn()) {
+      if (A) A = localityGroups(A, COLUMNS).rows;
+      if (B) B = localityGroups(B, COLUMNS).rows;
+    }
     var bands = function (rows) {
       var c = new Array(18).fill(0);
       (rows || []).forEach(function (row) { c[Math.min(17, Math.max(0, Math.floor((90 - row[COLUMNS.paleolat]) / 10)))] += 1; });
@@ -3351,8 +3375,8 @@
     Object.keys(ca).forEach(function (k) { union += 1; if (cb[k]) both += 1; });
     Object.keys(cb).forEach(function (k) { if (!ca[k]) union += 1; });
     var noA = {};
-    (A || []).forEach(function (r) { noA[r[COLUMNS.collection_no]] = 1; });
-    (B || []).forEach(function (r) { if (noA[r[COLUMNS.collection_no]]) shared += 1; });
+    (A0 || []).forEach(function (r) { noA[r[COLUMNS.collection_no]] = 1; });
+    (B0 || []).forEach(function (r) { if (noA[r[COLUMNS.collection_no]]) shared += 1; });
     return { a: sa, b: sb, cellsA: Object.keys(ca).length, cellsB: Object.keys(cb).length, both: both, union: union, shared: shared };
   }
 
@@ -3393,7 +3417,7 @@
         now.a && now.b ? tr("now.overlap", { shared: fmtNum(now.shared), both: fmtNum(now.both), a: fmtNum(now.cellsA), b: fmtNum(now.cellsB),
           j: now.union ? (now.both / now.union).toFixed(2) : "—" }) : ""].filter(Boolean).join("<br>") +
         (state.cmp && state.cmp.truncated ? "<br>" + tr("cmp.truncated", { n: fmtNum(TAXON_LIMIT) }) : "") +
-        "<br><small>" + esc(tr("now.frame")) + "</small>";
+        "<br><small>" + esc(tr("now.frame")) + (locOn() ? " · " + esc(tr("loc.unit")) : "") + "</small>";
     } else stat.innerHTML = state.overview ? tr("now.overview") : "";
     if ($("anal-dialog").open) renderBig();
   }
@@ -4574,6 +4598,7 @@
   });
   // "점 진하기를 시점 몫으로"(koprifossillab 044) — 몫으로 셀 때만 보인다. 기억하지 않는다(지도를 다르게 읽게 하는 선택이라 열 때마다 끈다)
   $("share-opacity").addEventListener("change", function () { state.shareOpacity = this.checked; redraw(); });
+  $("by-locality").addEventListener("change", function () { state.byLocality = this.checked; redraw(); renderAnalysis(); });
   // 동정 거르기(koprifossillab 045) — 기본은 끔, 기억하지 않는다
   ["drop-uncertain", "drop-coarse", "drop-straddle"].forEach(function (id) {
     $(id).addEventListener("change", function () {
