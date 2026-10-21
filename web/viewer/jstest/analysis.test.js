@@ -70,5 +70,12 @@ grid.cases.forEach(function (c) {
   check(got === c[2], "gridCell " + c[0] + "," + c[1] + " 기대 " + c[2] + " 얻음 " + got);
 });
 
+// 표본 범위 표준화(koprifossillab 054) — 보기는 pipeline/tests/coverage_cases.json
+var cov = require(path.join(__dirname, "../../../pipeline/tests/coverage_cases.json"));
+cov.cases.forEach(function (c) {
+  var got = A.coverageRarefy(c[1], c[0], c[2], cov.max_extrapolation).s;
+  check(c[3] === null ? got === null : got !== null && near(got, c[3], 1e-5), "coverageRarefy T=" + c[0] + " q=" + c[2] + " 기대 " + c[3] + " 얻음 " + got);
+});
+
 if (fail) { console.log(fail + " 개 틀림"); process.exit(1); }
 console.log("분석 셈 시험 통과");

@@ -132,3 +132,4 @@
 | koprifossillab P02 | 2026-10-21 | [세는 단위·표본 표준화·범위 밖 기록을 연구 관행에 맞춘다 — 계획](20261021_koprifossillab_P02_research_conventions.md) |
 | koprifossillab 052 | 2026-10-21 | [주간 갱신이 남의 폴더 권한에서 세 주째 멈췄다](20261021_koprifossillab_052_rsync_ownership.md) |
 | koprifossillab 053 | 2026-10-21 | [공간은 등면적 격자 칸으로 세고, Casual 에서도 엄밀 표기를 기본으로](20261021_koprifossillab_053_grid_cells.md) |
+| koprifossillab 054 | 2026-10-21 | [표본 범위로 표준화한 속 수(SQS·coverage-based rarefaction)](20261021_koprifossillab_054_coverage_richness.md) |

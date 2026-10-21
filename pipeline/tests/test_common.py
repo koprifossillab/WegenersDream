@@ -232,3 +232,25 @@ class GridCellTest(unittest.TestCase):
         self.assertAlmostEqual(abs((x1 - x0) * (y1 - y0)) / band(0, 10), 1, delta=0.03)   # 경도선은 굽어 사각형 넓이와 조금 다르다
         self.assertGreater(y2, 0)
 
+
+class CoverageTest(unittest.TestCase):
+    """표본 범위 표준화(koprifossillab 054) — 보기는 뷰어의 analysis.js 시험과 같은 파일이다."""
+
+    def test_cases(self):
+        from pipeline.common import ANALYSIS, coverage_rarefy
+        cases = json.loads((Path(__file__).parent / "coverage_cases.json").read_text(encoding="utf-8"))
+        self.assertEqual(cases["max_extrapolation"], ANALYSIS["coverage_max_extrapolation"])
+        for T, ys, q, want, cov in cases["cases"]:
+            got = coverage_rarefy(ys, T, q)
+            if want is None:
+                self.assertIsNone(got["s"], msg=(T, q))
+            else:
+                self.assertAlmostEqual(got["s"], want, places=5, msg=(T, q))
+
+    def test_properties(self):
+        from pipeline.common import coverage_rarefy
+        ys, T = [5, 3, 2, 2, 1, 1, 1, 1], 10
+        lo, hi = coverage_rarefy(ys, T, 0.4)["s"], coverage_rarefy(ys, T, 0.7)["s"]
+        self.assertLess(lo, hi)                               # 문턱이 높으면 더 많이 센다
+        self.assertLessEqual(coverage_rarefy(ys, T, 0.5)["s"], len(ys))   # 관찰 범위 안이면 관찰 수보다 크지 않다
+

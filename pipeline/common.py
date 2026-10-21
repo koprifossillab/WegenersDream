@@ -98,6 +98,13 @@ ANALYSIS = {
     # 공간을 셀 때의 단위(koprifossillab 053, P02 §2.2) — 등면적 격자 칸. divvy(Antell et al. 2024)의 기본과 같은 Equal Earth 투영의
     # 200 km 칸(≈2°). 같은 자리의 여러 산지·좌표의 작은 차이를 칸 하나로 흡수한다. 구면(평균 반지름)으로 근사한다
     "grid_km": 200,
+    # 표본 범위(coverage) 표준화 속 수(koprifossillab 054, P02 §2.3) — Chao et al. 2014 의 incidence 셈, 산지가 표본. 문턱 기본 0.5(관행 0.4~0.7),
+    # 관찰 표본 수의 2 배까지 외삽(iNEXT 의 기본 끝점). 시점에는 연대 범위의 **가운데**가 그 창에 든 산지 하나씩(palaeoverse bin_time 의 "mid"),
+    # 절 단위로 정해지지 않은 모호한 연대(016)는 뺀다. "반 넘게(majority)" 는 5 Myr 창에서 절 하나로 매긴 산지(알바절 12.4 Myr)를 모두 버려 쓰지 않는다(054)
+    "coverage_quorum": 0.5,
+    "coverage_quorums": [0.4, 0.5, 0.6, 0.7],
+    "coverage_max_extrapolation": 2,
+    "bin_rule": "mid",
     # 산출 사본의 조각(koprifossillab 050, P01 §3.2) — 조각 하나의 어림 크기, 그리고 미리 센 요약을 쓰는 큰 분류군의 문턱(연구자, P01 §11.4)
     "chunk_bytes": 1_000_000,
     "summary_min_occs": 50_000,
@@ -155,4 +162,66 @@ def grid_cell(lat, lng, km=ANALYSIS["grid_km"]):
     """등면적 격자 칸의 이름 "열:행" — 뷰어의 analysis.js gridCell 과 같다(보기 tests/grid_cases.json)."""
     x, y = equal_earth(lat, lng)
     return f"{math.floor(x / km)}:{math.floor(y / km)}"
+
+
+def _miss_ratio(T, y, t):
+    """C(T − y, t) / C(T, t) — 표본 t 개를 뽑았을 때 그 분류군(산지 y 곳에 있다)이 하나도 안 뽑힐 확률."""
+    if t > T - y:
+        return 0.0
+    r = 1.0
+    for j in range(y):
+        r *= (T - t - j) / (T - j)
+    return r
+
+
+def coverage_rarefy(incidence, T, quorum, max_extrapolation=ANALYSIS["coverage_max_extrapolation"]):
+    """표본 범위 표준화 풍부도(Chao et al. 2014, incidence, q = 0) — 뷰어의 analysis.js coverageRarefy 와 같다(보기 tests/coverage_cases.json).
+
+    incidence: 분류군마다 그것이 나온 표본(산지) 수, T: 표본 수. 돌려주는 것 {"s": 표준화한 수 또는 None, "coverage": 관찰 표본 범위, "t": 그 표본 수}.
+    관찰 범위가 문턱 이상이면 희박화(내삽), 모자라면 T 의 max_extrapolation 배까지 외삽, 그래도 모자라면 s = None.
+    """
+    ys = [y for y in incidence if y > 0]
+    s_obs = len(ys)
+    if T < 1 or s_obs == 0:
+        return {"s": None, "coverage": None, "t": None}
+    U = sum(ys)
+    q1 = sum(1 for y in ys if y == 1)
+    q2 = sum(1 for y in ys if y == 2)
+    if q1 == 0:
+        a = 0.0
+    elif q2 > 0:
+        a = (T - 1) * q1 / ((T - 1) * q1 + 2 * q2)
+    else:
+        a = (T - 1) * (q1 - 1) / ((T - 1) * (q1 - 1) + 2) if q1 > 1 or T > 1 else 0.0
+    cov_obs = 1 - q1 / U * a
+    if cov_obs >= quorum:
+        if cov_obs == quorum:
+            return {"s": float(s_obs), "coverage": cov_obs, "t": float(T)}
+        # 내삽 — C(t) 는 t 에 따라 는다. 문턱을 넘는 첫 t 를 이분 탐색으로 찾아(표본이 수만이라 하나씩 보면 느리다) 그 앞 t 와 선으로 잇는다
+        def at(t):
+            if t <= 0:
+                return 0.0, 0.0
+            if t >= T:
+                return cov_obs, float(s_obs)
+            return (1 - sum(y / U * _miss_ratio(T - 1, y, t) for y in ys), sum(1 - _miss_ratio(T, y, t) for y in ys))
+        lo, hi = 1, T
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if at(mid)[0] >= quorum:
+                hi = mid
+            else:
+                lo = mid + 1
+        (c, s_t), (prev_c, prev_s) = at(lo), at(lo - 1)
+        k = (quorum - prev_c) / (c - prev_c) if c > prev_c else 1.0
+        return {"s": prev_s + (s_t - prev_s) * k, "coverage": cov_obs, "t": lo - 1 + k}
+    # 외삽
+    if q1 == 0 or a <= 0 or a >= 1:
+        return {"s": None, "coverage": cov_obs, "t": None}
+    import math
+    t_star = math.log((1 - quorum) * U / q1) / math.log(a) - 1
+    if t_star > (max_extrapolation - 1) * T:
+        return {"s": None, "coverage": cov_obs, "t": None}
+    q0 = (T - 1) / T * (q1 * q1 / (2 * q2) if q2 > 0 else q1 * (q1 - 1) / 2)
+    s_ext = s_obs + (q0 * (1 - (1 - q1 / (T * q0 + q1)) ** t_star) if q0 > 0 else 0.0)
+    return {"s": s_ext, "coverage": cov_obs, "t": T + t_star}
 
