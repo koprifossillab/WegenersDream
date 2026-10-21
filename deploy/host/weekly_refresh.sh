@@ -119,7 +119,7 @@ fi
 old=$("$PY" -c "import json;print(json.load(open('$REPO/data/sources/pbdb/receipt.json'))['records'])")
 
 STEP=fetch
-(cd "$REPO" && "$PY" -m pipeline fetch --refresh-pbdb) || fail "PBDB 받기 실패 — 지난 사본 그대로"
+(cd "$REPO" && "$PY" -m pipeline fetch --refresh-pbdb) || fail "PBDB 받기 실패(또는 5% 넘게 줄었다) — 지난 사본 그대로"
 new=$("$PY" -c "import json;print(json.load(open('$REPO/data/sources/pbdb/receipt.json'))['records'])")
 
 STEP=build
@@ -127,6 +127,7 @@ STEP=build
 
 # ── 3. 점검 ────────────────────────────────────────────────────────────
 STEP=verify
+# 산지·산출이 5% 넘게 줄면 fetch 가 바꿔 끼우기 전에 멈춘다(koprifossillab 049) — 여기는 그 뒤의 겹 확인이다
 [ "$new" -ge $(( old * 95 / 100 )) ] || fail "산지가 크게 줄었다($old → $new) — 운영에 옮기지 않는다"
 "$PY" - "$REPO/data/derived" <<'EOF' || fail "가공물 점검 실패"
 import json, sys, pathlib

@@ -22,10 +22,14 @@ PBDB intervals/list.json ──────────┼─ fetch ─▶ data/
 |---|---|---|
 | 산지 전체 | `data1.2/colls/list.csv?all_records&show=loc,paleoloc,geo,crmod&pgm=scotese&vocab=pbdb` | `data/sources/pbdb/collections.csv`(114 MB, 278,399 행) |
 | 시대 이름표 | `data1.2/intervals/list.json?all_records&vocab=pbdb` | `data/sources/pbdb/intervals.json`(1,909 개) |
+| 산출 전체(koprifossillab 049) | `data1.2/occs/list.csv?all_records&show=class,ident&vocab=pbdb` | `data/sources/pbdb/occurrences.csv` — 분포 분석의 사본 |
+| 분류 나무 | `data1.2/taxa/list.csv?all_taxa&show=seq&vocab=pbdb` | `data/sources/pbdb/taxonomy.csv`(`lft`·`rgt`) |
+| 참고문헌 | `data1.2/refs/list.csv?all_records&show=formatted&vocab=pbdb` | `data/sources/pbdb/references.csv` |
 
 - **`pgm=scotese` 가 요점이다** — PBDB 기본 모델(`gplates`, Wright 2013)의 고좌표는 배경과 판 모델이 달라 점이 수 도씩 어긋난다(001).
   화면의 분류군 찾기도 늘 `pgm=scotese` 로 묻는다
 - `show=loc` 이 국가 코드 `cc`(ISO alpha-2, 영국은 `UK`, 대양은 `O1`~`O7`)를 준다 — 국가로 거르기(003)
+- 산지·산출·나무·문헌은 **같은 때 받아 모두 검사한 뒤 한꺼번에** 바꿔 끼운다. 표마다 지난 사본보다 5% 넘게 줄면 바꿔 끼우기 전에 멈춘다(`--allow-shrink` 로 넘긴다, koprifossillab 049)
 - PBDB 는 살아 있어 같은 질의도 나중에는 더 준다. 그래서 크기·SHA-256 을 미리 고정하지 않고 **받은 날의 값**을 `receipt.json` 에 적는다
   (`retrieved_at`·`bytes`·`sha256`·`records`). 받기는 임시 파일에 받아 행을 세고(`paleolat` 칸이 있는지) 다 받은 뒤 바꿔 끼운다 —
   실패해도 지난 사본이 남는다
@@ -143,7 +147,7 @@ PBDB 에 바로 묻는 **산출 목록** `occs/list.json?coll_id=<번호>&show=c
 - 모호함은 `rules.vague_intervals` 로 같은 규칙을 쓴다. 최근 절 시점은 PBDB 의 `overlap` 이 경계에 닿은 것도 주므로 절 안쪽만 남긴다
 - 산출 수가 5,000 건 이하면 산출 기록 자체를 받아 **지도와 같은 규칙**(창과 겹침, 퇴적기원·연대 범위 거르기)으로 센다. 그보다 많으면
   PBDB 의 절 단위 수를 쓰고 거르기가 수에 반영되지 않는다고 적는다(014)
-- 서버는 PBDB 를 부르지 않는다(CORS `*`). 사내망에서 막히면 GSM 처럼 서버에 중계 문을 둔다(CLAUDE.md)
+- 뷰어 서버는 PBDB 를 중계하지 않는다(CORS `*`). 분포 분석은 파이프라인이 받은 **산출 사본**의 조각을 쓴다(koprifossillab 049·050·051) — 사본에 없는 이름만 PBDB 에 바로. 사내망에서 막히면 GSM 처럼 서버에 중계 문을 둔다(CLAUDE.md)
 
 ## 5. 규칙이 사는 곳
 

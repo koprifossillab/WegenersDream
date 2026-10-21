@@ -99,7 +99,8 @@ def assign(rows, ages):
     return binned
 
 
-def build(ages):
+def build(ages, keep=None):
+    """keep(dict)을 주면 산지마다 칸과 시점 좌표를 채운다 — 산출 사본의 조각(occurrences.py, koprifossillab 050)이 쓴다."""
     query = manifest("pbdb")["query"]
     path = source_path(query["path"])
     if not path.exists():
@@ -132,6 +133,13 @@ def build(ages):
             else:
                 stats["pbdb_fallback"] += 1               # 그 나이에 판이 없다 — PBDB 고좌표(중간값)
             members.append(row)
+            if keep is not None:
+                c = keep.get(row[0])
+                if c is None:
+                    c = keep[row[0]] = {"max_ma": row[8], "min_ma": row[9], "early": row[6], "late": row[7], "environment": row[11],
+                                        "cc": row[12], "formation": row[10], "precise": row[13], "lng": item[3], "lat": item[4],
+                                        "frames": []}
+                c["frames"].append([age, row[2], row[1], row[-1]])
         members.sort(key=lambda row: row[0])
         payload = {"age": age, "window_ma": WINDOW_MA, "fields": FIELDS, "rows": members}
         (DERIVED / name).write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")),

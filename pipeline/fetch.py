@@ -139,35 +139,87 @@ def fetch_pbdb_taxa(refresh=False):
     print("  속·종 이름표를 받았다")
 
 
-def fetch_pbdb(refresh=False):
-    spec = manifest("pbdb")
-    query = spec["query"]
-    target = source_path(query["path"])
-    receipt = target.parent / "receipt.json"
-    fetch_pbdb_intervals(refresh)
-    fetch_pbdb_taxa(refresh)
-    if target.exists() and receipt.exists() and not refresh:
-        print(f"있음  {query['path']} ({json.loads(receipt.read_text())['retrieved_at']} 에 받음)")
-        return
-    print("받기  PBDB 산지 전체 — 서버가 표를 만드는 데 몇 분 걸린다")
-    temp = download(query["url"], target, timeout=1800)
-    # 줄이 아니라 행을 센다 — geology_comments 같은 칸에 줄바꿈이 들어 있다.
-    with open(temp, newline="", encoding="utf-8", errors="replace") as handle:
+# PBDB 사본의 표들 — 같은 때에 받아 **모두 검사한 뒤 한꺼번에** 바꿔 끼운다(koprifossillab 049). 산지·산출·나무가 다른 날의 것이면
+# 산출의 산지가 산지 표에 없거나, 나무의 lft 가 산출과 맞지 않는다. (이름, 매니페스트 칸, 있어야 할 열, 받기 시한 초)
+PBDB_TABLES = [
+    ("collections", "query", ["collection_no", "paleolat"], 1800),
+    ("occurrences", "occurrences", ["occurrence_no", "collection_no", "accepted_no", "max_ma"], 3600),
+    ("taxonomy", "taxonomy", ["taxon_no", "accepted_no", "lft", "rgt"], 1800),
+    ("references", "references", ["reference_no", "formatted"], 1800),
+]
+SHRINK = 0.95       # 지난 사본의 행 수보다 이만큼 넘게 줄면 받기를 거절한다(PBDB_받기_검토 §3.3)
+
+
+def count_rows(path):
+    """(머리줄, 행 수) — 줄이 아니라 행을 센다. geology_comments 같은 칸에 줄바꿈이 들어 있다."""
+    with open(path, newline="", encoding="utf-8", errors="replace") as handle:
         reader = csv.reader(handle)
         header = next(reader, [])
-        rows = sum(1 for _ in reader)
-    if "paleolat" not in header or rows == 0:
-        temp.unlink(missing_ok=True)
-        raise SystemExit("PBDB 가 돌려준 표에 paleolat 칸이 없거나 비었다 — 질의를 확인한다")
-    temp.replace(target)
+        return header, sum(1 for _ in reader)
+
+
+def old_counts(receipt):
+    """지난 receipt 의 표마다 행 수. 산지는 맨 위 칸(옛 꼴과 같다), 나머지는 tables 칸."""
+    if not receipt.exists():
+        return {}
+    old = json.loads(receipt.read_text(encoding="utf-8"))
+    counts = {name: part.get("records") for name, part in (old.get("tables") or {}).items()}
+    counts["collections"] = old.get("records")
+    return counts
+
+
+def fetch_pbdb(refresh=False, allow_shrink=False):
+    spec = manifest("pbdb")
+    target = source_path(spec["query"]["path"])
+    receipt = target.parent / "receipt.json"
+    wanted = [t for t in PBDB_TABLES if t[1] in spec]
+    have = all(source_path(spec[key]["path"]).exists() for _, key, _, _ in wanted)
+    if have and receipt.exists() and not refresh:
+        print(f"있음  PBDB 사본 ({json.loads(receipt.read_text())['retrieved_at']} 에 받음)")
+        fetch_pbdb_intervals(False)
+        fetch_pbdb_taxa(False)
+        return
+    old = old_counts(receipt)
+    retrieved = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    temps, parts = {}, {}
+    try:
+        for name, key, columns, timeout in wanted:
+            print(f"받기  PBDB {name} — 서버가 표를 만드는 데 몇 분 걸린다")
+            temp = download(spec[key]["url"], source_path(spec[key]["path"]), timeout=timeout)
+            temps[name] = temp
+            header, rows = count_rows(temp)
+            missing = [c for c in columns if c not in header]
+            if missing or rows == 0:
+                raise SystemExit(f"PBDB {name} 표에 {missing} 칸이 없거나 비었다 — 질의를 확인한다")
+            before = old.get(name)
+            # 바꿔 끼우기 **전에** 지난 사본과 견준다 — 잘린 표가 원본을 덮으면 다음 주의 기준선까지 내려간다
+            if before and rows < before * SHRINK and not allow_shrink:
+                raise SystemExit(f"PBDB {name} 가 크게 줄었다({before} → {rows}) — 지난 사본 그대로 둔다. "
+                                 "PBDB 가 실제로 정리한 것이면 --allow-shrink")
+            parts[name] = {"url": spec[key]["url"], "records": rows}
+            print(f"  {name}: {rows} 행")
+    except BaseException:
+        for temp in temps.values():
+            temp.unlink(missing_ok=True)
+        raise
+    for name, key, _, _ in wanted:
+        path = source_path(spec[key]["path"])
+        temps[name].replace(path)
+        parts[name].update(bytes=path.stat().st_size, sha256=sha256(path))
+    collections = parts.pop("collections")
     receipt.write_text(json.dumps({
-        "url": query["url"],
-        "retrieved_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "bytes": target.stat().st_size,
-        "sha256": sha256(target),
-        "records": rows,
+        "url": collections["url"],
+        "retrieved_at": retrieved,
+        "bytes": collections["bytes"],
+        "sha256": collections["sha256"],
+        "records": collections["records"],
+        # 같은 때에 받은 사본을 한 이름으로 — 재현 묶음이 이것으로 그 주의 백업을 찾는다(P01 §3.1)
+        "snapshot": retrieved[:10].replace("-", "") + "-" + collections["sha256"][:12],
+        "tables": parts,
     }, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(f"  {rows} 산지")
+    # 이름표들은 산지를 바꾼 **뒤에** — 산지 받기가 실패하면 새 이름표와 지난 산지가 짝이 되던 것(PBDB_받기_검토 §3.7)
+    fetch_pbdb_intervals(True)
+    fetch_pbdb_taxa(True)
 
 
 def fetch_receipted(name, refresh=False):
@@ -197,7 +249,7 @@ def main(argv=None):
     fetch_pinned("paleotemp")
     fetch_pinned("paleoclim")        # 최근의 절 기온(tupandactyl 010) — SHA-256 으로 고정된 원본이라 다른 Zenodo 것과 같이 받는다
     fetch_receipted("countries")
-    fetch_pbdb(refresh="--refresh-pbdb" in argv)
+    fetch_pbdb(refresh="--refresh-pbdb" in argv, allow_shrink="--allow-shrink" in argv)
 
 
 if __name__ == "__main__":
