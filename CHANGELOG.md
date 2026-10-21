@@ -3,6 +3,11 @@
 괄호 안의 번호는 `devlog/` 의 그 문서다. **지금 무엇이 도는지는 이 파일이 아니라
 [HANDOFF.md](HANDOFF.md) 다.**
 
+## 1.12.0 — 2026-10-21 · `feature/outlier-flags`
+
+- **범위 밖 기록(시공간 외톨이)** — CoordinateCleaner `cf_outl` 을 따른 시험(속마다, 사분위 범위의 5 배, 무작위 나이 5 번)으로 표시하고, 엄밀 표기에서
+  기본으로 뺀다. 거르기 줄에서 끌 수 있다 (koprifossillab 055)
+
 ## 1.11.0 — 2026-10-21 · `feature/coverage-richness`
 
 - **표본 범위로 표준화한 속 수** — 다양성 그래프의 새 지표. 시점마다 산지를 표본으로 Chao et al. 2014(SQS 와 같은 생각)의 표본 범위 희박화·외삽,
