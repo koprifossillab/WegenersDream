@@ -92,7 +92,12 @@ def build(skip_relief=False):
     print("해안선(PaleoCoastlines)")
     coasts = coastlines.build()
     print("화석(PBDB)")
-    fossil_entries, fossil_meta = fossils.build([e["age"] for e in reliefs])
+    kept = {}
+    fossil_entries, fossil_meta = fossils.build([e["age"] for e in reliefs], keep=kept)
+    print("산출 사본(PBDB occurrences) — 분포 분석의 조각")
+    from . import occurrences             # koprifossillab 050 — 사본이 없으면 건너뛴다
+    occs_meta = occurrences.build(kept, [e["age"] for e in reliefs], fossil_meta.get("receipt") or {})
+    del kept
     by_age = {e["age"]: e for e in fossil_entries}
     print("국경(Natural Earth → PALEOMAP)")
     border_entries, country_names = countries.build([e["age"] for e in reliefs])
@@ -149,6 +154,7 @@ def build(skip_relief=False):
         "events": events_for_index(),           # 대멸종·전 지구 사건(tupandactyl 016) — events.py 한 곳
         "countries": countries.country_list(country_names),
         "pbdb": fossil_meta,
+        "occurrences": occs_meta,               # 산출 사본의 조각 목록(koprifossillab 050) — 없으면 null, 뷰어는 PBDB 에 바로 묻는다
         "sources": [cite("paleodem"), cite("paleocoastlines"), cite("paleotemp"), cite("pbdb"), cite("countries")],
     }
     (DERIVED / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=1) + "\n",

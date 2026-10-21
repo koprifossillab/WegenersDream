@@ -181,3 +181,30 @@ class LocalityKeyTest(unittest.TestCase):
         self.assertEqual(cases["decimals"], ANALYSIS["locality_decimals"])
         for lat, lng, formation, old, young, want in cases["cases"]:
             self.assertEqual(locality_key(lat, lng, formation, old, young), want)
+
+
+class OccurrenceChunkTest(unittest.TestCase):
+    """산출 사본의 조각(koprifossillab 050) — 나무 순서로 자른 조각이 빈틈·겹침 없이 모든 산출을 담고, 분류군의 [lft, rgt] 가 한 구간이다."""
+
+    def test_chunks_cover_tree_order(self):
+        import tempfile
+        from pipeline.occurrences import subtree_counts, write_chunks
+        colls = {c: {"max_ma": 10, "min_ma": 5, "early": "", "late": "", "environment": "", "cc": "", "formation": "",
+                     "precise": 1, "locality": "", "frames": [[5.0, 1.0, 2.0, 1], [10.0, 1.5, 2.5, 1]]} for c in range(1, 6)}
+        # 나무: 1(lft 1–10) ⊃ 2(2–4), 3(5–9) ⊃ 4(6–6)
+        accepted = {1: (1, 10, "A", "order", 0), 2: (2, 4, "B", "family", 0), 3: (5, 9, "C", "family", 0), 4: (6, 6, "D", "genus", 0)}
+        rows = sorted([(t[0], [k, 1 + k % 5, acc, t[0], t[2], t[3], "", t[2], "", 0])
+                       for k, (acc, t) in enumerate([(a, accepted[a]) for a in (2, 2, 3, 4, 4, 4, 1)])], key=lambda x: (x[0], x[1][0]))
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            chunks = write_chunks(rows, colls, out, target_bytes=150)       # 작게 — 여러 조각으로
+            self.assertGreater(len(chunks), 1)
+            got = []
+            for c in chunks:
+                payload = json.loads((out / c["file"].removeprefix("occs/")).read_text(encoding="utf-8"))
+                got += payload["rows"]
+                self.assertTrue(all(str(r[1]) in payload["colls"] for r in payload["rows"]))   # 산지 칸이 그 조각에 있다
+            self.assertEqual([r[0] for r in got], [r[0] for _, r in rows])
+            self.assertEqual([c["lft_lo"] for c in chunks], sorted(c["lft_lo"] for c in chunks))
+        counts = subtree_counts(rows, accepted)
+        self.assertEqual(counts, {1: 7, 2: 2, 3: 4, 4: 3})
