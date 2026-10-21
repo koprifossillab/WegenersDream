@@ -130,3 +130,4 @@
 | koprifossillab 050 | 2026-10-21 | [산출 사본을 분류 나무 순서의 정적 조각으로 굽는다](20261021_koprifossillab_050_occurrence_chunks.md) |
 | koprifossillab 051 | 2026-10-21 | [분포 분석을 PBDB 사본에서: 한도 없이, 지도와 같은 좌표로](20261021_koprifossillab_051_analysis_from_copy.md) |
 | koprifossillab P02 | 2026-10-21 | [세는 단위·표본 표준화·범위 밖 기록을 연구 관행에 맞춘다 — 계획](20261021_koprifossillab_P02_research_conventions.md) |
+| koprifossillab 052 | 2026-10-21 | [주간 갱신이 남의 폴더 권한에서 세 주째 멈췄다](20261021_koprifossillab_052_rsync_ownership.md) |
