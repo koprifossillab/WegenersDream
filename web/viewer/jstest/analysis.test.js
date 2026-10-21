@@ -77,5 +77,15 @@ cov.cases.forEach(function (c) {
   check(c[3] === null ? got === null : got !== null && near(got, c[3], 1e-5), "coverageRarefy T=" + c[0] + " q=" + c[2] + " 기대 " + c[3] + " 얻음 " + got);
 });
 
+// 시공간 외톨이(koprifossillab 055) — 한 자리·한 때에 모인 기록 사이의 먼 기록 하나만 걸린다
+var opts = { mltpl: 5, replicates: 5, flag_thresh: 0.5, size_thresh: 10, max_reference: 2000 };
+var recs = [], r2 = A.rng(3);
+for (var k2 = 0; k2 < 40; k2++) recs.push({ old: 72 + r2(), young: 70 + r2(), lat: 45 + r2() * 4, lng: -105 + r2() * 4, group: "T" });
+recs.push({ old: 60, young: 56, lat: -40, lng: 20, group: "T" });                 // 다른 대륙·신생대
+var flags = A.outliers(recs, opts, 9);
+check(flags[40] === true, "먼 기록이 걸린다");
+check(flags.slice(0, 40).every(function (v) { return !v; }), "모인 기록은 걸리지 않는다");
+check(A.outliers(recs.slice(0, 5).concat([recs[40]]), opts, 9).every(function (v) { return !v; }), "6 건 무리는 시험하지 않는다");
+
 if (fail) { console.log(fail + " 개 틀림"); process.exit(1); }
 console.log("분석 셈 시험 통과");
