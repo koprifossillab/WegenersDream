@@ -3529,7 +3529,7 @@
         now.a && now.b ? tr("now.overlap", { shared: fmtNum(now.shared), both: fmtNum(now.both), a: fmtNum(now.cellsA), b: fmtNum(now.cellsB),
           j: now.union ? (now.both / now.union).toFixed(2) : "—" }) : ""].filter(Boolean).join("<br>") +
         (state.cmp && state.cmp.truncated ? "<br>" + tr("cmp.truncated", { n: fmtNum(TAXON_LIMIT) }) : "") +
-        "<br><small>" + esc(tr("now.frame")) + (useGrid ? " · " + esc(tr("grid.unit", { km: ANALYSIS.grid_km })) : "") + "</small>";
+        "<br><small>" + esc(tr("now.frame")) + (gridOn() ? " · " + esc(tr("grid.unit", { km: ANALYSIS.grid_km })) : "") + "</small>";
     } else stat.innerHTML = state.overview ? tr("now.overview") : "";
     if ($("anal-dialog").open) renderBig();
   }
