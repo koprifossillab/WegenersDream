@@ -292,6 +292,10 @@
         <h2 data-i18n="taxon">분류군 찾기</h2>
         <p class="note" id="taxon-status" aria-live="polite"></p>
         <div class="coeval" id="coeval-row" hidden>
+          <div id="qual-row" hidden>
+            <label><input type="checkbox" id="drop-uncertain"> <span data-i18n="q.dropUncertain">속이 불확실한 산출 빼기</span> <small>(cf. · aff. · ?)</small></label>
+            <label><input type="checkbox" id="drop-coarse"> <span data-i18n="q.dropCoarse">속까지 동정 안 된 산출 빼기</span> <small>(indet.)</small></label>
+          </div>
           <label class="swatch"><input type="checkbox" id="coeval"> <span data-i18n="coeval">같은 시대의 다른 산지 기록도 보기</span> <small data-i18n="coeval.small">(속 이하)</small></label>
           <select id="coeval-rule" aria-label="같은 시대의 기준" data-i18n-attr="aria-label:coeval.rule">
             <option value="overlap" selected data-i18n="coeval.overlap">연대가 겹치는 것</option>

@@ -1,0 +1,120 @@
+{
+ "note": "동정 표지(pipeline/quality.marks · analysis.js identMarks)의 보기 — 파이썬과 JS 시험이 함께 쓴다(koprifossillab 045). [PBDB 산출(show=ident 의 칸), 표지 글자들] rules 는 pipeline/quality.py 의 QUALITY 와 같아야 한다(파이썬 시험이 본다) — JS 시험은 이것으로 매긴다.",
+ "rules": {
+  "uncertain_reso": [
+   "cf.",
+   "aff.",
+   "?",
+   "\"",
+   "informal"
+  ],
+  "uncertain_species_reso": [
+   "cf.",
+   "aff.",
+   "?",
+   "\"",
+   "informal",
+   "ex gr."
+  ],
+  "new_reso": [
+   "n. gen.",
+   "n. subgen.",
+   "n. sp.",
+   "n. ssp."
+  ],
+  "genus_or_below": [
+   "genus",
+   "subgenus",
+   "species",
+   "subspecies"
+  ]
+ },
+ "cases": [
+  [
+   {
+    "identified_name": "Tyrannosaurus rex",
+    "identified_rank": "species"
+   },
+   ""
+  ],
+  [
+   {
+    "identified_name": "cf. Tyrannosaurus rex",
+    "identified_rank": "species",
+    "primary_reso": "cf."
+   },
+   "g"
+  ],
+  [
+   {
+    "identified_name": "? Tyrannosaurus sp.",
+    "identified_rank": "genus",
+    "primary_reso": "?"
+   },
+   "g"
+  ],
+  [
+   {
+    "identified_name": "Tyrannosaurus sp.",
+    "identified_rank": "genus"
+   },
+   ""
+  ],
+  [
+   {
+    "identified_name": "Lingula aff. anatina",
+    "identified_rank": "species",
+    "species_reso": "aff."
+   },
+   "s"
+  ],
+  [
+   {
+    "identified_name": "Turritella ex gr. carinata",
+    "identified_rank": "species",
+    "species_reso": "ex gr."
+   },
+   "s"
+  ],
+  [
+   {
+    "identified_name": "Elasmosauridae indet.",
+    "identified_rank": "family"
+   },
+   "h"
+  ],
+  [
+   {
+    "identified_name": "Tyrannosaurus mcraeensis n. sp.",
+    "identified_rank": "species",
+    "species_reso": "n. sp."
+   },
+   "n"
+  ],
+  [
+   {
+    "identified_name": "Dynamosaurus imperiosus n. gen. n. sp.",
+    "identified_rank": "species",
+    "primary_reso": "n. gen.",
+    "species_reso": "n. sp."
+   },
+   "n"
+  ],
+  [
+   {
+    "identified_name": "\"Ornithomimus\" sp.",
+    "identified_rank": "genus",
+    "primary_reso": "\""
+   },
+   "g"
+  ],
+  [
+   {
+    "identified_name": "Ammonites informal",
+    "identified_rank": "species",
+    "species_reso": "informal"
+   },
+   "s"
+  ]
+ ]
+}

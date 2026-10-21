@@ -3,6 +3,13 @@
 괄호 안의 번호는 `devlog/` 의 그 문서다. **지금 무엇이 도는지는 이 파일이 아니라
 [HANDOFF.md](HANDOFF.md) 다.**
 
+## 1.5.0 — 2026-10-20 · `feature/ident-marks`
+
+- **동정 표지**(분석 엄밀 표기) — 찾기 커서 목록·산지 팝업·종합 보기의 산출 이름 옆에 "속 cf." · "종 aff." · "속 미동정" · "새 이름".
+  PBDB `show=ident` 의 수식어 칸으로, 규칙은 `pipeline/quality.py` (koprifossillab 045)
+- **동정 거르기** — 속이 불확실한 산출·속까지 동정 안 된 산출 빼기(기본 끔). 지도·상태 줄·분포·고위도가 따른다 (koprifossillab 045)
+- `index.json` 의 `rules.quality` 를 쓴다 — 다시 가공해야 켜진다 (koprifossillab 045)
+
 ## 1.4.0 — 2026-10-20 · `feature/frame-share`
 
 - **시점 몫으로 센다**(분석 엄밀 표기) — 산지가 그 시점에 속할 몫(겹친 길이 ÷ 연대 범위)으로 센 산지 수·산출 수를 보이는 수 옆에,

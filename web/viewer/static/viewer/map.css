@@ -1027,3 +1027,7 @@ button, input, select { font-family: inherit; }
   .brand strong { font-size: 16.5px; }
   .bar .seg button { font-size: 11px; padding: 4px 4px; }
 }
+
+/* 동정 표지(koprifossillab 045) — cf.·aff.·? 와 속 미동정. 주의 글씨 색 */
+.qmark { color: var(--warn); font-style: normal; white-space: nowrap; }
+#qual-row label { display: block; }

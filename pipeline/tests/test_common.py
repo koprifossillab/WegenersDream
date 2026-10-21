@@ -147,3 +147,19 @@ class FrameShareTest(unittest.TestCase):
         for old, young in self.cases["sum"]:
             total = sum(frame_share(old, young, max(0.0, a - WINDOW_MA), a + WINDOW_MA) for a in range(0, 545, 5))
             self.assertAlmostEqual(total, 1.0, places=6, msg=(old, young))
+
+
+class QualityTest(unittest.TestCase):
+    """동정 표지(koprifossillab 045) — 보기는 뷰어의 analysis.js 시험과 같은 파일이다."""
+
+    def test_cases(self):
+        from pipeline.quality import marks
+        cases = json.loads((Path(__file__).parent / "quality_cases.json").read_text(encoding="utf-8"))["cases"]
+        for record, want in cases:
+            self.assertEqual("".join(sorted(marks(record))), "".join(sorted(want)), msg=record["identified_name"])
+
+    def test_rules_in_cases_match(self):
+        # JS 시험(analysis.test.js)은 보기 파일의 rules 로 매긴다 — 그것이 QUALITY 와 같아야 두 쪽이 같은 규칙을 시험한다
+        from pipeline.quality import QUALITY
+        cases = json.loads((Path(__file__).parent / "quality_cases.json").read_text(encoding="utf-8"))
+        self.assertEqual(cases["rules"], QUALITY)
