@@ -75,7 +75,8 @@
     opacity: 0.6,                           // 점 불투명도 — 겹친 점과 밑그림이 함께 보이게
     shareOpacity: false,
     dropUncertain: false,                   // 동정 거르기 — 속이 불확실한 산출(cf.·aff.·?) 빼기(koprifossillab 045)
-    dropCoarse: false,                      //            — 속까지 동정 안 된 산출(indet.) 빼기                    // 점 진하기를 시점 몫으로(koprifossillab 044) — 열 때마다 끈다
+    dropCoarse: false,                      //            — 속까지 동정 안 된 산출(indet.) 빼기
+    dropStraddle: false,                    // 대멸종 경계를 걸친 연대 범위의 산지 빼기(koprifossillab 046)                    // 점 진하기를 시점 몫으로(koprifossillab 044) — 열 때마다 끈다
     showWide: true,                         // 모호한 연대(절 단위로 정해지지 않은) 산지를 보일지(016)
     maxSpan: Infinity,                      // 연대 범위(max_ma − min_ma)가 이 이하인 산지만(018)
     taxonRank: "",                          // 찾은 분류군의 계급 — 상태 줄과 같은 시대 다른 산지(012)
@@ -1186,12 +1187,30 @@
   // 몫으로 세는가 — 엄밀 표기를 켰고 index.json 에 셈의 규칙이 왔을 때
   // 동정 표지를 다나·거르나 — 엄밀 표기를 켰고 규칙이 왔을 때. 거르기 기본은 끔(연구자: 표시만, P01 §11.1)
   function qualOn() { return RIGOR && !!QUALITY && !!AN; }
+  // 대멸종 경계(koprifossillab 046) — 지구사 사건(index.json events) 가운데 rules.quality.boundary_tier 등급의 박동
+  var boundaryList = null;
+  function boundaries() {
+    if (!boundaryList && QUALITY && state.events && state.events.length) {
+      boundaryList = evAll().filter(function (e) { return e.kind === "pulse" && e.tier === QUALITY.boundary_tier; })
+        .map(function (e) { return { id: e.id, en: e.en, old: e.old, young: e.young }; });
+    }
+    return boundaryList || [];
+  }
+  // 범위가 걸친 경계들(이름 목록). 엄밀 표기가 아니면 빈 목록
+  function straddled(maxMa, minMa) {
+    if (!qualOn()) return [];
+    var ids = AN.straddles(maxMa, minMa, boundaries(), QUALITY);
+    return boundaries().filter(function (b) { return ids.indexOf(b.id) >= 0; });
+  }
+  function straddleText(list) { return list.map(function (b) { return b.en; }).join(" · "); }
   function marksOf(rec) { return QUALITY && AN ? AN.identMarks(rec, QUALITY) : ""; }
   // 거르기에 걸리는 산출인가 — g(속 불확실)·h(속까지 동정 안 됨)를 뺄 때
   function qualDrops(m) {
     if (!qualOn() || !m) return false;
     return (state.dropUncertain && m.indexOf("g") >= 0) || (state.dropCoarse && m.indexOf("h") >= 0);
   }
+  // 경계를 걸친 범위로 거르나 — 산지(산출)의 연대 범위로
+  function straddleDrops(maxMa, minMa) { return qualOn() && state.dropStraddle && straddled(maxMa, minMa).length > 0; }
   // 이름 옆 표지 — 엄밀 표기일 때만. 수식어는 PBDB 의 원 글자(cf. · aff. · ? …)
   function qualBadge(rec, m) {
     if (!qualOn() || !m) return "";
@@ -1508,7 +1527,11 @@
     var html = "<h3>" + esc(row[col.collection_name] || tr("pop.noname")) + "</h3><dl>" +
       "<dt>" + tr("pop.age") + "</dt><dd>" + esc(interval) + " (" + row[col.max_ma] + "–" + row[col.min_ma] + " Ma, " + tr("pop.range") + " " +
         +(row[col.max_ma] - row[col.min_ma]).toFixed(1) + " Myr)" +
-        (rowPrecise(row, col) ? "" : '<br><small class="wide-note">' + tr("pop.vague") + "</small>") + "</dd>" +
+        (rowPrecise(row, col) ? "" : '<br><small class="wide-note">' + tr("pop.vague") + "</small>") +
+        (function () {
+          var s = straddled(row[col.max_ma], row[col.min_ma]);         // 대멸종 경계를 걸친 범위(koprifossillab 046)
+          return s.length ? '<br><small class="qmark">' + esc(tr("q.straddlePop", { ev: straddleText(s) })) + "</small>" : "";
+        })() + "</dd>" +
       (row[col.formation] ? "<dt>" + tr("pop.formation") + "</dt><dd>" + esc(row[col.formation]) + "</dd>" : "") +
       "<dt>" + tr("pop.env") + "</dt><dd>" + esc(env || tr("pop.noenv")) + (groupName ? "<br><small>" + esc(groupName) + "</small>" : "") + "</dd>" +
       "<dt>" + tr("pop.lith") + '</dt><dd class="lith muted">' + tr("pop.lithLoading") + "</dd>" +
@@ -1902,7 +1925,9 @@
   }
 
   function taxonTip(row, extra) {
-    var head = "<b>" + esc(row[COLUMNS.collection_name] || tr("pop.noname")) + "</b>" + (extra || "");
+    var cross = straddled(row[COLUMNS.max_ma], row[COLUMNS.min_ma]);
+    var head = "<b>" + esc(row[COLUMNS.collection_name] || tr("pop.noname")) + "</b>" + (extra || "") +
+      (cross.length ? ' <small class="qmark">' + esc(tr("q.straddle", { ev: straddleText(cross) })) + "</small>" : "");
     var taxa = {};
     row.occs.forEach(function (o) { taxa[o.accepted] = 1; });
     var n = Object.keys(taxa).length;
@@ -2010,7 +2035,7 @@
       // 산출 하나하나 — 켠 환경만, 지도와 같은 규칙으로. 모호한 연대는(보이기로 했으면) 걸친 모든 단위·시점에
       // 더한다(015) — 지도에 그 모든 시점에서 보이는 것과 맞춘다.
       base.occs.forEach(function (o) {
-        if (!state.enabled[termKey(o.env)] || qualDrops(o.q)) return;
+        if (!state.enabled[termKey(o.env)] || qualDrops(o.q) || straddleDrops(o.old, o.young)) return;
         var precise = isPrecise(o.early, o.late);
         if (!ageOk(precise, o.old, o.young)) return;
         total += 1;
@@ -2044,7 +2069,7 @@
     }
     state.dist = { key: base.key, stages: base.stages, app: base.app, units: units, frames: frames, total: total, shares: shares, band: band,
                    exact: !!base.occs, filtered: !!base.occs && (!allEnvEnabled() || state.maxSpan !== Infinity ||
-                     (qualOn() && (state.dropUncertain || state.dropCoarse))) };
+                     (qualOn() && (state.dropUncertain || state.dropCoarse || state.dropStraddle))) };
     renderDist();
     renderChrono();
     renderAnalysis();
@@ -2404,6 +2429,8 @@
       return passes(row[COLUMNS.environment], row[COLUMNS.cc], row[COLUMNS.precise], row[COLUMNS.max_ma], row[COLUMNS.min_ma], row[COLUMNS.formation]) &&
         kept(row) > 0;
     };
+    var kept0 = kept;
+    kept = function (row) { return straddleDrops(row[COLUMNS.max_ma], row[COLUMNS.min_ma]) ? 0 : kept0(row); };
     var inCountry = function (row) { return !state.country || row[COLUMNS.cc] === state.country; };
     rows.forEach(function (row) { if (ok(row)) visible.push(row); });
     // 환경 칸의 수 = 이 지도에서 찾은 분류군의 산출 건수(나라·연대 거르기는 따르되 환경은 거르지 않고 센다)
@@ -2890,6 +2917,7 @@
   }
   function initEvents(list) {
     state.events = list;
+    boundaryList = null;                          // 경계 목록(koprifossillab 046)을 새 사건으로 다시 만든다
     var row = $("strip-events");
     row.hidden = !list.length;
     evAll().forEach(function (e) {
@@ -3059,7 +3087,7 @@
     state.frames.forEach(function (f) {
       var lats = [], weights = [], useShare = shareOn();
       base.occs.forEach(function (o) {
-        if (o.plat == null || !state.enabled[termKey(o.env)] || qualDrops(o.q)) return;
+        if (o.plat == null || !state.enabled[termKey(o.env)] || qualDrops(o.q) || straddleDrops(o.old, o.young)) return;
         if (!ageOk(isPrecise(o.early, o.late), o.old, o.young) || !inWin(f, o.old, o.young)) return;
         lats.push(o.plat);
         weights.push(useShare ? frameShare(f, o.old, o.young) : 1);
@@ -4547,10 +4575,11 @@
   // "점 진하기를 시점 몫으로"(koprifossillab 044) — 몫으로 셀 때만 보인다. 기억하지 않는다(지도를 다르게 읽게 하는 선택이라 열 때마다 끈다)
   $("share-opacity").addEventListener("change", function () { state.shareOpacity = this.checked; redraw(); });
   // 동정 거르기(koprifossillab 045) — 기본은 끔, 기억하지 않는다
-  ["drop-uncertain", "drop-coarse"].forEach(function (id) {
+  ["drop-uncertain", "drop-coarse", "drop-straddle"].forEach(function (id) {
     $(id).addEventListener("change", function () {
       state.dropUncertain = $("drop-uncertain").checked;
       state.dropCoarse = $("drop-coarse").checked;
+      state.dropStraddle = $("drop-straddle").checked;
       drawTaxa();
       if (state.distBase) computeDist();
     });

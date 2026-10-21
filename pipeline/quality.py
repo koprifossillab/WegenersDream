@@ -18,6 +18,8 @@ QUALITY = {
     "uncertain_species_reso": ["cf.", "aff.", "?", "\"", "informal", "ex gr."],
     "new_reso": ["n. gen.", "n. subgen.", "n. sp.", "n. ssp."],
     "genus_or_below": ["genus", "subgenus", "species", "subspecies"],
+    "boundary_tier": 1,             # 이 등급의 박동(events.py)을 경계로 본다 — 대멸종 다섯
+    "boundary_tolerance_ma": 0.5,
 }
 
 
@@ -35,3 +37,10 @@ def marks(record, rules=QUALITY):
     if any(reso(k) in rules["new_reso"] for k in ("primary_reso", "subgenus_reso", "species_reso")):
         out.add("n")
     return out
+
+
+def straddles(max_ma, min_ma, boundaries, rules=QUALITY):
+    """연대 범위가 양쪽으로 넘는 경계의 id 목록. boundaries: [{"id", "old", "young"}] — 점 사건은 old = young."""
+    old, young = (max_ma, min_ma) if max_ma >= min_ma else (min_ma, max_ma)
+    tol = rules["boundary_tolerance_ma"]
+    return [b["id"] for b in boundaries if young < b["young"] - tol and old > b["old"] + tol]

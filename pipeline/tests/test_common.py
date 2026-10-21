@@ -163,3 +163,10 @@ class QualityTest(unittest.TestCase):
         from pipeline.quality import QUALITY
         cases = json.loads((Path(__file__).parent / "quality_cases.json").read_text(encoding="utf-8"))
         self.assertEqual(cases["rules"], QUALITY)
+
+    def test_straddles(self):
+        # 대멸종 경계를 걸친 범위(koprifossillab 046) — 경계에서 끝나는 범위(Maastrichtian 72.2–66)는 걸치지 않는다
+        from pipeline.quality import straddles
+        cases = json.loads((Path(__file__).parent / "quality_cases.json").read_text(encoding="utf-8"))
+        for old, young, want in cases["straddle"]:
+            self.assertEqual(straddles(old, young, cases["boundaries"]), want, msg=(old, young))

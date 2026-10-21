@@ -151,7 +151,7 @@ PBDB 에 바로 묻는 **산출 목록** `occs/list.json?coll_id=<번호>&show=c
 |---|---|---|
 | 시점 창 ±2.5 Myr | `pipeline/common.py` `WINDOW_MA` | `index.json` `rules.window_ma` |
 | 분석의 시점 몫·몬테카를로(koprifossillab 044) | `pipeline/common.py` `frame_share`·`ANALYSIS` | `rules.analysis`, 셈은 `analysis.js`(같은 보기로 시험) |
-| 동정 품질 표지(koprifossillab 045) | `pipeline/quality.py` `QUALITY` | `rules.quality`, 셈은 `analysis.js` `identMarks` |
+| 동정 품질 표지(koprifossillab 045)·대멸종 경계 걸침(046) | `pipeline/quality.py` `QUALITY` | `rules.quality`, 셈은 `analysis.js` `identMarks`·`straddles` |
 | 모호한 연대(등급·제4기 예외) | `pipeline/intervals.py` | `rules.vague_types`·`rules.vague_intervals` |
 | 퇴적 환경 나무·색 | `pipeline/environments.py` | `index.json` `environments` |
 | 층서표(이름 한글판 2023/04, 경계 ICS 2024/12) | `pipeline/timescale.py` | `index.json` `timescale` |
