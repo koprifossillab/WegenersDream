@@ -208,3 +208,27 @@ class OccurrenceChunkTest(unittest.TestCase):
             self.assertEqual([c["lft_lo"] for c in chunks], sorted(c["lft_lo"] for c in chunks))
         counts = subtree_counts(rows, accepted)
         self.assertEqual(counts, {1: 7, 2: 2, 3: 4, 4: 3})
+
+
+class GridCellTest(unittest.TestCase):
+    """등면적 격자 칸(koprifossillab 053) — 보기는 뷰어의 analysis.js 시험과 같은 파일이다."""
+
+    def test_cases(self):
+        from pipeline.common import ANALYSIS, grid_cell
+        cases = json.loads((Path(__file__).parent / "grid_cases.json").read_text(encoding="utf-8"))
+        self.assertEqual(cases["grid_km"], ANALYSIS["grid_km"])
+        for lat, lng, want in cases["cases"]:
+            self.assertEqual(grid_cell(lat, lng), want, msg=(lat, lng))
+
+    def test_equal_area(self):
+        # 같은 넓이 — 적도와 고위도의 칸 하나가 덮는 위도·경도 폭은 다르지만, 투영 좌표의 넓이 비는 지구 넓이 비와 같다
+        from pipeline.common import EARTH_KM, equal_earth
+        x0, y0 = equal_earth(0, 0)
+        x1, y1 = equal_earth(10, 10)
+        x2, y2 = equal_earth(60, 0)
+        x3, y3 = equal_earth(70, 10)
+        import math
+        band = lambda a, b: 2 * math.pi * EARTH_KM ** 2 * (math.sin(math.radians(b)) - math.sin(math.radians(a))) * 10 / 360
+        self.assertAlmostEqual(abs((x1 - x0) * (y1 - y0)) / band(0, 10), 1, delta=0.03)   # 경도선은 굽어 사각형 넓이와 조금 다르다
+        self.assertGreater(y2, 0)
+

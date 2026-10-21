@@ -3,6 +3,7 @@
 이 파일은 numpy 도 import 하지 않는다. 규칙만 들고 있어서 시험이 가볍다.
 """
 import json
+import math
 import os
 import re
 from pathlib import Path
@@ -94,6 +95,9 @@ ANALYSIS = {
     # 고유 산지-시간(koprifossillab 047, P01 §7) — 좌표(소수 둘째 자리, 약 1 km)·지층 이름·연대 범위가 같은 산지를 하나로 센다.
     # 한 단면의 층준마다, 한 논문의 표본마다 나눈 산지가 따로 세지는 의사 반복을 줄인다. 지도의 점은 그대로
     "locality_decimals": 2,
+    # 공간을 셀 때의 단위(koprifossillab 053, P02 §2.2) — 등면적 격자 칸. divvy(Antell et al. 2024)의 기본과 같은 Equal Earth 투영의
+    # 200 km 칸(≈2°). 같은 자리의 여러 산지·좌표의 작은 차이를 칸 하나로 흡수한다. 구면(평균 반지름)으로 근사한다
+    "grid_km": 200,
     # 산출 사본의 조각(koprifossillab 050, P01 §3.2) — 조각 하나의 어림 크기, 그리고 미리 센 요약을 쓰는 큰 분류군의 문턱(연구자, P01 §11.4)
     "chunk_bytes": 1_000_000,
     "summary_min_occs": 50_000,
@@ -129,3 +133,26 @@ def locality_key(lat, lng, formation, max_ma, min_ma, decimals=ANALYSIS["localit
     old, young = (max_ma, min_ma) if max_ma >= min_ma else (min_ma, max_ma)
     num = lambda v: str(float(v)).removesuffix(".0")       # JS 의 String(수)와 같은 꼴 — 66.0 → "66", 72.2 → "72.2"
     return "|".join([f"{float(lat):.{decimals}f}", f"{float(lng):.{decimals}f}", formation_key(formation), num(old), num(young)])
+
+
+# Equal Earth(Šavrič, Patterson & Jenny 2018) — 구면 근사. EPSG:8857 은 WGS84 타원체의 authalic 구를 쓰지만 200 km 칸에서는 차이가 작다
+_EE = (1.340264, -0.081106, 0.000893, 0.003796)
+EARTH_KM = 6371.0088
+
+
+def equal_earth(lat, lng):
+    """(x, y) km — Equal Earth 투영."""
+    a1, a2, a3, a4 = _EE
+    m = math.sqrt(3) / 2
+    theta = math.asin(m * math.sin(math.radians(lat)))
+    t2, t6 = theta * theta, theta ** 6
+    x = EARTH_KM * math.radians(lng) * math.cos(theta) / (m * (a1 + 3 * a2 * t2 + t6 * (7 * a3 + 9 * a4 * t2)))
+    y = EARTH_KM * theta * (a1 + a2 * t2 + t6 * (a3 + a4 * t2))
+    return x, y
+
+
+def grid_cell(lat, lng, km=ANALYSIS["grid_km"]):
+    """등면적 격자 칸의 이름 "열:행" — 뷰어의 analysis.js gridCell 과 같다(보기 tests/grid_cases.json)."""
+    x, y = equal_earth(lat, lng)
+    return f"{math.floor(x / km)}:{math.floor(y / km)}"
+
