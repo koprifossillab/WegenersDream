@@ -3,6 +3,14 @@
 괄호 안의 번호는 `devlog/` 의 그 문서다. **지금 무엇이 도는지는 이 파일이 아니라
 [HANDOFF.md](HANDOFF.md) 다.**
 
+## 1.4.0 — 2026-10-20 · `feature/frame-share`
+
+- **시점 몫으로 센다**(분석 엄밀 표기) — 산지가 그 시점에 속할 몫(겹친 길이 ÷ 연대 범위)으로 센 산지 수·산출 수를 보이는 수 옆에,
+  시점 막대 밑 막대에 몬테카를로 95% 띠, 고위도 곡선은 몫으로 가중한 분위수. 정의는 `pipeline/common.py`, 뷰어는 새 `analysis.js`
+  (koprifossillab 044)
+- **점 진하기를 시점 몫으로** — 몫으로 셀 때 고를 수 있다. 범위가 긴 산지가 흐려진다 (koprifossillab 044)
+- `index.json` 의 `rules.analysis` 를 쓴다 — 다시 가공해야 켜진다 (koprifossillab 044)
+
 ## 1.3.0 — 2026-10-20 · `feature/analysis-honest-labels`
 
 - **분석 엄밀 표기** — 설정 창의 화면 모드 밑. 분포 분석의 수치에 단위(속·산출·산지), 다양성 곡선 밑에 세는 규칙(PBDB 절 단위 major,

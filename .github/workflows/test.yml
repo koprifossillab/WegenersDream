@@ -39,6 +39,10 @@ jobs:
       - name: 학명 음차 시험
         run: node web/viewer/jstest/translit.test.js
 
+      # 분포 분석의 셈(analysis.js) — 시점 몫·가중 분위수·몬테카를로(koprifossillab 044). 몫의 보기는 파이프라인 시험과 같은 파일
+      - name: 분석 셈 시험
+        run: node web/viewer/jstest/analysis.test.js
+
       - name: collectstatic
         run: python web/manage.py collectstatic --noinput
         env:

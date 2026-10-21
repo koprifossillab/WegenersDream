@@ -17,6 +17,9 @@
   // 분석 엄밀 표기(koprifossillab 043, P01 §9) — 분포 분석의 수치마다 단위와 세는 규칙을 적는다. 기본은 모드가 정하고(Scientific 켬·
   // Casual 끔) 설정 창에서 모드마다 따로 바꾼다. 수의 옳고 그름을 바로잡는 것(좌표 틀 표시 등)은 이 설정과 상관없이 두 모드 모두다
   var RIGOR_KEY = "wegener.rigor." + I18N.mode, RIGOR = I18N.mode === "sci";
+  // 분포 분석의 셈(analysis.js, koprifossillab 044) — 시점 몫·몬테카를로의 값은 index.json 의 rules.analysis(pipeline/common.py ANALYSIS).
+  // 옛 index.json 이라 그 칸이 없으면 몫으로 세는 기능은 숨는다(숫자를 여기 다시 적지 않는다)
+  var AN = window.WegenerAnalysis, ANALYSIS = null;
   try { var rigorStored = localStorage.getItem(RIGOR_KEY); if (rigorStored === "1" || rigorStored === "0") RIGOR = rigorStored === "1"; } catch (e) { /* 막힌 저장소 */ }
   I18N.apply();
   var DATA = app.dataset.dataBase.replace(/x$/, "");
@@ -68,6 +71,7 @@
     payload: null,
     colorBy: "env",                         // 점 색: env(퇴적기원) · age(기 단위 시대)
     opacity: 0.6,                           // 점 불투명도 — 겹친 점과 밑그림이 함께 보이게
+    shareOpacity: false,                    // 점 진하기를 시점 몫으로(koprifossillab 044) — 열 때마다 끈다
     showWide: true,                         // 모호한 연대(절 단위로 정해지지 않은) 산지를 보일지(016)
     maxSpan: Infinity,                      // 연대 범위(max_ma − min_ma)가 이 이하인 산지만(018)
     taxonRank: "",                          // 찾은 분류군의 계급 — 상태 줄과 같은 시대 다른 산지(012)
@@ -1163,8 +1167,10 @@
   // 반투명하게 두어(기본 60%) 겹친 점과 그 밑의 해안선·지형이 함께 보이게 한다.
   // **모호한 연대**(절 단위로 정해지지 않은)는 **속이 찬 세모**로 — 색·채움·테두리는 점과 같고 모양만 다르다.
   // 015 의 고리는 채움이 없어 잘 안 보였다(연구자). 세모는 같은 크기의 원보다 조금 크게 그려 눈에 띄게 한다(016).
-  function marker(latlng, color, big, vague) {
+  // share — 이 시점에 속할 몫(koprifossillab 044). "점 진하기를 시점 몫으로" 를 켰을 때만 쓴다(Scientific 의 선택, P01 §9)
+  function marker(latlng, color, big, vague, share) {
     var a = state.opacity;
+    if (share != null && state.shareOpacity && shareOn()) a = Math.max(ANALYSIS.share_opacity_floor, a * share);
     var options = {
       renderer: renderer, radius: big ? 4.6 : 3.4, weight: big ? 1.2 : 0.7,
       color: "#ffffff", opacity: Math.min(1, a + 0.15), fillColor: color, fillOpacity: a,
@@ -1173,6 +1179,13 @@
   }
 
   // 산지 행의 연대가 절 단위로 정해졌는가 — 가공물의 precise 칸, 없으면(옛 가공물) 시대 이름으로 가른다.
+  // 몫으로 세는가 — 엄밀 표기를 켰고 index.json 에 셈의 규칙이 왔을 때
+  function syncShareRow() { var row = $("share-opacity-row"); if (row) row.hidden = !shareOn(); }
+  function shareOn() { return RIGOR && !!ANALYSIS && !!AN; }
+  // 산지(산출)가 지도 시점 f 에 속할 몫 — 연대 범위가 시점 창과 겹친 길이 ÷ 범위 길이(P01 §5.1)
+  function frameShare(f, maxMa, minMa) { var w = win(f); return AN.share(maxMa, minMa, w[0], w[1]); }
+  function shareText(v) { return (Math.round(v * 10) / 10).toLocaleString(EN ? "en" : "ko", { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
+
   function rowPrecise(row, col) {
     return col.precise != null ? !!row[col.precise] : isPrecise(row[col.early_interval], row[col.late_interval]);
   }
@@ -1200,19 +1213,22 @@
     spanNote(payload.rows.filter(function (row) {
       return (!state.country || row[col.cc] === state.country) && tooWide(rowPrecise(row, col), row[col.max_ma], row[col.min_ma]);
     }).length, tr("what.coll"));
-    var shown = 0, wide = 0;
+    var shown = 0, wide = 0, shareSum = 0, f = frame(), useShare = shareOn();
     payload.rows.forEach(function (row) {
       var precise = rowPrecise(row, col);
       if (!passes(row[col.environment], row[col.cc], precise, row[col.max_ma], row[col.min_ma], row[col.formation])) return;
       shown += 1;
       if (!precise) wide += 1;
+      var share = useShare ? frameShare(f, row[col.max_ma], row[col.min_ma]) : null;
+      shareSum += share || 0;
       marker([row[col.paleolat], row[col.paleolng]], pointColor(row[col.environment], row[col.max_ma], row[col.min_ma]),
-             false, !precise)
+             false, !precise, share)
         .on("click", function (e) { openCollection(e.latlng, row, col); })
         .addTo(fossilLayer);
     });
     $("fossil-count").textContent = (shown === payload.rows.length ? tr("fossil.all", { n: fmtNum(shown) })
-      : tr("fossil.some", { n: fmtNum(shown), total: fmtNum(payload.rows.length) })) + (wide ? tr("fossil.vague", { n: fmtNum(wide) }) : "");
+      : tr("fossil.some", { n: fmtNum(shown), total: fmtNum(payload.rows.length) })) + (wide ? tr("fossil.vague", { n: fmtNum(wide) }) : "") +
+      (useShare ? tr("share.colls", { n: shareText(shareSum) }) : "");
     renderLegend();
   }
 
@@ -1929,7 +1945,7 @@
         if (recs.length <= OCC_LIMIT) {
           base.occs = recs.map(function (r) {
             return { old: +r.max_ma, young: +r.min_ma, env: r.environment || "", early: r.early_interval, late: r.late_interval,
-                     plat: r.paleolat == null || r.paleolat === "" ? null : +r.paleolat };
+                     plat: r.paleolat == null || r.paleolat === "" ? null : +r.paleolat, coll: r.collection_no };
           });
         }
         return base.occs ? base : overlap();
@@ -1956,7 +1972,8 @@
   function computeDist() {
     var base = state.distBase;
     if (!base) { state.dist = null; renderDist(); renderChrono(); return; }
-    var units = {}, frames = {}, total = 0;
+    var units = {}, frames = {}, total = 0, shares = null, band = null, groups = null;
+    if (base.occs && shareOn()) { shares = {}; groups = {}; }
     var addUnits = function (mid, n) {
       Object.keys(state.units).forEach(function (id) {
         var u = state.units[id];
@@ -1978,8 +1995,15 @@
         });
         state.frames.forEach(function (f, j) {
           if (inWin(f, o.old, o.young)) frames[j] = (frames[j] || 0) + 1;
+          if (shares) { var s = frameShare(f, o.old, o.young); if (s > 0) shares[j] = (shares[j] || 0) + s; }
         });
+        // 몬테카를로는 산지 단위로 뽑는다 — 한 산지의 산출은 같은 나이(analysis.js)
+        if (groups) { var g = groups[o.coll] || (groups[o.coll] = { old: o.old, young: o.young, n: 0 }); g.n += 1; }
       });
+      if (groups) {
+        var list = Object.keys(groups).map(function (k) { return groups[k]; });
+        band = AN.monteCarlo(list, state.frames.map(win), ANALYSIS.mc_runs, ANALYSIS.mc_seed);
+      }
     } else {
       // 절 단위 수 — 퇴적기원을 거를 수 없다. 기 칩·합은 major, 시점은 overlap 의 절 수(fetchSeries)
       base.stages.forEach(function (s) {
@@ -1992,7 +2016,7 @@
         });
       });
     }
-    state.dist = { key: base.key, stages: base.stages, app: base.app, units: units, frames: frames, total: total,
+    state.dist = { key: base.key, stages: base.stages, app: base.app, units: units, frames: frames, total: total, shares: shares, band: band,
                    exact: !!base.occs, filtered: !!base.occs && (!allEnvEnabled() || state.maxSpan !== Infinity) };
     renderDist();
     renderChrono();
@@ -2106,7 +2130,8 @@
       var bar = document.createElement("span");
       bar.style.left = ((OLDEST - Math.min(f.age, OLDEST)) / OLDEST * 100) + "%";
       bar.style.height = Math.max(2, Math.round(Math.log(1 + n) / Math.log(1 + max) * 14)) + "px";
-      bar.title = tr("dist.bar", { age: fmtAge(f.age), n: fmtNum(n) });
+      bar.title = tr("dist.bar", { age: fmtAge(f.age), n: fmtNum(n) }) +
+        (d.shares ? tr("share.bar", { s: shareText(d.shares[j] || 0), lo: fmtNum(d.band[j].lo), hi: fmtNum(d.band[j].hi), runs: fmtNum(ANALYSIS.mc_runs) }) : "");
       bar.addEventListener("click", function () { show(+j); });
       strip.appendChild(bar);
     });
@@ -2355,12 +2380,16 @@
       return inCountry(row) && tooWide(row[COLUMNS.precise], row[COLUMNS.max_ma], row[COLUMNS.min_ma]);
     }).length, tr("what.taxcoll"));
     drawCoeval(visible);            // 먼저 그려 찾은 분류군의 점 밑에 깐다
+    var f = frame(), useShare = shareOn(), shareColls = 0, shareOccs = 0;
     rows.forEach(function (row) {
       if (!ok(row)) return;
       shown += 1;
       occs += row[COLUMNS.n_occs];
+      var share = useShare ? frameShare(f, row[COLUMNS.max_ma], row[COLUMNS.min_ma]) : null;
+      shareColls += share || 0;
+      shareOccs += (share || 0) * row[COLUMNS.n_occs];
       marker([row[COLUMNS.paleolat], row[COLUMNS.paleolng]],
-             pointColor(row[COLUMNS.environment], row[COLUMNS.max_ma], row[COLUMNS.min_ma]), true, !row[COLUMNS.precise])
+             pointColor(row[COLUMNS.environment], row[COLUMNS.max_ma], row[COLUMNS.min_ma]), true, !row[COLUMNS.precise], share)
         .bindTooltip(function () { return taxonTip(row); },
                      { className: "occ-tip", sticky: true, direction: "auto", opacity: 0.96 })
         .on("click", function (e) { openCollection(e.latlng, row, COLUMNS); })
@@ -2370,6 +2399,7 @@
       name: koTaxon(state.taxon, state.taxonRank), rank: state.taxonRank ? " (" + (RANK_KO[state.taxonRank] || state.taxonRank) + ")" : "",
       age: fmtAge(frame().age), n: fmtNum(shown), occ: fmtNum(occs),
       country: state.country ? ", " + countryName(state.country) : "" }) +
+      (useShare ? tr("share.taxon", { n: shareText(shareColls), occ: shareText(shareOccs) }) : "") +
       (state.taxaTruncated ? tr("taxon.truncated", { n: fmtNum(TAXON_LIMIT) }) : "");
     state.taxaVisible = visible;
     renderLegend();
@@ -2989,13 +3019,22 @@
     if (!base.occs) return base.latFrames || null;
     var out = [];
     state.frames.forEach(function (f) {
-      var lats = [];
+      var lats = [], weights = [], useShare = shareOn();
       base.occs.forEach(function (o) {
         if (o.plat == null || !state.enabled[termKey(o.env)]) return;
         if (!ageOk(isPrecise(o.early, o.late), o.old, o.young) || !inWin(f, o.old, o.young)) return;
         lats.push(o.plat);
+        weights.push(useShare ? frameShare(f, o.old, o.young) : 1);
       });
       if (lats.length < 1) return;
+      // 엄밀 표기면 시점 몫으로 가중한 분위수(koprifossillab 044) — 범위가 긴 산출이 걸친 모든 시점에서 같은 무게로 끌지 않게
+      if (useShare && weights.some(function (w) { return w > 0; })) {
+        var wq = function (p) { return AN.weightedQuantile(lats, weights, p); };
+        var sorted = lats.slice().sort(function (a, b) { return a - b; });
+        out.push({ age: f.age, j: state.frames.indexOf(f), n: lats.length, med: wq(.5), q1: wq(.25), q3: wq(.75),
+                   min: sorted[0], max: sorted[sorted.length - 1], weighted: true });
+        return;
+      }
       lats.sort(function (a, b) { return a - b; });
       var q = function (p) { var k = (lats.length - 1) * p, lo = Math.floor(k), hi = Math.ceil(k); return lats[lo] + (lats[hi] - lats[lo]) * (k - lo); };
       out.push({ age: f.age, j: state.frames.indexOf(f), n: lats.length, med: q(.5), q1: q(.25), q3: q(.75), min: lats[0], max: lats[lats.length - 1] });
@@ -4362,6 +4401,8 @@
       state.frames = index.frames.slice().sort(function (a, b) { return b.age - a.age; });
       if (index.rules) {
         WINDOW_MA = index.rules.window_ma;
+        ANALYSIS = index.rules.analysis || null;
+        syncShareRow();
         (index.rules.vague_intervals || []).forEach(function (name) { VAGUE[name] = true; });
       }
       BUILT = index.built_at || "";
@@ -4460,8 +4501,12 @@
   $("rigor").addEventListener("change", function () {
     RIGOR = $("rigor").checked;
     try { localStorage.setItem(RIGOR_KEY, RIGOR ? "1" : "0"); } catch (e) { /* 막힌 저장소 */ }
-    renderAnalysis();
+    syncShareRow();
+    redraw();
+    if (state.distBase) computeDist(); else renderAnalysis();
   });
+  // "점 진하기를 시점 몫으로"(koprifossillab 044) — 몫으로 셀 때만 보인다. 기억하지 않는다(지도를 다르게 읽게 하는 선택이라 열 때마다 끈다)
+  $("share-opacity").addEventListener("change", function () { state.shareOpacity = this.checked; redraw(); });
   document.querySelectorAll(".mode [data-mode-pick]").forEach(function (b) {
     b.setAttribute("aria-pressed", String(b.dataset.modePick === I18N.mode));
     b.addEventListener("click", function () { I18N.setMode(b.dataset.modePick); });
