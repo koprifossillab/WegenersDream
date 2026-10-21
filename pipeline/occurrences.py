@@ -20,7 +20,7 @@ import json
 import shutil
 from collections import defaultdict
 
-from .common import ANALYSIS, DERIVED, WINDOW_MA, locality_key, manifest, source_path
+from .common import ANALYSIS, DERIVED, WINDOW_MA, coverage_rarefy, locality_key, manifest, source_path
 from .quality import marks
 
 OCC_FIELDS = ["occurrence_no", "collection_no", "accepted_no", "lft", "name", "rank", "genus", "identified_name", "marks",
@@ -213,6 +213,35 @@ def summarize(part, colls, ages, rules=ANALYSIS):
     for frame in frames:
         j = at[frame["age"]]
         frame.update(mc_lo=int(round(band_lo[j])), mc_hi=int(round(band_hi[j])))
+    # 표본 범위 표준화 속 수(koprifossillab 054) — 산지가 표본, 연대 범위의 반 넘게가 그 창에 든 산지만, 문턱마다
+    genera_of = defaultdict(set)
+    for r in part:
+        if r[6]:
+            genera_of[r[1]].add(r[6])
+    # 산지마다 연대 범위의 가운데가 든 시점 하나(palaeoverse bin_time 의 "mid") — 모호한 연대는 뺀다(054)
+    by_frame = defaultdict(list)
+    for c, gs in genera_of.items():
+        if not colls[c]["precise"]:
+            continue
+        mid = (colls[c]["max_ma"] + colls[c]["min_ma"]) / 2
+        j = int(np.searchsorted(hi, mid, side="right"))
+        if j < len(ages) and lo[j] <= mid:
+            by_frame[ages[j]].append(gs)
+    for frame in frames:
+        members = by_frame.get(frame["age"], [])
+        inc, T = defaultdict(int), len(members)
+        for gs in members:
+            for g in gs:
+                inc[g] += 1
+        if not T:
+            continue
+        ys = list(inc.values())
+        out = {"obs": len(ys), "T": T}
+        for q in rules["coverage_quorums"]:
+            r = coverage_rarefy(ys, T, q)
+            out["q" + str(round(q * 100))] = None if r["s"] is None else round(r["s"], 2)
+            out["cov"] = None if r["coverage"] is None else round(r["coverage"], 3)
+        frame["sqs"] = out
     return frames
 
 

@@ -10,6 +10,7 @@
  * - straddles: 연대 범위가 양쪽으로 넘는 대멸종 경계(koprifossillab 046) — quality.straddles 와 같다
  * - localityKey: 고유 산지-시간의 열쇠(koprifossillab 047) — common.locality_key 와 같다(보기 pipeline/tests/locality_cases.json)
  * - gridCell: 등면적 격자 칸(Equal Earth, rules.analysis.grid_km) — common.grid_cell 과 같다(koprifossillab 053, 보기 pipeline/tests/grid_cases.json)
+ * - coverageRarefy: 표본 범위 표준화 풍부도(Chao et al. 2014, incidence) — common.coverage_rarefy 와 같다(koprifossillab 054, 보기 pipeline/tests/coverage_cases.json)
  * - zipStore: 재현 묶음(koprifossillab 048)의 zip — 압축 없이(STORE) 담는다. 글자 파일 몇 개라 라이브러리를 들이지 않는다
  */
 (function (root) {
@@ -125,6 +126,46 @@
     return Math.floor(p[0] / km) + ":" + Math.floor(p[1] / km);
   }
 
+  // C(T − y, t) / C(T, t)
+  function missRatio(T, y, t) {
+    if (t > T - y) return 0;
+    var r = 1;
+    for (var j = 0; j < y; j++) r *= (T - t - j) / (T - j);
+    return r;
+  }
+  function coverageRarefy(incidence, T, quorum, maxExtrapolation) {
+    var ys = incidence.filter(function (y) { return y > 0; }), sObs = ys.length;
+    if (T < 1 || !sObs) return { s: null, coverage: null, t: null };
+    var U = 0, q1 = 0, q2 = 0;
+    ys.forEach(function (y) { U += y; if (y === 1) q1 += 1; if (y === 2) q2 += 1; });
+    var a;
+    if (q1 === 0) a = 0;
+    else if (q2 > 0) a = (T - 1) * q1 / ((T - 1) * q1 + 2 * q2);
+    else a = (q1 > 1 || T > 1) ? (T - 1) * (q1 - 1) / ((T - 1) * (q1 - 1) + 2) : 0;
+    var covObs = 1 - q1 / U * a;
+    if (covObs >= quorum) {
+      if (covObs === quorum) return { s: sObs, coverage: covObs, t: T };
+      // 문턱을 넘는 첫 표본 수를 이분 탐색으로 — 하나씩 보면 표본이 수만인 시점에서 느리다
+      var at = function (t) {
+        if (t <= 0) return [0, 0];
+        if (t >= T) return [covObs, sObs];
+        var c = 1, st = 0;
+        for (var i = 0; i < ys.length; i++) { c -= ys[i] / U * missRatio(T - 1, ys[i], t); st += 1 - missRatio(T, ys[i], t); }
+        return [c, st];
+      };
+      var lo = 1, hi = T;
+      while (lo < hi) { var mid = Math.floor((lo + hi) / 2); if (at(mid)[0] >= quorum) hi = mid; else lo = mid + 1; }
+      var cur = at(lo), prev = at(lo - 1), k = cur[0] > prev[0] ? (quorum - prev[0]) / (cur[0] - prev[0]) : 1;
+      return { s: prev[1] + (cur[1] - prev[1]) * k, coverage: covObs, t: lo - 1 + k };
+    }
+    if (q1 === 0 || a <= 0 || a >= 1) return { s: null, coverage: covObs, t: null };
+    var tStar = Math.log((1 - quorum) * U / q1) / Math.log(a) - 1;
+    if (tStar > (maxExtrapolation - 1) * T) return { s: null, coverage: covObs, t: null };
+    var q0 = (T - 1) / T * (q2 > 0 ? q1 * q1 / (2 * q2) : q1 * (q1 - 1) / 2);
+    var sExt = sObs + (q0 > 0 ? q0 * (1 - Math.pow(1 - q1 / (T * q0 + q1), tStar)) : 0);
+    return { s: sExt, coverage: covObs, t: T + tStar };
+  }
+
   var CRC_TABLE = null;
   function crc32(bytes) {
     if (!CRC_TABLE) {
@@ -170,6 +211,6 @@
 
   root.WegenerAnalysis = { share: share, weightedQuantile: weightedQuantile, rng: rng, monteCarlo: monteCarlo, identMarks: identMarks,
                            straddles: straddles, localityKey: localityKey, crc32: crc32, zipStore: zipStore,
-                           equalEarth: equalEarth, gridCell: gridCell };
+                           equalEarth: equalEarth, gridCell: gridCell, coverageRarefy: coverageRarefy };
   if (typeof module !== "undefined") module.exports = root.WegenerAnalysis;
 })(typeof window !== "undefined" ? window : globalThis);

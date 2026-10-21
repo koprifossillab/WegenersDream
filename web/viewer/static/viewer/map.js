@@ -3172,9 +3172,42 @@
   var DIV_METRIC = {
     rt: function (s) { return s.rt; }, g: function (s) { return s.g; }, n: function (s) { return s.n; },
     per: function (s) { return s.n ? s.rt / s.n * 100 : null; },
+    sqs: function (s) { return s.v; },
   };
+  // 표본 범위 표준화 속 수(koprifossillab 054, P02 §2.3) — 시점마다 산지를 표본으로(같은 산지의 같은 속은 한 번), 연대 범위의 가운데가 그 창에 든
+  // 산지 하나씩(모호한 연대는 뺀다). Chao et al. 2014 의 incidence 셈(analysis.js coverageRarefy). 거르기(퇴적기원·연대 범위·품질)를 따른다.
+  // 큰 분류군은 파이프라인의 요약(문턱마다 미리 센 것 — 거르기가 들지 않는다)
+  function sqsSeries(base) {
+    if (!ANALYSIS || !AN || ANALYSIS.coverage_quorum == null) return null;
+    var q = state.quorum || ANALYSIS.coverage_quorum, key = "q" + Math.round(q * 100);
+    if (base.summary) {
+      return base.summary.filter(function (s) { return s.sqs && s.sqs[key] != null; }).map(function (s) {
+        return { base: s.age + WINDOW_MA, top: Math.max(0, s.age - WINDOW_MA), age: s.age, v: s.sqs[key], obs: s.sqs.obs, T: s.sqs.T, cov: s.sqs.cov };
+      });
+    }
+    if (!base.occs) return null;
+    var out = [];
+    state.frames.forEach(function (f) {
+      var w = win(f), colls = {};
+      base.occs.forEach(function (o) {
+        if (!o.genus || !state.enabled[termKey(o.env)] || qualDrops(o.q) || straddleDrops(o.old, o.young)) return;
+        // 시점에 넣기 — 연대 범위의 가운데가 창에 든 산지 하나씩, 모호한 연대는 뺀다(palaeoverse bin_time "mid", 054)
+        var precise = isPrecise(o.early, o.late), mid = (+o.old + +o.young) / 2;
+        if (!precise || !ageOk(precise, o.old, o.young) || mid < w[0] || mid > w[1]) return;
+        (colls[o.coll] || (colls[o.coll] = {}))[o.genus] = 1;
+      });
+      var ids = Object.keys(colls);
+      if (!ids.length) return;
+      var inc = {};
+      ids.forEach(function (c) { Object.keys(colls[c]).forEach(function (g) { inc[g] = (inc[g] || 0) + 1; }); });
+      var ys = Object.keys(inc).map(function (g) { return inc[g]; });
+      var r = AN.coverageRarefy(ys, ids.length, q, ANALYSIS.coverage_max_extrapolation);
+      out.push({ base: w[1], top: w[0], age: f.age, v: r.s, obs: ys.length, T: ids.length, cov: r.coverage });
+    });
+    return out;
+  }
   // 엄밀 표기(RIGOR)일 때 커서 값에 붙이는 단위
-  var DIV_UNIT = { rt: "unit.genera", g: "unit.genera", n: "unit.occs", per: "unit.per" };
+  var DIV_UNIT = { rt: "unit.genera", g: "unit.genera", n: "unit.occs", per: "unit.per", sqs: "unit.genera" };
   function seriesList() {
     var out = [];
     if (state.distBase) out.push({ key: "A", name: state.taxon, rank: state.taxonRank, base: state.distBase, cls: "a" });
@@ -3256,9 +3289,12 @@
     var list = seriesList(), dom = domain(list);
     if (!dom) return false;
     var L0 = 34, R0 = 6, T0 = 6, B0 = 18, metric = DIV_METRIC[$("div-metric").value] || DIV_METRIC.rt;
+    // 표본 범위 표준화는 시점마다의 수, 나머지는 PBDB 의 절마다의 수
+    var sqs = $("div-metric").value === "sqs";
+    list.forEach(function (it) { it.rows = sqs ? sqsSeries(it.base) || [] : it.base.stages; });
     var x = function (a) { return L0 + (dom[0] - a) / (dom[0] - dom[1]) * (W - L0 - R0); };
     var ymax = 0;
-    list.forEach(function (it) { it.base.stages.forEach(function (st) { var v = metric(st); if (v != null) ymax = Math.max(ymax, v); }); });
+    list.forEach(function (it) { it.rows.forEach(function (st) { var v = metric(st); if (v != null) ymax = Math.max(ymax, v); }); });
     ymax = niceMax(ymax);
     var y = function (v) { return H - B0 - v / ymax * (H - T0 - B0); };
     var g = svgEl("g", {}, svg);
@@ -3273,7 +3309,7 @@
     list.forEach(function (it) {
       // 이어진 절끼리만 선으로 잇는다 — 기록이 없는 구간을 건너 잇지 않는다(그 사이가 이어진 것처럼 보인다)
       var runs = [], run = null, prev = null;
-      it.base.stages.slice().sort(function (a, b) { return b.base - a.base; }).forEach(function (st) {
+      it.rows.slice().sort(function (a, b) { return b.base - a.base; }).forEach(function (st) {
         var v = metric(st);
         if (v == null) { run = null; prev = null; return; }
         if (!run || !prev || Math.abs(prev.top - st.base) > 0.5) { run = []; runs.push(run); }
@@ -3291,6 +3327,8 @@
       var v = metric(st);
       if (v == null) return "—";
       v = fmtNum(Math.round(v * 10) / 10);
+      // 표본 범위 표준화는 표본 수(산지)·관찰 속 수·관찰 표본 범위를 함께 — 5 Myr 창과 절 길이가 맞지 않아 시점마다 표본이 고르지 않다(054)
+      if (sqs) return tr("sqs.read", { n: v, obs: fmtNum(st.obs), t: fmtNum(st.T), cov: st.cov == null ? "—" : st.cov.toFixed(2) });
       return RIGOR ? tr(unitKey, { n: v }) : v;
     }, L0, W - R0);
     return true;
@@ -3356,7 +3394,7 @@
       if (!hit) { guide.setAttribute("visibility", "hidden"); return; }
       guide.setAttribute("x1", hit.px); guide.setAttribute("x2", hit.px); guide.setAttribute("visibility", "visible");
       var parts = list.map(function (it) {
-        var st = it.base.stages.filter(function (s) { return hit.age <= s.base && hit.age > s.top; })[0];
+        var st = (it.rows || it.base.stages).filter(function (s) { return hit.age <= s.base && hit.age > s.top; })[0];
         return st ? '<b class="' + it.cls + '">' + it.key + "</b> " + value(st, it) : "";
       }).filter(Boolean);
       var u = unitAt(hit.age);
@@ -3509,7 +3547,11 @@
     // 분석이 PBDB 사본에서 왔는가(연구자: 분석만 사본, 지도의 찾기 점은 실시간) — 받은 날을 적는다
     $("anal-note").textContent = snapDate ? tr("snap.note", { date: String(snapDate).slice(0, 10) }) : "";
     // 다양성 곡선이 어떻게 세었나 — 늘 PBDB 절 단위(major)라 퇴적기원·연대 범위 거르기가 들지 않는다
-    $("div-note").textContent = RIGOR ? tr("div.rule") : "";
+    var sqsOn = $("div-metric").value === "sqs";
+    $("div-note").textContent = sqsOn ? tr("div.sqsRule", { q: state.quorum || (ANALYSIS && ANALYSIS.coverage_quorum), x: ANALYSIS ? ANALYSIS.coverage_max_extrapolation : 2 }) +
+      (seriesList().some(function (it) { return it.base.summary; }) ? " " + tr("lat.summary") : "") : RIGOR ? tr("div.rule") : "";
+    var sqsOpt = $("div-metric").querySelector('option[value="sqs"]');
+    if (sqsOpt) sqsOpt.hidden = !(ANALYSIS && ANALYSIS.coverage_quorum != null);
     big.forEach(function (it) {
       var b = document.createElement("button");
       b.type = "button"; b.className = "tool lat-build";
@@ -4594,7 +4636,8 @@
     });
     $("cmp-clear").addEventListener("click", clearCmp);
     $("formation-clear").addEventListener("click", function () { setFormation(null); });
-    $("div-metric").addEventListener("change", renderAnalysis);
+    $("div-metric").addEventListener("change", function () { $("sqs-q").hidden = this.value !== "sqs"; renderAnalysis(); });
+    $("sqs-q").addEventListener("change", function () { state.quorum = +this.value; renderAnalysis(); });
     $("anal-big").addEventListener("click", function () { $("anal-dialog").showModal(); renderBig(); });
     window.addEventListener("resize", function () { if (state.taxon) renderAnalysis(); });
     $("show-wide").addEventListener("change", function () {

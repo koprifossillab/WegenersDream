@@ -334,6 +334,10 @@
                 <option value="g" data-i18n="div.g">속 수 (절 안 산출)</option>
                 <option value="n" data-i18n="div.n">산출 수</option>
                 <option value="per" data-i18n="div.per">산출 100건당 속 수</option>
+                <option value="sqs" data-i18n="div.sqs">속 수 (시점, 표본 범위 표준화)</option>
+              </select>
+              <select id="sqs-q" hidden aria-label="표본 범위 문턱" data-i18n-attr="aria-label:div.sqsQ">
+                <option value="0.4">q 0.4</option><option value="0.5" selected>q 0.5</option><option value="0.6">q 0.6</option><option value="0.7">q 0.7</option>
               </select>
               <button type="button" class="tool anal-big" id="anal-big" data-i18n="anal.big">크게</button></h3>
             <svg class="chart-svg" id="chart-div" role="img" aria-label="다양성 그래프" data-i18n-attr="aria-label:anal.div"></svg>
