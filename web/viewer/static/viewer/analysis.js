@@ -9,6 +9,7 @@
  *   규칙은 pipeline/quality.py(index.json rules.quality), 보기는 pipeline/tests/quality_cases.json
  * - straddles: 연대 범위가 양쪽으로 넘는 대멸종 경계(koprifossillab 046) — quality.straddles 와 같다
  * - localityKey: 고유 산지-시간의 열쇠(koprifossillab 047) — common.locality_key 와 같다(보기 pipeline/tests/locality_cases.json)
+ * - zipStore: 재현 묶음(koprifossillab 048)의 zip — 압축 없이(STORE) 담는다. 글자 파일 몇 개라 라이브러리를 들이지 않는다
  */
 (function (root) {
   "use strict";
@@ -110,7 +111,50 @@
     return [(+lat).toFixed(decimals), (+lng).toFixed(decimals), form, String(old), String(young)].join("|");
   }
 
+  var CRC_TABLE = null;
+  function crc32(bytes) {
+    if (!CRC_TABLE) {
+      CRC_TABLE = new Uint32Array(256);
+      for (var n = 0; n < 256; n++) {
+        var c = n;
+        for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+        CRC_TABLE[n] = c >>> 0;
+      }
+    }
+    var crc = 0xFFFFFFFF;
+    for (var i = 0; i < bytes.length; i++) crc = CRC_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+  function utf8(text) {
+    if (typeof TextEncoder !== "undefined") return new TextEncoder().encode(text);
+    return new Uint8Array(Buffer.from(text, "utf8"));      // node 의 옛 판
+  }
+  // files: [{ name, text }] → zip 의 바이트. 이름은 UTF-8(일반 목적 비트 11), 시각은 date(없으면 1980-01-01)
+  function zipStore(files, date) {
+    var d = date || new Date(1980, 0, 1);
+    var dosTime = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+    var dosDate = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    var chunks = [], central = [], offset = 0;
+    var u16 = function (v) { return [v & 0xFF, (v >>> 8) & 0xFF]; };
+    var u32 = function (v) { return [v & 0xFF, (v >>> 8) & 0xFF, (v >>> 16) & 0xFF, (v >>> 24) & 0xFF]; };
+    files.forEach(function (f) {
+      var name = utf8(f.name), data = utf8(f.text), crc = crc32(data);
+      var common = [].concat(u16(20), u16(0x0800), u16(0), u16(dosTime), u16(dosDate), u32(crc), u32(data.length), u32(data.length),
+                             u16(name.length), u16(0));
+      var local = new Uint8Array([0x50, 0x4B, 0x03, 0x04].concat(common));
+      chunks.push(local, name, data);
+      central.push(new Uint8Array([0x50, 0x4B, 0x01, 0x02].concat(u16(20), common, u16(0), u16(0), u16(0), u32(0), u32(offset))), name);
+      offset += local.length + name.length + data.length;
+    });
+    var size = central.reduce(function (a, c) { return a + c.length; }, 0);
+    var end = new Uint8Array([0x50, 0x4B, 0x05, 0x06].concat(u16(0), u16(0), u16(files.length), u16(files.length), u32(size), u32(offset), u16(0)));
+    var all = chunks.concat(central, [end]), total = all.reduce(function (a, c) { return a + c.length; }, 0);
+    var out = new Uint8Array(total), at = 0;
+    all.forEach(function (c) { out.set(c, at); at += c.length; });
+    return out;
+  }
+
   root.WegenerAnalysis = { share: share, weightedQuantile: weightedQuantile, rng: rng, monteCarlo: monteCarlo, identMarks: identMarks,
-                           straddles: straddles, localityKey: localityKey };
+                           straddles: straddles, localityKey: localityKey, crc32: crc32, zipStore: zipStore };
   if (typeof module !== "undefined") module.exports = root.WegenerAnalysis;
 })(typeof window !== "undefined" ? window : globalThis);

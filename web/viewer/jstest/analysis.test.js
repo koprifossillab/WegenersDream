@@ -56,5 +56,12 @@ loc.cases.forEach(function (c) {
   check(got === c[5], "localityKey 기대 " + c[5] + " 얻음 " + got);
 });
 
+// 재현 묶음의 zip(koprifossillab 048) — CRC32, zip 의 머리와 끝
+check(A.crc32(new Uint8Array(Buffer.from("hello", "utf8"))) === 0x3610a686, "crc32(hello)");
+var z = A.zipStore([{ name: "a.txt", text: "가나다" }, { name: "b/c.json", text: "{}" }], new Date(2026, 9, 20, 12, 0, 0));
+check(z[0] === 0x50 && z[1] === 0x4B && z[2] === 3 && z[3] === 4, "zip 처음은 PK 03 04");
+var e = z.length - 22;
+check(z[e] === 0x50 && z[e + 1] === 0x4B && z[e + 2] === 5 && z[e + 3] === 6 && z[e + 10] === 2, "zip 끝 — 파일 둘");
+
 if (fail) { console.log(fail + " 개 틀림"); process.exit(1); }
 console.log("분석 셈 시험 통과");

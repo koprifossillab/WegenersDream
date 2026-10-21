@@ -125,3 +125,4 @@
 | koprifossillab 045 | 2026-10-20 | [동정 표지와 동정 거르기: cf.·aff.·?·속 미동정](20261020_koprifossillab_045_ident_marks.md) |
 | koprifossillab 046 | 2026-10-20 | [대멸종 경계를 걸친 연대 범위를 표시하고 거를 수 있게](20261020_koprifossillab_046_boundary_marks.md) |
 | koprifossillab 047 | 2026-10-20 | [고유 산지-시간으로도 센다](20261020_koprifossillab_047_locality_units.md) |
+| koprifossillab 048 | 2026-10-20 | [재현 묶음(가벼운 판): 산지 CSV 에 "어떻게 얻었나" 를 함께](20261020_koprifossillab_048_repro_bundle.md) |
