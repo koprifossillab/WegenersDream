@@ -126,3 +126,6 @@
 | koprifossillab 046 | 2026-10-20 | [대멸종 경계를 걸친 연대 범위를 표시하고 거를 수 있게](20261020_koprifossillab_046_boundary_marks.md) |
 | koprifossillab 047 | 2026-10-20 | [고유 산지-시간으로도 센다](20261020_koprifossillab_047_locality_units.md) |
 | koprifossillab 048 | 2026-10-20 | [재현 묶음(가벼운 판): 산지 CSV 에 "어떻게 얻었나" 를 함께](20261020_koprifossillab_048_repro_bundle.md) |
+| koprifossillab 049 | 2026-10-21 | [PBDB 산출·분류 나무·참고문헌의 사본을 산지와 함께 받는다, 5% 점검을 바꿔 끼우기 앞으로](20261021_koprifossillab_049_pbdb_occurrence_copy.md) |
+| koprifossillab 050 | 2026-10-21 | [산출 사본을 분류 나무 순서의 정적 조각으로 굽는다](20261021_koprifossillab_050_occurrence_chunks.md) |
+| koprifossillab 051 | 2026-10-21 | [분포 분석을 PBDB 사본에서: 한도 없이, 지도와 같은 좌표로](20261021_koprifossillab_051_analysis_from_copy.md) |

@@ -22,6 +22,8 @@
   var AN = window.WegenerAnalysis, ANALYSIS = null;
   // 동정 품질 표지(koprifossillab 045) — rules.quality(pipeline/quality.py). 없으면(옛 index.json) 표지·거르기가 숨는다
   var QUALITY = null;
+  // PBDB 산출 사본의 조각(koprifossillab 051, P01 §3) — index.json 의 occurrences. 없으면(옛 가공물) 분포는 PBDB 에 바로 묻는다
+  var OCCS = null, occsIndex = null;
   try { var rigorStored = localStorage.getItem(RIGOR_KEY); if (rigorStored === "1" || rigorStored === "0") RIGOR = rigorStored === "1"; } catch (e) { /* 막힌 저장소 */ }
   I18N.apply();
   var DATA = app.dataset.dataBase.replace(/x$/, "");
@@ -2006,6 +2008,17 @@
             return base;
           }).catch(function () { return base; });
       };
+      // 분포 분석은 PBDB 사본에서(연구자, P01 §11.4) — 한도 없이, 지도와 같은 좌표 틀로. 사본에 없는 이름(사본 뒤에 생긴 것)은 PBDB 에 바로
+      return snapshotSeries(name).then(function (snap) {
+        if (snap) {
+          base.snapshot = snap.snapshot;
+          if (snap.summary) { base.summary = snap.summary; base.summaryN = snap.n; return base; }
+          base.occs = snap.occs;
+          return base;
+        }
+        return liveSeries();
+      }).catch(function () { return liveSeries(); });
+      function liveSeries() {
       if (base.stageTotal > OCC_LIMIT) return overlap();
       return getJSON(PBDB + "occs/list.json?" + baseParam(name) + cc +
                      "&show=env,paleoloc,ident&pgm=scotese&vocab=pbdb&limit=" + (OCC_LIMIT + 1)).then(function (d) {
@@ -2018,7 +2031,61 @@
         }
         return base.occs ? base : overlap();
       }).catch(function () { return overlap(); });
+      }
     });
+  }
+
+  // 사본에서 분류군 하나의 산출 — 이름표(첫 글자 파일)에서 채택 분류군의 [lft, rgt] 를 찾고, 그 구간에 걸친 조각만 받는다.
+  // 산출이 summary_min_occs(50,000) 를 넘으면 파이프라인이 미리 센 요약. 나라·지층은 산지 칸으로 거른다(PBDB 질의의 cc·formation 과 같게)
+  function snapshotSeries(name) {
+    if (!OCCS) return Promise.resolve(null);
+    if (!occsIndex) occsIndex = getJSON(dataUrl(OCCS.index));
+    return occsIndex.then(function (ix) {
+      var plain = plainName(name), id = taxonIdOf(name);
+      var letter = /^[a-z]/i.test(plain) ? plain[0].toLowerCase() : "_";
+      var file = "occs/taxa/" + letter + ".json";
+      if (ix.taxa.indexOf(file) < 0) return null;
+      return getJSON(dataUrl(file)).then(function (table) {
+        var entries = table[plain];
+        if (!entries || !entries.length) return null;
+        // 같은 이름이 여럿이면(동명, tupandactyl 026) 고른 번호, 아니면 산출이 가장 많은 것
+        var e = (id && entries.filter(function (x) { return String(x[0]) === String(id); })[0]) ||
+          entries.slice().sort(function (a, b) { return b[4] - a[4]; })[0];
+        var acc = e[0], lft = e[1], rgt = e[2], n = e[4], snap = ix.retrieved_at;
+        if (n > ix.summary_min_occs) {
+          // 요약은 나라·지층으로 거를 수 없다 — 그때는 조각(수십 MB 를 넘는다)을 받지 않고 PBDB 의 절 단위 수로 돌아간다
+          if (!ix.summaries[acc] || state.country || state.formation) return null;
+          return getJSON(dataUrl(ix.summaries[acc])).then(function (s) { return { summary: s.frames, n: s.n, snapshot: snap }; });
+        }
+        var files = ix.chunks.filter(function (c) { return c.lft_hi >= lft && c.lft_lo <= rgt; });
+        return Promise.all(files.map(function (c) { return getJSON(dataUrl(c.file)); })).then(function (parts) {
+          var occs = [];
+          parts.forEach(function (p) {
+            var oc = {}, cc = {};
+            p.fields.forEach(function (k, i) { oc[k] = i; });
+            p.coll_fields.forEach(function (k, i) { cc[k] = i; });
+            p.rows.forEach(function (r) {
+              if (r[oc.lft] < lft || r[oc.lft] > rgt) return;
+              var c = p.colls[r[oc.collection_no]];
+              if (!c) return;
+              if (state.country && c[cc.cc] !== state.country) return;
+              if (state.formation && formKey(c[cc.formation]) !== formKey(state.formation)) return;
+              var at = c._at;
+              if (!at) { at = c._at = {}; c[cc.frames].forEach(function (fr) { at[fr[0]] = fr[1]; }); }
+              occs.push({ old: c[cc.max_ma], young: c[cc.min_ma], env: c[cc.environment] || "", early: c[cc.early_interval],
+                          late: c[cc.late_interval], coll: r[oc.collection_no], q: r[oc.marks] || "", at: at, genus: r[oc.genus],
+                          loc: c[cc.locality], ref: r[oc.reference_no], no: r[oc.occurrence_no], name: r[oc.name] });
+            });
+          });
+          return { occs: occs, snapshot: snap };
+        });
+      });
+    });
+  }
+  // 산출의 그 시점 위도 — 사본이면 산지를 그 시점 나이로 돌린 좌표(최근 절 시점은 그 절이 쓰는 0·5 Ma 지도의 것), 아니면 PBDB 고좌표
+  function occLat(o, f) {
+    if (o.at) { var v = o.at[f.src ? f.src.age : f.age]; return v == null ? null : v; }
+    return o.plat;
   }
 
   function loadDistribution(name) {
@@ -2042,6 +2109,17 @@
     if (!base) { state.dist = null; renderDist(); renderChrono(); return; }
     var units = {}, frames = {}, total = 0, shares = null, band = null, groups = null;
     if (base.occs && shareOn()) { shares = {}; groups = {}; }
+    if (base.summary) {
+      // 큰 분류군의 요약(파이프라인) — 시점 수·몫·몬테카를로. 기 칩·합은 절 단위 수 그대로
+      shares = shareOn() ? {} : null;
+      band = shareOn() ? {} : null;
+      base.summary.forEach(function (s) {
+        var j = state.frames.map(function (f) { return f.age; }).indexOf(s.age);
+        if (j < 0) return;
+        frames[j] = s.n;
+        if (shares) { shares[j] = s.share; band[j] = { lo: s.mc_lo, hi: s.mc_hi }; }
+      });
+    }
     var addUnits = function (mid, n) {
       Object.keys(state.units).forEach(function (id) {
         var u = state.units[id];
@@ -2073,19 +2151,19 @@
         band = AN.monteCarlo(list, state.frames.map(win), ANALYSIS.mc_runs, ANALYSIS.mc_seed);
       }
     } else {
-      // 절 단위 수 — 퇴적기원을 거를 수 없다. 기 칩·합은 major, 시점은 overlap 의 절 수(fetchSeries)
+      // 절 단위 수 — 퇴적기원을 거를 수 없다. 기 칩·합은 major, 시점은 overlap 의 절 수(fetchSeries). 요약이 있으면 시점은 요약의 것
       base.stages.forEach(function (s) {
         total += s.n;
         addUnits((s.base + s.top) / 2, s.n);
       });
-      (base.stagesOverlap || base.stages).forEach(function (s) {
+      if (!base.summary) (base.stagesOverlap || base.stages).forEach(function (s) {
         state.frames.forEach(function (f, j) {
           if (inWin(f, s.base, s.top)) frames[j] = (frames[j] || 0) + s.n;
         });
       });
     }
     state.dist = { key: base.key, stages: base.stages, app: base.app, units: units, frames: frames, total: total, shares: shares, band: band,
-                   exact: !!base.occs, filtered: !!base.occs && (!allEnvEnabled() || state.maxSpan !== Infinity ||
+                   exact: !!base.occs, snapshot: base.snapshot || null, summary: !!base.summary, filtered: !!base.occs && (!allEnvEnabled() || state.maxSpan !== Infinity ||
                      (qualOn() && (state.dropUncertain || state.dropCoarse || state.dropStraddle))) };
     renderDist();
     renderChrono();
@@ -3100,14 +3178,22 @@
   }
   // 시점마다 산출 고위도의 사분위(지도와 같은 규칙 — 켠 퇴적기원, 연대 범위, 창과 겹침)
   function latSeries(base) {
+    if (base.summary) {
+      // 큰 분류군의 요약 — 파이프라인이 몫으로 가중해 센 분위수(거르기가 들지 않는다)
+      return base.summary.filter(function (s) { return s.lat_med != null; }).map(function (s) {
+        var j = state.frames.map(function (f) { return f.age; }).indexOf(s.age);
+        return { age: s.age, j: j, n: s.n, med: s.lat_med, q1: s.lat_q1, q3: s.lat_q3, min: s.lat_q1, max: s.lat_q3, weighted: true, summary: true };
+      }).filter(function (p) { return p.j >= 0; }).sort(function (a, b) { return a.j - b.j; });   // 시점 막대 차례 — 이웃한 시점끼리 잇는다
+    }
     if (!base.occs) return base.latFrames || null;
     var out = [];
     state.frames.forEach(function (f) {
       var lats = [], weights = [], useShare = shareOn();
       base.occs.forEach(function (o) {
-        if (o.plat == null || !state.enabled[termKey(o.env)] || qualDrops(o.q) || straddleDrops(o.old, o.young)) return;
+        var lat = occLat(o, f);
+        if (lat == null || !state.enabled[termKey(o.env)] || qualDrops(o.q) || straddleDrops(o.old, o.young)) return;
         if (!ageOk(isPrecise(o.early, o.late), o.old, o.young) || !inWin(f, o.old, o.young)) return;
-        lats.push(o.plat);
+        lats.push(lat);
         weights.push(useShare ? frameShare(f, o.old, o.young) : 1);
       });
       if (lats.length < 1) return;
@@ -3391,11 +3477,16 @@
     $("chart-div").parentNode.hidden = !okDiv;
     $("chart-lat").parentNode.hidden = !okDiv;
     // 산출이 많아 고위도를 산출로 셀 수 없는 분류군 — 누르면 시점마다 산지로 묻는다
-    var big = seriesList().filter(function (it) { return !it.base.occs && !it.base.latFrames; });
+    var big = seriesList().filter(function (it) { return !it.base.occs && !it.base.latFrames && !it.base.summary; });
+    var snapDate = seriesList().map(function (it) { return it.base.snapshot; }).filter(Boolean)[0];
     var byColls = seriesList().some(function (it) { return it.base.latFrames; });
     var note = $("lat-note");
     // 좌표 틀은 늘 적는다(두 모드) — 지도의 점(v19o, 시점마다 계산)과 틀이 다르다(P01 §4). 같은 틀로 옮기는 것은 산출 단위 사본 뒤(P01 나3)
-    note.innerHTML = esc(tr("lat.frame")) + " " + esc(big.length ? tr("lat.big", { n: fmtNum(OCC_LIMIT) }) : tr("lat.about")) + (byColls ? " " + esc(tr("lat.colls")) : "");
+    note.innerHTML = esc(snapDate ? tr("lat.frameSnap") : tr("lat.frame")) + " " + esc(big.length ? tr("lat.big", { n: fmtNum(OCC_LIMIT) }) : tr("lat.about")) +
+      (byColls ? " " + esc(tr("lat.colls")) : "") +
+      (seriesList().some(function (it) { return it.base.summary; }) ? " " + esc(tr("lat.summary")) : "");
+    // 분석이 PBDB 사본에서 왔는가(연구자: 분석만 사본, 지도의 찾기 점은 실시간) — 받은 날을 적는다
+    $("anal-note").textContent = snapDate ? tr("snap.note", { date: String(snapDate).slice(0, 10) }) : "";
     // 다양성 곡선이 어떻게 세었나 — 늘 PBDB 절 단위(major)라 퇴적기원·연대 범위 거르기가 들지 않는다
     $("div-note").textContent = RIGOR ? tr("div.rule") : "";
     big.forEach(function (it) {
@@ -3552,13 +3643,46 @@
     if (series.length) files.push({ name: "series.csv", text: csvText(series) });
     var stem = "wegener_" + (state.overview ? "all-ages" : String(f.age).replace(".", "_") + "Ma") +
       (state.taxon ? "_" + plainName(state.taxon).replace(/\s+/g, "-") : "") + (state.country ? "_" + state.country : "");
-    var bytes = AN.zipStore(files, created);
-    var url = URL.createObjectURL(new Blob([bytes], { type: "application/zip" }));
-    var a = document.createElement("a");
-    a.href = url; a.download = stem + "_bundle.zip";
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
-    return rows.length;
+    // 사본에서 센 분류군이면(051) 센 산출 하나하나와 그 문헌, 사본의 sha256 — 그 주의 백업으로 같은 수를 다시 얻을 수 있다(P01 나6)
+    var base = state.distBase, occs = base && base.occs && base.snapshot ? base.occs.filter(function (o) {
+      return state.enabled[termKey(o.env)] && !qualDrops(o.q) && !straddleDrops(o.old, o.young) && ageOk(isPrecise(o.early, o.late), o.old, o.young);
+    }) : null;
+    var withCopy = (occsIndex || Promise.resolve(null)).then(function (ix) {
+      if (!ix) return;
+      manifest.pbdb_copy = { snapshot: ix.snapshot, retrieved_at: ix.retrieved_at, tables: ix.tables, used_occurrences: ix.stats && ix.stats.used };
+      files[1].text = JSON.stringify(manifest, null, 1) + "\n";
+      if (!occs) return;
+      files.push({ name: "occurrences.csv", text: csvText(occs.map(function (o) {
+        var lat = occLat(o, f);
+        return { occurrence_no: o.no, collection_no: o.coll, accepted_name: o.name, genus: o.genus, max_ma: o.old, min_ma: o.young,
+                 environment: o.env, id_marks: o.q, reference_no: o.ref, locality_key: o.loc, map_age: f.age,
+                 in_this_map: inWin(f, o.old, o.young) ? 1 : 0, time_share: ANALYSIS && AN ? +frameShare(f, o.old, o.young).toFixed(4) : "",
+                 paleolat_this_map: lat == null ? "" : lat };
+      })) });
+      if (!ix.refs) return;
+      var shards = {};
+      occs.forEach(function (o) { if (o.ref) shards[Math.floor(o.ref / ix.ref_shard)] = 1; });
+      return Promise.all(Object.keys(shards).map(function (k) {
+        return getJSON(dataUrl(ix.refs.replace("{shard}", k))).catch(function () { return {}; });
+      })).then(function (tables) {
+        var all = {}, used = {};
+        tables.forEach(function (t) { Object.keys(t).forEach(function (no) { all[no] = t[no]; }); });
+        occs.forEach(function (o) { if (o.ref) used[o.ref] = 1; });
+        files.push({ name: "references.csv", text: csvText(Object.keys(used).sort(function (a, b) { return a - b; }).map(function (no) {
+          var r = all[no] || ["", ""];
+          return { reference_no: no, reference: r[0], doi: r[1] };
+        })) });
+      });
+    });
+    return withCopy.catch(function () {}).then(function () {
+      var bytes = AN.zipStore(files, created);
+      var url = URL.createObjectURL(new Blob([bytes], { type: "application/zip" }));
+      var a = document.createElement("a");
+      a.href = url; a.download = stem + "_bundle.zip";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+      return rows.length;
+    });
   }
 
   // ── 국가 ────────────────────────────────────────────────────────────
@@ -4114,9 +4238,10 @@
             .then(function () { b.disabled = false; out.hidden = true; out.dataset.menu = ""; });
           return;
         }
-        var n = kind === "bundle" ? exportBundle() : exportData(kind);
-        b.textContent = tr("export.saved", { n: fmtNum(n) });
-        setTimeout(function () { out.hidden = true; out.dataset.menu = ""; }, 1200);
+        Promise.resolve(kind === "bundle" ? exportBundle() : exportData(kind)).then(function (n) {
+          b.textContent = tr("export.saved", { n: fmtNum(n) });
+          setTimeout(function () { out.hidden = true; out.dataset.menu = ""; }, 1200);
+        });
       });
     });
   });
@@ -4565,6 +4690,7 @@
         WINDOW_MA = index.rules.window_ma;
         ANALYSIS = index.rules.analysis || null;
         QUALITY = index.rules.quality || null;
+        OCCS = index.occurrences || null;
         syncShareRow();
         (index.rules.vague_intervals || []).forEach(function (name) { VAGUE[name] = true; });
       }
