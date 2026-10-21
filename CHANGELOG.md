@@ -3,6 +3,15 @@
 괄호 안의 번호는 `devlog/` 의 그 문서다. **지금 무엇이 도는지는 이 파일이 아니라
 [HANDOFF.md](HANDOFF.md) 다.**
 
+## 1.9.0 — 2026-10-21 · `feature/pbdb-occurrence-copy`
+
+- **PBDB 산출 사본** — 주간 갱신이 산지와 함께 산출(178 만)·분류 나무·참고문헌을 받아, 모두 검사한 뒤 한꺼번에 바꿔 끼운다. 표마다 지난 사본보다
+  5% 넘게 줄면 바꿔 끼우기 **전에** 멈춘다(`--allow-shrink`) (koprifossillab 049)
+- **산출 사본의 조각** — 분류 나무 순서로 자른 정적 조각(`occs/`), 이름표, 산출 50,000 건 넘는 분류군의 요약, 문헌 조각 (koprifossillab 050)
+- **분포 분석을 사본에서** — 한도가 5,000 → 50,000 건(그 위는 요약), 고위도 곡선이 지도와 같은 v19o 시점 좌표. 지도의 찾기 점·팝업은 실시간
+  PBDB 그대로 (koprifossillab 051)
+- **재현 묶음에 센 산출과 문헌** — 사본에서 셌으면 `occurrences.csv`·`references.csv`, manifest 에 사본의 sha256 (koprifossillab 051)
+
 ## 1.8.0 — 2026-10-20 · `feature/repro-bundle`
 
 - **재현 묶음 (zip)**(분석 엄밀 표기) — 다운로드에 README·manifest(판·가공 시각·PBDB 받은 날·규칙)·query(화면의 고른 것·PBDB 에 물은 주소와 시각)·
