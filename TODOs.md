@@ -5,7 +5,8 @@
 
 ## 배포
 
-(없음 — PBDB 갱신·백업은 매주 월요일 cron, koprifossillab 032)
+- [ ] **주간 갱신 실패를 사람에게 알린다** — 10-05~10-19 세 주 동안 `last_refresh.json`·`/healthz` 의 실패를 아무도 못 봤다(koprifossillab 052).
+      메일·메신저 가운데 연구실이 쓰는 곳으로
 
 ## 자료
 

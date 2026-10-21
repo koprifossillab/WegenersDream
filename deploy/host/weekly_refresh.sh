@@ -155,9 +155,11 @@ EOF
 # ── 4. 운영에 옮기기 — index.json 을 맨 나중에 ───────────────────────────
 STEP=deploy
 # 폴더 시각은 맞추지 않는다(--omit-dir-times) — 다른 계정이 만든 폴더(taxa_ko, jschoi)는 paleoadmin 이 시각을 못 바꿔 rsync 가
-# 코드 23 으로 끝났고, 파일은 다 옮기고도 index.json 을 남긴 채 실패로 멈췄다(10-05, koprifossillab 037). 파일 시각은 그대로 맞춘다
-rsync -a --omit-dir-times --exclude index.json "$REPO/data/derived/" "$SRV/data/" || fail "rsync 실패"
-rsync -a --omit-dir-times "$REPO/data/derived/index.json" "$SRV/data/index.json" || fail "index.json rsync 실패"
+# 코드 23 으로 끝났고, 파일은 다 옮기고도 index.json 을 남긴 채 실패로 멈췄다(10-05, koprifossillab 037). 그 뒤로는 같은 폴더의
+# **권한**을 못 바꿔 10-12·10-19 도 같은 자리에서 멈췄다(koprifossillab 052). 그래서 -a 대신 -rlt — 권한·소유자·그룹은 맞추지 않는다.
+# 새 파일은 이 스크립트의 umask(027)로 생기고, 컨테이너는 paleoadmin(uid 1000)으로 읽는다. 파일 시각은 그대로 맞춘다
+rsync -rlt --omit-dir-times --exclude index.json "$REPO/data/derived/" "$SRV/data/" || fail "rsync 실패"
+rsync -rlt --omit-dir-times "$REPO/data/derived/index.json" "$SRV/data/index.json" || fail "index.json rsync 실패"
 "$REPO/deploy/host/smoke.sh" >/dev/null || fail "smoke 실패 — 운영을 확인한다"
 
 # ── 5. 바깥에서 보는 사이트(GitHub Pages, tupandactyl 029) ────────────────
