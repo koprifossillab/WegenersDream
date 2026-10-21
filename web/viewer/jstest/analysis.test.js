@@ -63,5 +63,12 @@ check(z[0] === 0x50 && z[1] === 0x4B && z[2] === 3 && z[3] === 4, "zip 처음은
 var e = z.length - 22;
 check(z[e] === 0x50 && z[e + 1] === 0x4B && z[e + 2] === 5 && z[e + 3] === 6 && z[e + 10] === 2, "zip 끝 — 파일 둘");
 
+// 등면적 격자 칸(koprifossillab 053) — 보기는 pipeline/tests/grid_cases.json
+var grid = require(path.join(__dirname, "../../../pipeline/tests/grid_cases.json"));
+grid.cases.forEach(function (c) {
+  var got = A.gridCell(c[0], c[1], grid.grid_km);
+  check(got === c[2], "gridCell " + c[0] + "," + c[1] + " 기대 " + c[2] + " 얻음 " + got);
+});
+
 if (fail) { console.log(fail + " 개 틀림"); process.exit(1); }
 console.log("분석 셈 시험 통과");

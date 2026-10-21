@@ -9,6 +9,7 @@
  *   규칙은 pipeline/quality.py(index.json rules.quality), 보기는 pipeline/tests/quality_cases.json
  * - straddles: 연대 범위가 양쪽으로 넘는 대멸종 경계(koprifossillab 046) — quality.straddles 와 같다
  * - localityKey: 고유 산지-시간의 열쇠(koprifossillab 047) — common.locality_key 와 같다(보기 pipeline/tests/locality_cases.json)
+ * - gridCell: 등면적 격자 칸(Equal Earth, rules.analysis.grid_km) — common.grid_cell 과 같다(koprifossillab 053, 보기 pipeline/tests/grid_cases.json)
  * - zipStore: 재현 묶음(koprifossillab 048)의 zip — 압축 없이(STORE) 담는다. 글자 파일 몇 개라 라이브러리를 들이지 않는다
  */
 (function (root) {
@@ -111,6 +112,19 @@
     return [(+lat).toFixed(decimals), (+lng).toFixed(decimals), form, String(old), String(young)].join("|");
   }
 
+  // Equal Earth(Šavrič et al. 2018), 구면 근사 — 파이프라인 common.equal_earth 와 같은 상수
+  var EE = [1.340264, -0.081106, 0.000893, 0.003796], EARTH_KM = 6371.0088;
+  function equalEarth(lat, lng) {
+    var m = Math.sqrt(3) / 2, theta = Math.asin(m * Math.sin(lat * Math.PI / 180)), t2 = theta * theta, t6 = Math.pow(theta, 6);
+    var x = EARTH_KM * (lng * Math.PI / 180) * Math.cos(theta) / (m * (EE[0] + 3 * EE[1] * t2 + t6 * (7 * EE[2] + 9 * EE[3] * t2)));
+    var y = EARTH_KM * theta * (EE[0] + EE[1] * t2 + t6 * (EE[2] + EE[3] * t2));
+    return [x, y];
+  }
+  function gridCell(lat, lng, km) {
+    var p = equalEarth(+lat, +lng);
+    return Math.floor(p[0] / km) + ":" + Math.floor(p[1] / km);
+  }
+
   var CRC_TABLE = null;
   function crc32(bytes) {
     if (!CRC_TABLE) {
@@ -155,6 +169,7 @@
   }
 
   root.WegenerAnalysis = { share: share, weightedQuantile: weightedQuantile, rng: rng, monteCarlo: monteCarlo, identMarks: identMarks,
-                           straddles: straddles, localityKey: localityKey, crc32: crc32, zipStore: zipStore };
+                           straddles: straddles, localityKey: localityKey, crc32: crc32, zipStore: zipStore,
+                           equalEarth: equalEarth, gridCell: gridCell };
   if (typeof module !== "undefined") module.exports = root.WegenerAnalysis;
 })(typeof window !== "undefined" ? window : globalThis);
