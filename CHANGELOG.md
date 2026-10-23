@@ -3,6 +3,12 @@
 괄호 안의 번호는 `devlog/` 의 그 문서다. **지금 무엇이 도는지는 이 파일이 아니라
 [HANDOFF.md](HANDOFF.md) 다.**
 
+## 1.12.1 — 2026-10-23 · `feature/pip-security`
+
+- **보안 판 · 기능 변경 없음** — 이미지 안의 pip 을 26.1 이상으로 올린다(CVE-2026-6357·3219·8643·13346·1703, 악성 wheel·인덱스로
+  설치 경로 밖에 쓰는 결함). 베이스 `python:3.12-slim` 을 새로 받는다. 같은 날 서버 디스크가 고장 나 `/data/WegenersDream` 의 자리와
+  Docker 데이터 루트가 바뀐 것도 적었다 (koprifossillab 056)
+
 ## 1.12.0 — 2026-10-21 · `feature/outlier-flags`
 
 - **범위 밖 기록(시공간 외톨이)** — CoordinateCleaner `cf_outl` 을 따른 시험(속마다, 사분위 범위의 5 배, 무작위 나이 5 번)으로 표시하고, 엄밀 표기에서
