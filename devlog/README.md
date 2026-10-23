@@ -138,3 +138,4 @@
 | koprifossillab P03 | 2026-10-22 | [지도 위의 분석 층 넷: 격자 점유·표본 노력·점유 변화·무게중심 — 계획](20261022_koprifossillab_P03_occupancy_layers.md) |
 | koprifossillab 057 | 2026-10-23 | [10-20~10-23 작업에서 생긴 문제와 그 처리](20261023_koprifossillab_057_issues_so_far.md) |
 | koprifossillab 058 | 2026-10-23 | [지도 위의 층: 격자 점유와 표본 노력(빗금으로 표본 없는 곳)](20261023_koprifossillab_058_occupancy_effort_layers.md) |
+| koprifossillab 059 | 2026-10-23 | [세 주 멈춘 주간 갱신을 되살리고 1.13.0 을 운영에 올린다](20261023_koprifossillab_059_refresh_revived.md) |

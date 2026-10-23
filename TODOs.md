@@ -7,10 +7,10 @@
 
 - [ ] **주간 갱신 실패를 사람에게 알린다** — 10-05~10-19 세 주 동안 `last_refresh.json`·`/healthz` 의 실패를 아무도 못 봤다(koprifossillab 052).
       메일·메신저 가운데 연구실이 쓰는 곳으로
-- [ ] **운영 자료를 되살린다** — paleoadmin 으로 `/srv/WegenersDream/data/taxa_ko` 를 옆으로 옮기고 `weekly_refresh.sh` 를 한 번(koprifossillab 057 §1.1).
-      10-26 cron 전에 하지 않으면 그 실행도 멈춘다
-- [ ] **paleoadmin SSH 열쇠** — `authorized_keys` 권한(600)과 열쇠 줄 확인(057 §1.2)
-- [ ] **몰바이데에서 칸 층(058, PR #63)이 이음매에서 바로 잘리는지** 운영에서 본다(057 §1.4)
+- [ ] **10-26(월) 주간 갱신 결과를 본다** — 디스크를 옮긴 뒤(056) cron 의 첫 실행. `/healthz` 의 `refresh`
+- [ ] **paleoadmin SSH 열쇠** — `authorized_keys` 가 664 이고 jschoi 의 열쇠(`O+W0SUB56…`) 줄이 없다(10-23 확인, 057 §1.2·059).
+      `chmod 600` 하고 jschoi 의 공개 열쇠 한 줄을 더한다
+- [ ] **몰바이데에서 칸 층(058)이 이음매에서 바로 잘리는지** 운영(1.13.0)에서 본다(057 §1.4)
 
 ## 자료
 
