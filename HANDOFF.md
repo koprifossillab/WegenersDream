@@ -8,7 +8,7 @@
 패키지 `wegenerweb` (020, CLAUDE.md "이름"). **로컬 실행·시험의 `MIH_*` 환경변수는 이제 안 먹는다.**
 
 **저장소** https://github.com/koprifossillab/WegenersDream (09-30 에 `MIH` 에서 바꿈 — 옛 주소는 GitHub 가 넘겨 준다).
-**브랜치** `main` = `1.12.0` (10-21, PR #53~#62 — 분석 엄밀성 [P01](devlog/20261020_koprifossillab_P01_analysis_rigor.md) 043~051, 연구 관행
+**브랜치** `main` = `1.12.1` (10-23, 보안 판 — 이미지 안 pip 26.1 · 서버 디스크 자리 [koprifossillab 056](devlog/20261023_koprifossillab_056_pip_security_and_disk_moves.md)). 그 앞 `1.12.0` (10-21, PR #53~#62 — 분석 엄밀성 [P01](devlog/20261020_koprifossillab_P01_analysis_rigor.md) 043~051, 연구 관행
 [P02](devlog/20261021_koprifossillab_P02_research_conventions.md) 053~055, 주간 갱신 rsync 고침 052) · 병합을 기다리는 브랜치는 없다.
 **운영 이미지는 v1.12.0(10-21)이지만 운영 자료는 아직 10-04 의 것이다** — 10-05~10-19 주간 갱신이 jschoi 소유의 `/srv/WegenersDream/data/taxa_ko`
 권한에서 멈췄다(052). paleoadmin 으로 `mv /srv/WegenersDream/data/taxa_ko /srv/WegenersDream/data/taxa_ko.jschoi-20261021` 뒤
@@ -23,7 +23,7 @@
 몰바이데 `moll-*`(024)가 있어야 한다. `python -m pipeline fetch`(PBDB 시대 이름 목록 `intervals.json` 이 든다) 다음
 `build`(배경 포함, 7 분 남짓). 몰바이데 배경이 없으면 투영 고르기가 숨는다.
 
-**배포**: paleoserver — **http://paleolab/WegenersDream/**(`172.16.116.98`) = `v1.12.0`(Docker Hub 이미지, 10-21). 컨테이너 `wegenersdream-web-1`
+**배포**: paleoserver — **http://paleolab/WegenersDream/**(`172.16.116.98`) = `v1.12.1`(Docker Hub 이미지, 10-23 보안 판 · 띄울 때 `WEGENER_TAG=v1.12.1` 을 준다 — compose 가 `.env` 가 아니라 환경변수로 판을 받는다). 컨테이너 `wegenersdream-web-1`
 **10-05 주간 갱신**은 운영 옮기기에서 멈췄다가(폴더 시각, 1.1.2 에서 고침) 10-06 에 손으로 마무리했다 — 운영·바깥 사이트 모두 PBDB 10-04,
 `/healthz` ok(koprifossillab 037). 다음 정기 실행은 10-12(월).
 
