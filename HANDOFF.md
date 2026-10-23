@@ -13,7 +13,7 @@
 **운영 이미지는 v1.12.0(10-21)이지만 운영 자료는 아직 10-04 의 것이다** — 10-05~10-19 주간 갱신이 jschoi 소유의 `/srv/WegenersDream/data/taxa_ko`
 권한에서 멈췄다(052). paleoadmin 으로 `mv /srv/WegenersDream/data/taxa_ko /srv/WegenersDream/data/taxa_ko.jschoi-20261021` 뒤
 `deploy/host/weekly_refresh.sh` 를 돌리면(15 분 남짓 — PBDB 산출 사본 받기·조각 굽기 포함) 새 분석 기능(`rules.analysis`·`rules.quality`·`occurrences`)이
-켜진다. 안 하면 10-27 02:30 cron 이 하되, 옮기기 전이면 같은 자리에서 또 멈춘다(rsync -rlt 고침은 그 실행의 다음 주부터 — 도는 스크립트는 당기기 전의
+켜진다. 안 하면 10-26 02:30 cron 이 하되, 옮기기 전이면 같은 자리에서 또 멈춘다(rsync -rlt 고침은 그 실행의 다음 주부터 — 도는 스크립트는 당기기 전의
 판이다). 첫 갱신에서 받기 시간·백업 크기·정적 공개판 자료 크기(270 → 570 MB 남짓)를 본다. 0.11.1 부터 GitHub PR 로 병합하고,
 판을 올리면 CHANGELOG 로 GitHub 릴리스를 만든다(v0.11.2 부터).
 다음 코드 작업은 각자 자기 계정에서 `feature/<기능 이름>` 브랜치를 `main` 에서 만들고, 끝나면 PR 을 만든다

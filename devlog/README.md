@@ -136,3 +136,4 @@
 | koprifossillab 055 | 2026-10-21 | [범위 밖 기록: 시공간 외톨이 시험으로 표시하고 기본으로 뺀다](20261021_koprifossillab_055_outlier_flags.md) |
 | koprifossillab 056 | 2026-10-23 | [이미지 안의 pip 을 26.1 이상으로 · 서버 디스크가 바뀐 자리 (1.12.1)](20261023_koprifossillab_056_pip_security_and_disk_moves.md) |
 | koprifossillab P03 | 2026-10-22 | [지도 위의 분석 층 넷: 격자 점유·표본 노력·점유 변화·무게중심 — 계획](20261022_koprifossillab_P03_occupancy_layers.md) |
+| koprifossillab 057 | 2026-10-23 | [10-20~10-23 작업에서 생긴 문제와 그 처리](20261023_koprifossillab_057_issues_so_far.md) |
