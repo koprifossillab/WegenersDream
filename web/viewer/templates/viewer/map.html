@@ -267,6 +267,14 @@
           <label><input type="radio" name="color-by" value="age"> <span data-i18n="colorby.age">시대(기)</span></label>
         </div>
         <label class="opacity"><span data-i18n="opacity">포인트 불투명도</span> <input type="range" id="point-opacity" min="15" max="100" step="5" value="60" aria-label="포인트 불투명도" data-i18n-attr="aria-label:opacity"> <output id="point-opacity-value">60%</output></label>
+        <div id="cells-box" hidden>
+          <label><input type="checkbox" id="layer-occ"> <span data-i18n="layer.occ">격자 점유(찾은 분류군)</span></label>
+          <select id="occ-value" aria-label="점유 값" data-i18n-attr="aria-label:occ.value">
+            <option value="share" selected data-i18n="occ.share">있을 기대값</option><option value="n" data-i18n="occ.n">산지 수</option>
+          </select>
+          <label><input type="checkbox" id="layer-effort"> <span data-i18n="layer.effort">표본 노력(그 시점 전체 산지)</span></label>
+          <p class="note cells-legend" id="cells-legend" hidden></p>
+        </div>
         <label id="share-opacity-row" hidden><input type="checkbox" id="share-opacity"> <span data-i18n="share.opacity">점 진하기를 시점 몫으로</span> <small data-i18n="share.opacity.small">(범위가 길수록 흐리게)</small><br>
           <input type="checkbox" id="by-grid" checked> <span data-i18n="grid.toggle">공간은 등면적 격자 칸으로 세기</span> <small data-i18n="grid.toggle.small">(Equal Earth 200 km 칸 — 같은 자리의 여러 산지를 하나로)</small></label>
         <div class="shapes">
