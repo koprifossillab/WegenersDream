@@ -14,6 +14,8 @@
  * - outliers: 시공간 외톨이 시험(koprifossillab 055) — CoordinateCleaner cf_outl 을 따른 것. 무리(속)마다 기록들 사이의 시간 차(범위 안의 무작위
  *   나이)와 거리(오늘날 좌표, 현의 길이) 평균을 각각 그 무리의 최댓값으로 나눠 더하고, q75 + mltpl × IQR 을 넘으면 외톨이. replicates 번 되풀이해
  *   flag_thresh 넘게 걸리면 표시. 정리(cleaning) 단계에서 빼는 것이 관행이다
+ * - equalEarthInverse·cellRing·splitAtSeam: 격자 칸을 지도에 그리기(koprifossillab 058) — 칸의 네 변을 나눠 역투영한 경위도 고리, 지도의
+ *   이음매(경도 seam)에서 둘로 자른다
  * - zipStore: 재현 묶음(koprifossillab 048)의 zip — 압축 없이(STORE) 담는다. 글자 파일 몇 개라 라이브러리를 들이지 않는다
  */
 (function (root) {
@@ -123,6 +125,59 @@
     var x = EARTH_KM * (lng * Math.PI / 180) * Math.cos(theta) / (m * (EE[0] + 3 * EE[1] * t2 + t6 * (7 * EE[2] + 9 * EE[3] * t2)));
     var y = EARTH_KM * theta * (EE[0] + EE[1] * t2 + t6 * (EE[2] + EE[3] * t2));
     return [x, y];
+  }
+  // Equal Earth 역투영 — θ 를 뉴턴법으로(Šavrič et al. 2018). 투영 밖의 x 는 경도 ±180 으로 자른다
+  function equalEarthInverse(x, y) {
+    var m = Math.sqrt(3) / 2, yy = y / EARTH_KM, theta = yy, tmax = Math.asin(m);
+    for (var i = 0; i < 12; i++) {
+      var t2 = theta * theta, t6 = Math.pow(theta, 6);
+      var fy = theta * (EE[0] + EE[1] * t2 + t6 * (EE[2] + EE[3] * t2)) - yy;
+      var fp = EE[0] + 3 * EE[1] * t2 + t6 * (7 * EE[2] + 9 * EE[3] * t2);
+      var d = fy / fp;
+      theta -= d;
+      if (Math.abs(d) < 1e-12) break;
+    }
+    theta = Math.max(-tmax, Math.min(tmax, theta));
+    var t2b = theta * theta, t6b = Math.pow(theta, 6);
+    var lng = m * (x / EARTH_KM) * (EE[0] + 3 * EE[1] * t2b + t6b * (7 * EE[2] + 9 * EE[3] * t2b)) / Math.cos(theta) * 180 / Math.PI;
+    var lat = Math.asin(Math.max(-1, Math.min(1, Math.sin(theta) / m))) * 180 / Math.PI;
+    return [lat, Math.max(-180, Math.min(180, lng))];
+  }
+  // 칸 "열:행" 의 경위도 고리 — 변마다 n 개로 나눠 역투영한다(몰바이데에서 굽은 칸이 맞게)
+  function cellRing(key, km, n) {
+    var p = String(key).split(":"), i = +p[0], j = +p[1], out = [];
+    n = n || 4;
+    var corners = [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1], [i, j]];
+    for (var c = 0; c < 4; c++) {
+      for (var s = 0; s < n; s++) {
+        var u = corners[c][0] + (corners[c + 1][0] - corners[c][0]) * s / n, v = corners[c][1] + (corners[c + 1][1] - corners[c][1]) * s / n;
+        out.push(equalEarthInverse(u * km, v * km));
+      }
+    }
+    return out;
+  }
+  // 고리를 지도의 이음매(경도 seam, 예: 몰바이데 가운데 경선 + 180)에서 잘라 조각 고리들로. 경도를 이음매 왼쪽 360° 구간에 펴고,
+  // 이음매를 넘는 조각은 360 을 빼 반대편으로 옮긴다(Sutherland–Hodgman 세로선 자르기)
+  function splitAtSeam(ring, seam) {
+    var lo = seam - 360, pts = ring.map(function (p) {
+      var x = p[1]; while (x > seam) x -= 360; while (x < lo) x += 360; return [p[0], x];
+    });
+    // 칸은 작다 — 경도가 180 넘게 벌어지면 이음매에 걸친 것이다. 첫 점 쪽으로 이어 붙인다
+    var base = pts[0][1];
+    pts = pts.map(function (p) { var x = p[1]; if (x - base > 180) x -= 360; else if (base - x > 180) x += 360; return [p[0], x]; });
+    var clip = function (keepLeft) {
+      var out = [], inside = function (p) { return keepLeft ? p[1] <= seam : p[1] >= seam; };
+      for (var k = 0; k < pts.length; k++) {
+        var a = pts[k], b = pts[(k + 1) % pts.length], ia = inside(a), ib = inside(b);
+        if (ia) out.push(a);
+        if (ia !== ib) { var t = (seam - a[1]) / (b[1] - a[1]); out.push([a[0] + (b[0] - a[0]) * t, seam]); }
+      }
+      return out;
+    };
+    var right = clip(false);
+    if (right.length < 3) return [pts];
+    var left = clip(true);
+    return (left.length >= 3 ? [left] : []).concat([right.map(function (p) { return [p[0], p[1] === seam ? lo : p[1] - 360]; })]);
   }
   function gridCell(lat, lng, km) {
     var p = equalEarth(+lat, +lng);
@@ -261,6 +316,7 @@
 
   root.WegenerAnalysis = { share: share, weightedQuantile: weightedQuantile, rng: rng, monteCarlo: monteCarlo, identMarks: identMarks,
                            straddles: straddles, localityKey: localityKey, crc32: crc32, zipStore: zipStore,
-                           equalEarth: equalEarth, gridCell: gridCell, coverageRarefy: coverageRarefy, outliers: outliers };
+                           equalEarth: equalEarth, equalEarthInverse: equalEarthInverse, cellRing: cellRing, splitAtSeam: splitAtSeam,
+                           gridCell: gridCell, coverageRarefy: coverageRarefy, outliers: outliers };
   if (typeof module !== "undefined") module.exports = root.WegenerAnalysis;
 })(typeof window !== "undefined" ? window : globalThis);

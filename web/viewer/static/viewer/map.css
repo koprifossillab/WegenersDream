@@ -17,6 +17,7 @@
   --other: #f5f5f5;
   --coast: #ff3da8;
   --taxon: #2ee6a6;
+  --cell-effort: #dcdcdc;     /* 표본 노력 음영(058) — 지도 위라 밝기와 상관없이 같다 */
   --warn: #9a5b00;          /* 팝업의 "모호한 연대" 같은 주의 글씨 */
 }
 /* 어두운 판(tupandactyl 006) — 흑단 원목 면과 짙은 가죽 머리말. 컴퓨터 설정을 따르되(자동), 설정 창에서 밝게·어둡게를
@@ -1031,3 +1032,12 @@ button, input, select { font-family: inherit; }
 /* 동정 표지(koprifossillab 045) — cf.·aff.·? 와 속 미동정. 주의 글씨 색 */
 .qmark { color: var(--warn); font-style: normal; white-space: nowrap; }
 #qual-row label { display: block; }
+
+/* 지도 위의 분석 층(koprifossillab 058) — 표본 없는 곳의 빗금, 범례의 견본 */
+.hatch-line { stroke: rgba(255, 255, 255, .28); stroke-width: 1.2; }
+#cells-box label { display: block; }
+#cells-box select { margin-left: 1.6em; }
+.cells-legend .sw { display: inline-block; width: .9em; height: .9em; vertical-align: -.1em; margin-right: .25em; border: 1px solid var(--line); }
+.cells-legend .sw.occ { background: var(--taxon); }
+.cells-legend .sw.effort { background: var(--cell-effort); }
+.cells-legend .sw.none { background: repeating-linear-gradient(45deg, transparent 0 3px, var(--muted) 3px 4px); }

@@ -420,6 +420,11 @@
     },
     interactive: false, renderer: L.svg(),
   }).addTo(map);
+  // 지도 위의 분석 층(koprifossillab P03·058) — 기온(390) 위, 해안선(400) 밑. 칸 채우기는 캔버스, 표본 없는 곳의 빗금은 SVG 하나(무늬 채우기)
+  map.createPane("cells").style.zIndex = 395;
+  map.getPane("cells").style.pointerEvents = "none";
+  var cellRenderer = L.canvas({ padding: 0.3, pane: "cells" }), hatchRenderer = L.svg({ pane: "cells" });
+  var cellLayer = L.layerGroup().addTo(map);
   map.createPane("fossils").style.zIndex = 450;
   var renderer = L.canvas({ padding: 0.3, pane: "fossils" });
   var fossilLayer = L.layerGroup().addTo(map);
@@ -565,6 +570,7 @@
   // 이음매에 따라 끊는 선들을 다시 긋는다 — 해안선·국경·경위선
   function redrawLines(f) {
     drawGrid();
+    drawCells();                       // 칸도 이음매에서 자른다(058)
     if (!f) return;
     if (measure && measure.pts.length) { if (measure.age !== f.age) clearMeasure(); else drawMeasure(); }   // 잰 선(wetherilli 014)
     drawCoast(f);
@@ -1255,6 +1261,101 @@
     });
     return { n: keys.length, share: share, rows: out, keys: keys };
   }
+  // ── 지도 위의 분석 층(koprifossillab P03·058) ─────────────────────────
+  // 1 격자 점유 — 찾은 분류군이 있는 칸을 분류군 색(--taxon)으로, 진하기 = 칸에 있을 기대값(1 − Π(1 − 몫)) 또는 고르면 산지 수
+  // 2 표본 노력 — 그 시점 전체 산지(지도의 거르기를 따른다)의 칸마다 몫 합을 회색 단계로. 표본 없는 곳은 옅은 빗금(연구자: 표시한다)
+  // 기본은 Scientific 에서 1+2 켬, Casual 끔 — 모드마다 기억한다(043 과 같은 방식). 칸 크기는 053 의 rules.analysis.grid_km
+  var LAYERS_KEY = "wegener.layers." + I18N.mode;
+  var layers = I18N.mode === "sci" ? { occ: true, effort: true } : { occ: false, effort: false };
+  try { var layersStored = JSON.parse(localStorage.getItem(LAYERS_KEY)); if (layersStored) Object.keys(layers).forEach(function (k) { if (typeof layersStored[k] === "boolean") layers[k] = layersStored[k]; }); } catch (e) { /* 막힌 저장소 */ }
+  function cellsOn() { return !!ANALYSIS && !!AN && ANALYSIS.grid_km != null && !state.overview; }
+  function cssVar(name, fallback) { var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim(); return v || fallback; }
+  // 칸 고리들을 지도의 이음매로 잘라 Leaflet 다각형 꼴([[lat, lng] …])로
+  function cellRings(key) {
+    // 이음매 위의 점은 한쪽으로 조금 들인다(경위선과 같은 SEAM_EPS) — 몰바이데가 ±180 을 반대편으로 감지 않게
+    var seam = (state.proj === "moll" ? Mollweide.lon0 : 0) + 180;
+    return AN.splitAtSeam(AN.cellRing(key, ANALYSIS.grid_km, 4), seam).map(function (ring) {
+      return ring.map(function (p) { return [p[0], Math.max(seam - 360 + SEAM_EPS, Math.min(seam - SEAM_EPS, p[1]))]; });
+    });
+  }
+  function drawCells() {
+    cellLayer.clearLayers();
+    var f = frame(), payload = state.payload;
+    if (!cellsOn() || !f || !payload || (!layers.occ && !layers.effort)) { syncCellLegend(); return; }
+    var col = columns(payload), effort = {};
+    // 표본 노력 — 지도에 보이는 산지(퇴적기원·나라·연대 거르기)의 칸마다 몫 합
+    payload.rows.forEach(function (row) {
+      if (!passes(row[col.environment], row[col.cc], rowPrecise(row, col), row[col.max_ma], row[col.min_ma], row[col.formation])) return;
+      var k = cellOf(row[col.paleolat], row[col.paleolng]);
+      effort[k] = (effort[k] || 0) + frameShare(f, row[col.max_ma], row[col.min_ma]);
+    });
+    // 점유 — 찾은 분류군의 보이는 산지(058: 지도의 산지 좌표로 옮긴 것)
+    var occ = {};
+    if (layers.occ && state.taxon && state.taxaVisible) {
+      state.taxaVisible.forEach(function (row) {
+        var k = cellOf(row[COLUMNS.paleolat], row[COLUMNS.paleolng]), c = occ[k] || (occ[k] = { miss: 1, n: 0 });
+        c.miss *= 1 - frameShare(f, row[COLUMNS.max_ma], row[COLUMNS.min_ma]);
+        c.n += 1;
+        if (!effort[k]) effort[k] = 0;                  // 찾은 분류군의 산지가 거르기로 빠졌어도 칸은 표본이 있다
+      });
+    }
+    var steps = ANALYSIS.occupancy ? ANALYSIS.occupancy.effort_steps : [1, 3, 10, 30];
+    var grey = cssVar("--cell-effort", "#d9d9d9"), taxonColor = cssVar("--taxon", "#2ee6a6");
+    var keys = Object.keys(effort), byCount = $("occ-value") && $("occ-value").value === "n";
+    var maxN = 1;
+    Object.keys(occ).forEach(function (k) { maxN = Math.max(maxN, occ[k].n); });
+    keys.forEach(function (k) {
+      var o = occ[k], style;
+      if (o) {
+        var v = byCount ? Math.log(1 + o.n) / Math.log(1 + maxN) : 1 - o.miss;
+        style = { fillColor: taxonColor, fillOpacity: 0.25 + 0.6 * v, color: taxonColor, weight: 0.6, opacity: 0.8 };
+      } else if (layers.effort) {
+        var level = 0;
+        steps.forEach(function (s) { if (effort[k] >= s) level += 1; });
+        style = { fillColor: grey, fillOpacity: 0.12 + 0.12 * level, stroke: false };
+      } else return;
+      cellRings(k).forEach(function (ring) {
+        L.polygon(ring, L.extend({ renderer: cellRenderer, interactive: false }, style)).addTo(cellLayer);
+      });
+    });
+    // 표본 없는 곳 — 지구 전체에서 표본 칸을 뺀 하나의 다각형에 빗금(연구자: "찾아보지 않은 곳" 이 보이게)
+    if (layers.effort) {
+      var lo = (state.proj === "moll" ? Mollweide.lon0 : 0) - 180 + SEAM_EPS, hi = lo + 360 - 2 * SEAM_EPS;
+      var outer = [[-90, lo], [-90, hi], [90, hi], [90, lo]];
+      var holes = [];
+      keys.forEach(function (k) { holes.push.apply(holes, cellRings(k)); });
+      L.polygon([outer].concat(holes), { renderer: hatchRenderer, interactive: false, stroke: false, fillColor: "url(#wd-hatch)", fillOpacity: 1 })
+        .addTo(cellLayer);
+      ensureHatch();                                   // svg 는 첫 다각형을 더할 때 생긴다
+    }
+    syncCellLegend(Object.keys(occ).length, keys.length - Object.keys(occ).length);
+  }
+  // 빗금 무늬 — SVG 렌더러의 svg 에 한 번 단다
+  function ensureHatch() {
+    var svg = hatchRenderer._container;
+    if (!svg || svg.querySelector("#wd-hatch")) return;
+    var ns = "http://www.w3.org/2000/svg", defs = document.createElementNS(ns, "defs"), pat = document.createElementNS(ns, "pattern");
+    pat.setAttribute("id", "wd-hatch"); pat.setAttribute("patternUnits", "userSpaceOnUse"); pat.setAttribute("width", "6"); pat.setAttribute("height", "6");
+    pat.setAttribute("patternTransform", "rotate(45)");
+    var line = document.createElementNS(ns, "line");
+    line.setAttribute("x1", "0"); line.setAttribute("y1", "0"); line.setAttribute("x2", "0"); line.setAttribute("y2", "6");
+    line.setAttribute("class", "hatch-line");
+    pat.appendChild(line); defs.appendChild(pat); svg.insertBefore(defs, svg.firstChild);
+  }
+  function syncCellLegend(nOcc, nEffort) {
+    var box = $("cells-legend");
+    if (!box) return;
+    box.hidden = !cellsOn() || (!layers.occ && !layers.effort);
+    if (box.hidden) return;
+    box.innerHTML = (layers.occ && state.taxon ? '<span class="sw occ"></span>' + esc(tr("cells.occ", { n: fmtNum(nOcc || 0) })) + " " : "") +
+      (layers.effort ? '<span class="sw effort"></span>' + esc(tr("cells.effort", { n: fmtNum(nEffort || 0) })) + ' <span class="sw none"></span>' + esc(tr("cells.none")) : "") +
+      " <small>" + esc(tr("cells.unit", { km: ANALYSIS.grid_km })) + "</small>";
+  }
+  function setLayer(key, on) {
+    layers[key] = on;
+    try { localStorage.setItem(LAYERS_KEY, JSON.stringify(layers)); } catch (e) { /* 막힌 저장소 */ }
+    drawCells();
+  }
   function shareText(v) { return (Math.round(v * 10) / 10).toLocaleString(EN ? "en" : "ko", { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
 
   function rowPrecise(row, col) {
@@ -1303,6 +1404,7 @@
       (useShare ? tr("share.colls", { n: shareText(shareSum) }) : "") +
       (gridOn() ? (function (g) { return tr("grid.colls", { n: fmtNum(g.n), s: shareText(g.share), km: ANALYSIS.grid_km }); })(cellGroups(shownRows, col, f)) : "");
     renderLegend();
+    drawCells();
   }
 
   // ── 찾기의 종합 보기(tupandactyl 012) ─────────────────────────────────
@@ -2595,6 +2697,7 @@
       (state.taxaTruncated ? tr("taxon.truncated", { n: fmtNum(TAXON_LIMIT) }) : "");
     state.taxaVisible = visible;
     renderLegend();
+    drawCells();
     drawCmp();
   }
 
@@ -4775,6 +4878,7 @@
       if (index.rules) {
         WINDOW_MA = index.rules.window_ma;
         ANALYSIS = index.rules.analysis || null;
+        $("cells-box").hidden = !(ANALYSIS && ANALYSIS.grid_km != null);
         QUALITY = index.rules.quality || null;
         OCCS = index.occurrences || null;
         syncShareRow();
@@ -4885,6 +4989,12 @@
   });
   // "점 진하기를 시점 몫으로"(koprifossillab 044) — 몫으로 셀 때만 보인다. 기억하지 않는다(지도를 다르게 읽게 하는 선택이라 열 때마다 끈다)
   $("share-opacity").addEventListener("change", function () { state.shareOpacity = this.checked; redraw(); });
+  // 지도 위의 분석 층(058)
+  $("layer-occ").checked = layers.occ;
+  $("layer-effort").checked = layers.effort;
+  $("layer-occ").addEventListener("change", function () { setLayer("occ", this.checked); });
+  $("layer-effort").addEventListener("change", function () { setLayer("effort", this.checked); });
+  $("occ-value").addEventListener("change", drawCells);
   $("by-grid").addEventListener("change", function () { state.byGrid = this.checked; redraw(); if (state.distBase) computeDist(); else renderAnalysis(); });
   // 동정 거르기(koprifossillab 045) — 기본은 끔, 기억하지 않는다
   ["drop-uncertain", "drop-coarse", "drop-straddle", "drop-outlier"].forEach(function (id) {
