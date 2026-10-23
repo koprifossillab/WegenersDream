@@ -87,7 +87,7 @@ check(flags[40] === true, "먼 기록이 걸린다");
 check(flags.slice(0, 40).every(function (v) { return !v; }), "모인 기록은 걸리지 않는다");
 check(A.outliers(recs.slice(0, 5).concat([recs[40]]), opts, 9).every(function (v) { return !v; }), "6 건 무리는 시험하지 않는다");
 
-// 칸 그리기(koprifossillab 056) — 역투영이 투영을 되돌리고, 칸 고리의 점이 그 칸에 든다, 이음매에서 둘로 잘린다
+// 칸 그리기(koprifossillab 058) — 역투영이 투영을 되돌리고, 칸 고리의 점이 그 칸에 든다, 이음매에서 둘로 잘린다
 [[0, 0], [45, 90], [-60, -120], [80, 10], [-33.9, 151.2]].forEach(function (p) {
   var xy = A.equalEarth(p[0], p[1]), back = A.equalEarthInverse(xy[0], xy[1]);
   check(near(back[0], p[0], 1e-6) && near(back[1], p[1], 1e-6), "역투영 " + p + " → " + back);

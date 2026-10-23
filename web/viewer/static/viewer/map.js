@@ -420,7 +420,7 @@
     },
     interactive: false, renderer: L.svg(),
   }).addTo(map);
-  // 지도 위의 분석 층(koprifossillab P03·056) — 기온(390) 위, 해안선(400) 밑. 칸 채우기는 캔버스, 표본 없는 곳의 빗금은 SVG 하나(무늬 채우기)
+  // 지도 위의 분석 층(koprifossillab P03·058) — 기온(390) 위, 해안선(400) 밑. 칸 채우기는 캔버스, 표본 없는 곳의 빗금은 SVG 하나(무늬 채우기)
   map.createPane("cells").style.zIndex = 395;
   map.getPane("cells").style.pointerEvents = "none";
   var cellRenderer = L.canvas({ padding: 0.3, pane: "cells" }), hatchRenderer = L.svg({ pane: "cells" });
@@ -570,7 +570,7 @@
   // 이음매에 따라 끊는 선들을 다시 긋는다 — 해안선·국경·경위선
   function redrawLines(f) {
     drawGrid();
-    drawCells();                       // 칸도 이음매에서 자른다(056)
+    drawCells();                       // 칸도 이음매에서 자른다(058)
     if (!f) return;
     if (measure && measure.pts.length) { if (measure.age !== f.age) clearMeasure(); else drawMeasure(); }   // 잰 선(wetherilli 014)
     drawCoast(f);
@@ -1261,7 +1261,7 @@
     });
     return { n: keys.length, share: share, rows: out, keys: keys };
   }
-  // ── 지도 위의 분석 층(koprifossillab P03·056) ─────────────────────────
+  // ── 지도 위의 분석 층(koprifossillab P03·058) ─────────────────────────
   // 1 격자 점유 — 찾은 분류군이 있는 칸을 분류군 색(--taxon)으로, 진하기 = 칸에 있을 기대값(1 − Π(1 − 몫)) 또는 고르면 산지 수
   // 2 표본 노력 — 그 시점 전체 산지(지도의 거르기를 따른다)의 칸마다 몫 합을 회색 단계로. 표본 없는 곳은 옅은 빗금(연구자: 표시한다)
   // 기본은 Scientific 에서 1+2 켬, Casual 끔 — 모드마다 기억한다(043 과 같은 방식). 칸 크기는 053 의 rules.analysis.grid_km
@@ -1289,7 +1289,7 @@
       var k = cellOf(row[col.paleolat], row[col.paleolng]);
       effort[k] = (effort[k] || 0) + frameShare(f, row[col.max_ma], row[col.min_ma]);
     });
-    // 점유 — 찾은 분류군의 보이는 산지(056: 지도의 산지 좌표로 옮긴 것)
+    // 점유 — 찾은 분류군의 보이는 산지(058: 지도의 산지 좌표로 옮긴 것)
     var occ = {};
     if (layers.occ && state.taxon && state.taxaVisible) {
       state.taxaVisible.forEach(function (row) {
@@ -4989,7 +4989,7 @@
   });
   // "점 진하기를 시점 몫으로"(koprifossillab 044) — 몫으로 셀 때만 보인다. 기억하지 않는다(지도를 다르게 읽게 하는 선택이라 열 때마다 끈다)
   $("share-opacity").addEventListener("change", function () { state.shareOpacity = this.checked; redraw(); });
-  // 지도 위의 분석 층(056)
+  // 지도 위의 분석 층(058)
   $("layer-occ").checked = layers.occ;
   $("layer-effort").checked = layers.effort;
   $("layer-occ").addEventListener("change", function () { setLayer("occ", this.checked); });

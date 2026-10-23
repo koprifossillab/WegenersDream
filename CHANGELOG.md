@@ -6,7 +6,8 @@
 ## 1.13.0 — 2026-10-23 · `feature/occupancy-layers`
 
 - **지도 위의 격자 점유·표본 노력 층** — Equal Earth 200 km 칸으로, 찾은 분류군이 있는 칸은 분류군 색(있을 기대값), 표본만 있는 칸은 회색 단계,
-  표본 없는 곳은 빗금. Scientific 기본 켬·Casual 기본 끔, 모드마다 기억 (koprifossillab 056)
+  표본 없는 곳은 빗금. Scientific 기본 켬·Casual 기본 끔, 모드마다 기억 (koprifossillab 058)
+
 ## 1.12.1 — 2026-10-23 · `feature/pip-security`
 
 - **보안 판 · 기능 변경 없음** — 이미지 안의 pip 을 26.1 이상으로 올린다(CVE-2026-6357·3219·8643·13346·1703, 악성 wheel·인덱스로

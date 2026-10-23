@@ -14,7 +14,7 @@
  * - outliers: 시공간 외톨이 시험(koprifossillab 055) — CoordinateCleaner cf_outl 을 따른 것. 무리(속)마다 기록들 사이의 시간 차(범위 안의 무작위
  *   나이)와 거리(오늘날 좌표, 현의 길이) 평균을 각각 그 무리의 최댓값으로 나눠 더하고, q75 + mltpl × IQR 을 넘으면 외톨이. replicates 번 되풀이해
  *   flag_thresh 넘게 걸리면 표시. 정리(cleaning) 단계에서 빼는 것이 관행이다
- * - equalEarthInverse·cellRing·splitAtSeam: 격자 칸을 지도에 그리기(koprifossillab 056) — 칸의 네 변을 나눠 역투영한 경위도 고리, 지도의
+ * - equalEarthInverse·cellRing·splitAtSeam: 격자 칸을 지도에 그리기(koprifossillab 058) — 칸의 네 변을 나눠 역투영한 경위도 고리, 지도의
  *   이음매(경도 seam)에서 둘로 자른다
  * - zipStore: 재현 묶음(koprifossillab 048)의 zip — 압축 없이(STORE) 담는다. 글자 파일 몇 개라 라이브러리를 들이지 않는다
  */
