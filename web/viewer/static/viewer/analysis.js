@@ -17,6 +17,7 @@
  * - equalEarthInverse·cellRing·splitAtSeam: 격자 칸을 지도에 그리기(koprifossillab 058) — 칸의 네 변을 나눠 역투영한 경위도 고리, 지도의
  *   이음매(경도 seam)에서 둘로 자른다
  * - compareCells: 두 시점의 점유 칸 견주기(koprifossillab 061) — 새로 점유 / 사라짐(지금도 표본 있음) / 사라짐(지금은 표본 없음)
+ * - cellCenter·sphericalMean·bootstrapEllipse·greatCircleKm: 무게중심(koprifossillab 062) — 칸 가운데의 단위 벡터 평균, 칸을 되뽑은 평균의 흩어짐으로 타원
  * - zipStore: 재현 묶음(koprifossillab 048)의 zip — 압축 없이(STORE) 담는다. 글자 파일 몇 개라 라이브러리를 들이지 않는다
  */
 (function (root) {
@@ -190,6 +191,59 @@
     });
     return out;
   }
+  function cellCenter(key, km) {
+    var p = String(key).split(":");
+    return equalEarthInverse((+p[0] + 0.5) * km, (+p[1] + 0.5) * km);
+  }
+  function unitVector(lat, lng) {
+    var la = lat * Math.PI / 180, lo = lng * Math.PI / 180;
+    return [Math.cos(la) * Math.cos(lo), Math.cos(la) * Math.sin(lo), Math.sin(la)];
+  }
+  function fromVector(v) {
+    return [Math.atan2(v[2], Math.sqrt(v[0] * v[0] + v[1] * v[1])) * 180 / Math.PI, Math.atan2(v[1], v[0]) * 180 / Math.PI];
+  }
+  // 점들의 구면 평균 — 단위 벡터의 평균. r 은 평균 벡터의 길이(1 이면 한 점에 모였다, 0 에 가까우면 평균의 뜻이 없다)
+  function sphericalMean(points) {
+    var s = [0, 0, 0];
+    points.forEach(function (p) { var u = unitVector(p[0], p[1]); s[0] += u[0]; s[1] += u[1]; s[2] += u[2]; });
+    var n = points.length, r = n ? Math.sqrt(s[0] * s[0] + s[1] * s[1] + s[2] * s[2]) / n : 0;
+    if (!(r > 1e-9)) return null;
+    var c = fromVector(s);
+    return { lat: c[0], lng: c[1], r: r };
+  }
+  function greatCircleKm(a, b) {
+    var u = unitVector(a[0], a[1]), v = unitVector(b[0], b[1]);
+    var cross = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+    return EARTH_KM * Math.atan2(Math.sqrt(cross[0] * cross[0] + cross[1] * cross[1] + cross[2] * cross[2]), u[0] * v[0] + u[1] * v[1] + u[2] * v[2]);
+  }
+  // 칸을 되뽑아(B 번, 고정 씨앗) 구한 평균들의 흩어짐 — 평균 자리의 접평면에서 2 × 2 공분산, 확률 p 의 타원(반지름 배수 √(−2 ln(1 − p)))
+  function bootstrapEllipse(points, B, seed, p, steps) {
+    var mean = sphericalMean(points);
+    if (!mean) return null;
+    var random = rng(seed), n = points.length, us = points.map(function (q) { return unitVector(q[0], q[1]); });
+    var la = mean.lat * Math.PI / 180, lo = mean.lng * Math.PI / 180, c = unitVector(mean.lat, mean.lng);
+    var e = [-Math.sin(lo), Math.cos(lo), 0], north = [-Math.sin(la) * Math.cos(lo), -Math.sin(la) * Math.sin(lo), Math.cos(la)];
+    var xx = 0, yy = 0, xy = 0;
+    for (var b = 0; b < B; b++) {
+      var s = [0, 0, 0];
+      for (var i = 0; i < n; i++) { var u = us[Math.floor(random() * n)]; s[0] += u[0]; s[1] += u[1]; s[2] += u[2]; }
+      var len = Math.sqrt(s[0] * s[0] + s[1] * s[1] + s[2] * s[2]) || 1;
+      var x = (s[0] * e[0] + s[1] * e[1] + s[2] * e[2]) / len, y = (s[0] * north[0] + s[1] * north[1] + s[2] * north[2]) / len;
+      xx += x * x; yy += y * y; xy += x * y;
+    }
+    xx /= B; yy /= B; xy /= B;
+    // 공분산의 고유값·방향
+    var tr2 = (xx + yy) / 2, d = Math.sqrt(Math.max(0, (xx - yy) * (xx - yy) / 4 + xy * xy));
+    var l1 = tr2 + d, l2 = Math.max(0, tr2 - d), angle = 0.5 * Math.atan2(2 * xy, xx - yy), k = Math.sqrt(-2 * Math.log(1 - p));
+    var a = k * Math.sqrt(l1), bb = k * Math.sqrt(l2), ring = [];
+    steps = steps || 48;
+    for (var t = 0; t < steps; t++) {
+      var w = 2 * Math.PI * t / steps, ex = a * Math.cos(w), ey = bb * Math.sin(w);
+      var px = ex * Math.cos(angle) - ey * Math.sin(angle), py = ex * Math.sin(angle) + ey * Math.cos(angle);
+      ring.push(fromVector([c[0] + px * e[0] + py * north[0], c[1] + px * e[1] + py * north[1], c[2] + px * e[2] + py * north[2]]));
+    }
+    return { lat: mean.lat, lng: mean.lng, r: mean.r, aKm: a * EARTH_KM, bKm: bb * EARTH_KM, ring: ring };
+  }
   function gridCell(lat, lng, km) {
     var p = equalEarth(+lat, +lng);
     return Math.floor(p[0] / km) + ":" + Math.floor(p[1] / km);
@@ -328,6 +382,7 @@
   root.WegenerAnalysis = { share: share, weightedQuantile: weightedQuantile, rng: rng, monteCarlo: monteCarlo, identMarks: identMarks,
                            straddles: straddles, localityKey: localityKey, crc32: crc32, zipStore: zipStore,
                            equalEarth: equalEarth, equalEarthInverse: equalEarthInverse, cellRing: cellRing, splitAtSeam: splitAtSeam,
-                           gridCell: gridCell, compareCells: compareCells, coverageRarefy: coverageRarefy, outliers: outliers };
+                           gridCell: gridCell, compareCells: compareCells, cellCenter: cellCenter, sphericalMean: sphericalMean,
+                           greatCircleKm: greatCircleKm, bootstrapEllipse: bootstrapEllipse, coverageRarefy: coverageRarefy, outliers: outliers };
   if (typeof module !== "undefined") module.exports = root.WegenerAnalysis;
 })(typeof window !== "undefined" ? window : globalThis);

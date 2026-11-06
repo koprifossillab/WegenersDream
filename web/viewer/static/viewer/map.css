@@ -18,6 +18,7 @@
   --coast: #ff3da8;
   --taxon: #2ee6a6;
   --cell-new: #3ddc6e; --cell-lost: #ff4d4d; --cell-unknown: #c8c8c8;   /* 점유 변화(061) */
+  --center: #ffffff;          /* 무게중심(062) */
   --cell-effort: #dcdcdc;     /* 표본 노력 음영(058) — 지도 위라 밝기와 상관없이 같다 */
   --warn: #9a5b00;          /* 팝업의 "모호한 연대" 같은 주의 글씨 */
 }
