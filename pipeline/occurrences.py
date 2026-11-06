@@ -127,6 +127,8 @@ def write_names(names, accepted, counts, out):
     return sorted(shards)
 
 
+# 조각 목록의 이름 — index.json 으로 두면 주간 갱신의 `rsync --exclude index.json` 에 걸려 운영에 안 갔다(어느 깊이든 걸린다, koprifossillab 060)
+LIST_FILE = "list.json"
 REF_SHARD = 1000      # 참고문헌 조각 — reference_no // 1000 마다 한 파일
 
 
@@ -292,8 +294,8 @@ def build(kept, ages, receipt):
         "summary_min_occs": ANALYSIS["summary_min_occs"], "stats": dict(stats),
         "refs": "occs/refs/{shard}.json" if refs else None, "ref_shard": REF_SHARD,
     }
-    (out / "index.json").write_text(json.dumps(meta, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    (out / LIST_FILE).write_text(json.dumps(meta, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     size = sum(p.stat().st_size for p in out.rglob("*.json"))
     print(f"  조각 {len(chunks)} 개, 이름표 {len(letters)} 개, 요약 {len(summaries)} 개 — {size / 1e6:.0f} MB")
-    return {"index": "occs/index.json", "snapshot": meta["snapshot"], "retrieved_at": meta["retrieved_at"],
+    return {"index": f"occs/{LIST_FILE}", "snapshot": meta["snapshot"], "retrieved_at": meta["retrieved_at"],
             "records": len(rows), "chunks": len(chunks)}

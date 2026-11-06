@@ -104,6 +104,18 @@ class HealthTest(DataDirMixin, SimpleTestCase):
         (self.dir / "relief" / "2500.webp").unlink()
         self.assertEqual(self.client.get("/healthz").json()["status"], "degraded")
 
+    def test_missing_occurrence_list_is_degraded(self):
+        # 조각 목록이 운영에 안 가면 분포 분석이 말없이 PBDB 로 돌아간다(koprifossillab 060)
+        index = json.loads((self.dir / "index.json").read_text(encoding="utf-8"))
+        index["occurrences"] = {"index": "occs/list.json"}
+        (self.dir / "index.json").write_text(json.dumps(index), encoding="utf-8")
+        body = self.client.get("/healthz").json()
+        self.assertEqual(body["status"], "degraded")
+        self.assertTrue(body["missing_occurrences"])
+        (self.dir / "occs").mkdir()
+        (self.dir / "occs" / "list.json").write_text("{}", encoding="utf-8")
+        self.assertFalse(self.client.get("/healthz").json()["missing_occurrences"])
+
     def test_no_data_is_503(self):
         (self.dir / "index.json").unlink()
         self.assertEqual(self.client.get("/healthz").status_code, 503)
