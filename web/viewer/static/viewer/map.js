@@ -1266,7 +1266,7 @@
   // 2 표본 노력 — 그 시점 전체 산지(지도의 거르기를 따른다)의 칸마다 몫 합을 회색 단계로. 표본 없는 곳은 옅은 빗금(연구자: 표시한다)
   // 기본은 Scientific 에서 1+2 켬, Casual 끔 — 모드마다 기억한다(043 과 같은 방식). 칸 크기는 053 의 rules.analysis.grid_km
   var LAYERS_KEY = "wegener.layers." + I18N.mode;
-  var layers = I18N.mode === "sci" ? { occ: true, effort: true } : { occ: false, effort: false };
+  var layers = I18N.mode === "sci" ? { occ: true, effort: true, change: false } : { occ: false, effort: false, change: false };
   try { var layersStored = JSON.parse(localStorage.getItem(LAYERS_KEY)); if (layersStored) Object.keys(layers).forEach(function (k) { if (typeof layersStored[k] === "boolean") layers[k] = layersStored[k]; }); } catch (e) { /* 막힌 저장소 */ }
   function cellsOn() { return !!ANALYSIS && !!AN && ANALYSIS.grid_km != null && !state.overview; }
   function cssVar(name, fallback) { var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim(); return v || fallback; }
@@ -1278,10 +1278,49 @@
       return ring.map(function (p) { return [p[0], Math.max(seam - 360 + SEAM_EPS, Math.min(seam - SEAM_EPS, p[1]))]; });
     });
   }
+  // 찾은 분류군(사본의 산출)이 시점 f 에 있는 칸 — 좌표는 viewF 의 판 배치. f 와 viewF 의 지도 나이가 다르면 viewF 는 f 의 다음(더 젊은) 시점이어야 하고,
+  // 파이프라인이 구운 "다음 시점 나이의 좌표" 를 쓴다 — 고좌표 칸끼리 견주면 판 이동이 "사라짐 + 새로 점유" 로 보인다(P03 §2.1, 061)
+  function frameAgeOf(f) { return f.src ? f.src.age : f.age; }
+  function occCellsIn(base, f, viewF) {
+    var cells = {}, fa = frameAgeOf(f), same = fa === frameAgeOf(viewF), missing = 0;
+    base.occs.forEach(function (o) {
+      if (!state.enabled[termKey(o.env)] || qualDrops(o.q, o.out) || straddleDrops(o.old, o.young)) return;
+      if (!ageOk(isPrecise(o.early, o.late), o.old, o.young) || !inWin(f, o.old, o.young)) return;
+      var lat = null, lng = null;
+      if (same) { lat = occLat(o, f); lng = occLng(o, f); }
+      else { var p = o.atNext && o.atNext[fa]; if (p) { lat = p[0]; lng = p[1]; } }
+      if (lat == null || lng == null) { missing += 1; return; }
+      cells[cellOf(lat, lng)] = true;
+    });
+    return { cells: cells, missing: missing };
+  }
+  // 층 3 — 직전(더 오래된) 시점 대비. 사본의 산출을 하나하나 받은 분류군만(요약에는 산출이 없다)
+  function drawChange(f, effort) {
+    state.changeInfo = null;
+    if (!layers.change || !state.taxon) return;
+    var base = state.distBase, j = state.frames.indexOf(f), prev = state.frames[j - 1];
+    if (!base || !base.occs || !base.snapshot) { state.changeInfo = { unavailable: true }; return; }
+    if (!prev) return;
+    var older = occCellsIn(base, prev, f), now = occCellsIn(base, f, f);
+    // 옛 조각(다음 시점 좌표가 없다)이면 견줄 수 없다 — 없는 것을 "새로 점유" 로 그리지 않는다
+    if (older.missing && !Object.keys(older.cells).length) { state.changeInfo = { unavailable: true }; return; }
+    var r = AN.compareCells(older.cells, now.cells, effort);
+    var line = function (keys, style) {
+      keys.forEach(function (k) {
+        cellRings(k).forEach(function (ring) {
+          L.polygon(ring, L.extend({ renderer: cellRenderer, interactive: false, fill: false, opacity: 0.95 }, style)).addTo(cellLayer);
+        });
+      });
+    };
+    line(r.gained, { color: cssVar("--cell-new", "#3ddc6e"), weight: 1.6 });
+    line(r.lostSampled, { color: cssVar("--cell-lost", "#ff4d4d"), weight: 1.6 });
+    line(r.lostUnsampled, { color: cssVar("--cell-unknown", "#c8c8c8"), weight: 1.2, dashArray: "3 3" });
+    state.changeInfo = { gained: r.gained.length, lost: r.lostSampled.length, unknown: r.lostUnsampled.length, age: prev.age, missing: older.missing };
+  }
   function drawCells() {
     cellLayer.clearLayers();
     var f = frame(), payload = state.payload;
-    if (!cellsOn() || !f || !payload || (!layers.occ && !layers.effort)) { syncCellLegend(); return; }
+    if (!cellsOn() || !f || !payload || (!layers.occ && !layers.effort && !layers.change)) { syncCellLegend(); return; }
     var col = columns(payload), effort = {};
     // 표본 노력 — 지도에 보이는 산지(퇴적기원·나라·연대 거르기)의 칸마다 몫 합
     payload.rows.forEach(function (row) {
@@ -1299,7 +1338,7 @@
         if (!effort[k]) effort[k] = 0;                  // 찾은 분류군의 산지가 거르기로 빠졌어도 칸은 표본이 있다
       });
     }
-    var steps = ANALYSIS.occupancy ? ANALYSIS.occupancy.effort_steps : [1, 3, 10, 30];
+    var effortSteps = (ANALYSIS.occupancy && ANALYSIS.occupancy.effort_steps) || [];   // 함수 steps 를 가리지 않게(060)
     var grey = cssVar("--cell-effort", "#d9d9d9"), taxonColor = cssVar("--taxon", "#2ee6a6");
     var keys = Object.keys(effort), byCount = $("occ-value") && $("occ-value").value === "n";
     var maxN = 1;
@@ -1311,7 +1350,7 @@
         style = { fillColor: taxonColor, fillOpacity: 0.25 + 0.6 * v, color: taxonColor, weight: 0.6, opacity: 0.8 };
       } else if (layers.effort) {
         var level = 0;
-        steps.forEach(function (s) { if (effort[k] >= s) level += 1; });
+        effortSteps.forEach(function (s) { if (effort[k] >= s) level += 1; });
         style = { fillColor: grey, fillOpacity: 0.12 + 0.12 * level, stroke: false };
       } else return;
       cellRings(k).forEach(function (ring) {
@@ -1321,13 +1360,15 @@
     // 표본 없는 곳 — 지구 전체에서 표본 칸을 뺀 하나의 다각형에 빗금(연구자: "찾아보지 않은 곳" 이 보이게)
     if (layers.effort) {
       var lo = (state.proj === "moll" ? Mollweide.lon0 : 0) - 180 + SEAM_EPS, hi = lo + 360 - 2 * SEAM_EPS;
-      var outer = [[-90, lo], [-90, hi], [90, hi], [90, lo]];
+      // 경선을 따라 점을 찍는다 — 네 귀퉁이만 두면 몰바이데에서 극이 한 점이라 다각형이 선으로 줄어, 빗금이 거꾸로(표본 칸에만) 앉았다(060)
+      var outer = steps(-90, 90).map(function (la) { return [la, hi]; }).concat(steps(-90, 90).reverse().map(function (la) { return [la, lo]; }));
       var holes = [];
       keys.forEach(function (k) { holes.push.apply(holes, cellRings(k)); });
       L.polygon([outer].concat(holes), { renderer: hatchRenderer, interactive: false, stroke: false, fillColor: "url(#wd-hatch)", fillOpacity: 1 })
         .addTo(cellLayer);
       ensureHatch();                                   // svg 는 첫 다각형을 더할 때 생긴다
     }
+    drawChange(f, effort);
     syncCellLegend(Object.keys(occ).length, keys.length - Object.keys(occ).length);
   }
   // 빗금 무늬 — SVG 렌더러의 svg 에 한 번 단다
@@ -1345,11 +1386,19 @@
   function syncCellLegend(nOcc, nEffort) {
     var box = $("cells-legend");
     if (!box) return;
-    box.hidden = !cellsOn() || (!layers.occ && !layers.effort);
+    box.hidden = !cellsOn() || (!layers.occ && !layers.effort && !layers.change);
     if (box.hidden) return;
     box.innerHTML = (layers.occ && state.taxon ? '<span class="sw occ"></span>' + esc(tr("cells.occ", { n: fmtNum(nOcc || 0) })) + " " : "") +
       (layers.effort ? '<span class="sw effort"></span>' + esc(tr("cells.effort", { n: fmtNum(nEffort || 0) })) + ' <span class="sw none"></span>' + esc(tr("cells.none")) : "") +
-      " <small>" + esc(tr("cells.unit", { km: ANALYSIS.grid_km })) + "</small>";
+      changeLegend() + " <small>" + esc(tr("cells.unit", { km: ANALYSIS.grid_km })) + "</small>";
+  }
+  function changeLegend() {
+    var c = state.changeInfo;
+    if (!layers.change || !state.taxon || !c) return "";
+    if (c.unavailable) return "<br>" + esc(tr("change.none"));
+    return "<br>" + esc(tr("change.head", { age: fmtAge(c.age) })) + ' <span class="sw new"></span>' + esc(tr("change.new", { n: fmtNum(c.gained) })) +
+      ' <span class="sw lost"></span>' + esc(tr("change.lost", { n: fmtNum(c.lost) })) +
+      ' <span class="sw unknown"></span>' + esc(tr("change.unknown", { n: fmtNum(c.unknown) }));
   }
   function setLayer(key, on) {
     layers[key] = on;
@@ -2130,7 +2179,7 @@
           return base;
         }
         return liveSeries();
-      }).catch(function () { return liveSeries(); });
+      }).catch(function () { base.snapshotFailed = true; return liveSeries(); });   // 사본을 못 읽었다 — 화면에 적는다(060)
       function liveSeries() {
       if (base.stageTotal > OCC_LIMIT) return overlap();
       return getJSON(PBDB + "occs/list.json?" + baseParam(name) + cc +
@@ -2184,10 +2233,13 @@
               if (!c) return;
               if (state.country && c[cc.cc] !== state.country) return;
               if (state.formation && formKey(c[cc.formation]) !== formKey(state.formation)) return;
-              var at = c._at, lngs = c._lng;
-              if (!at) { at = c._at = {}; lngs = c._lng = {}; c[cc.frames].forEach(function (fr) { at[fr[0]] = fr[1]; lngs[fr[0]] = fr[2]; }); }
+              var at = c._at, lngs = c._lng, nxt = c._next;
+              if (!at) {
+                at = c._at = {}; lngs = c._lng = {}; nxt = c._next = {};
+                c[cc.frames].forEach(function (fr) { at[fr[0]] = fr[1]; lngs[fr[0]] = fr[2]; if (fr.length > 5) nxt[fr[0]] = [fr[4], fr[5]]; });
+              }
               occs.push({ old: c[cc.max_ma], young: c[cc.min_ma], env: c[cc.environment] || "", early: c[cc.early_interval],
-                          late: c[cc.late_interval], coll: r[oc.collection_no], q: r[oc.marks] || "", at: at, atLng: lngs, genus: r[oc.genus],
+                          late: c[cc.late_interval], coll: r[oc.collection_no], q: r[oc.marks] || "", at: at, atLng: lngs, atNext: nxt, genus: r[oc.genus],
                           loc: c[cc.locality], ref: r[oc.reference_no], no: r[oc.occurrence_no], name: r[oc.name] });
             });
           });
@@ -2301,6 +2353,7 @@
     renderDist();
     renderChrono();
     renderAnalysis();
+    drawCells();                       // 점유 변화는 사본의 산출을 쓴다 — 산출을 받은 뒤에 다시(061)
   }
 
   function allEnvEnabled() {
@@ -3667,7 +3720,8 @@
       (byColls ? " " + esc(tr("lat.colls")) : "") +
       (seriesList().some(function (it) { return it.base.summary; }) ? " " + esc(tr("lat.summary")) : "");
     // 분석이 PBDB 사본에서 왔는가(연구자: 분석만 사본, 지도의 찾기 점은 실시간) — 받은 날을 적는다
-    $("anal-note").textContent = snapDate ? tr("snap.note", { date: String(snapDate).slice(0, 10) }) : "";
+    $("anal-note").textContent = snapDate ? tr("snap.note", { date: String(snapDate).slice(0, 10) }) :
+      seriesList().some(function (it) { return it.base.snapshotFailed; }) ? tr("snap.fail") : "";
     // 다양성 곡선이 어떻게 세었나 — 늘 PBDB 절 단위(major)라 퇴적기원·연대 범위 거르기가 들지 않는다
     var sqsOn = $("div-metric").value === "sqs";
     $("div-note").textContent = sqsOn ? tr("div.sqsRule", { q: state.quorum || (ANALYSIS && ANALYSIS.coverage_quorum), x: ANALYSIS ? ANALYSIS.coverage_max_extrapolation : 2 }) +
@@ -4992,6 +5046,8 @@
   // 지도 위의 분석 층(058)
   $("layer-occ").checked = layers.occ;
   $("layer-effort").checked = layers.effort;
+  $("layer-change").checked = layers.change;
+  $("layer-change").addEventListener("change", function () { setLayer("change", this.checked); });
   $("layer-occ").addEventListener("change", function () { setLayer("occ", this.checked); });
   $("layer-effort").addEventListener("change", function () { setLayer("effort", this.checked); });
   $("occ-value").addEventListener("change", drawCells);

@@ -16,6 +16,7 @@
  *   flag_thresh 넘게 걸리면 표시. 정리(cleaning) 단계에서 빼는 것이 관행이다
  * - equalEarthInverse·cellRing·splitAtSeam: 격자 칸을 지도에 그리기(koprifossillab 058) — 칸의 네 변을 나눠 역투영한 경위도 고리, 지도의
  *   이음매(경도 seam)에서 둘로 자른다
+ * - compareCells: 두 시점의 점유 칸 견주기(koprifossillab 061) — 새로 점유 / 사라짐(지금도 표본 있음) / 사라짐(지금은 표본 없음)
  * - zipStore: 재현 묶음(koprifossillab 048)의 zip — 압축 없이(STORE) 담는다. 글자 파일 몇 개라 라이브러리를 들이지 않는다
  */
 (function (root) {
@@ -179,6 +180,16 @@
     var left = clip(true);
     return (left.length >= 3 ? [left] : []).concat([right.map(function (p) { return [p[0], p[1] === seam ? lo : p[1] - 360]; })]);
   }
+  // prev·now: 칸 → 참인 객체(같은 판 배치의 칸이어야 한다), sampled: 지금 시점에 표본이 있는 칸. 표본이 없는데 사라진 칸은 "없어졌다" 가 아니라 "모른다"
+  function compareCells(prev, now, sampled) {
+    var out = { gained: [], lostSampled: [], lostUnsampled: [], kept: 0 };
+    Object.keys(now).forEach(function (k) { if (prev[k]) out.kept += 1; else out.gained.push(k); });
+    Object.keys(prev).forEach(function (k) {
+      if (now[k]) return;
+      (sampled[k] !== undefined ? out.lostSampled : out.lostUnsampled).push(k);
+    });
+    return out;
+  }
   function gridCell(lat, lng, km) {
     var p = equalEarth(+lat, +lng);
     return Math.floor(p[0] / km) + ":" + Math.floor(p[1] / km);
@@ -317,6 +328,6 @@
   root.WegenerAnalysis = { share: share, weightedQuantile: weightedQuantile, rng: rng, monteCarlo: monteCarlo, identMarks: identMarks,
                            straddles: straddles, localityKey: localityKey, crc32: crc32, zipStore: zipStore,
                            equalEarth: equalEarth, equalEarthInverse: equalEarthInverse, cellRing: cellRing, splitAtSeam: splitAtSeam,
-                           gridCell: gridCell, coverageRarefy: coverageRarefy, outliers: outliers };
+                           gridCell: gridCell, compareCells: compareCells, coverageRarefy: coverageRarefy, outliers: outliers };
   if (typeof module !== "undefined") module.exports = root.WegenerAnalysis;
 })(typeof window !== "undefined" ? window : globalThis);

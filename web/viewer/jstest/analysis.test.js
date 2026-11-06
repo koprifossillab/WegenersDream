@@ -101,5 +101,9 @@ var parts = A.splitAtSeam(edge, 180);
 check(parts.length === 2, "날짜변경선에 걸친 칸은 둘로 " + parts.length);
 check(A.splitAtSeam([[0, 10], [0, 12], [2, 12], [2, 10]], 180).length === 1, "걸치지 않으면 하나");
 
+// 점유 변화(koprifossillab 061)
+var cmp = A.compareCells({ a: 1, b: 1, c: 1 }, { b: 1, d: 1 }, { a: 0.4, b: 1, d: 1 });
+check(cmp.gained.join() === "d" && cmp.lostSampled.join() === "a" && cmp.lostUnsampled.join() === "c" && cmp.kept === 1, "칸 견주기 " + JSON.stringify(cmp));
+
 if (fail) { console.log(fail + " 개 틀림"); process.exit(1); }
 console.log("분석 셈 시험 통과");

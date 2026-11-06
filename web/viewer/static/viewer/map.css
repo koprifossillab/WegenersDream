@@ -17,6 +17,7 @@
   --other: #f5f5f5;
   --coast: #ff3da8;
   --taxon: #2ee6a6;
+  --cell-new: #3ddc6e; --cell-lost: #ff4d4d; --cell-unknown: #c8c8c8;   /* 점유 변화(061) */
   --cell-effort: #dcdcdc;     /* 표본 노력 음영(058) — 지도 위라 밝기와 상관없이 같다 */
   --warn: #9a5b00;          /* 팝업의 "모호한 연대" 같은 주의 글씨 */
 }
@@ -1041,3 +1042,6 @@ button, input, select { font-family: inherit; }
 .cells-legend .sw.occ { background: var(--taxon); }
 .cells-legend .sw.effort { background: var(--cell-effort); }
 .cells-legend .sw.none { background: repeating-linear-gradient(45deg, transparent 0 3px, var(--muted) 3px 4px); }
+.cells-legend .sw.new { background: transparent; border: 2px solid var(--cell-new); }
+.cells-legend .sw.lost { background: transparent; border: 2px solid var(--cell-lost); }
+.cells-legend .sw.unknown { background: transparent; border: 2px dashed var(--cell-unknown); }
