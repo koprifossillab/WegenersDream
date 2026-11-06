@@ -26,7 +26,7 @@ from .quality import marks
 OCC_FIELDS = ["occurrence_no", "collection_no", "accepted_no", "lft", "name", "rank", "genus", "identified_name", "marks",
               "reference_no"]
 COLL_FIELDS = ["max_ma", "min_ma", "early_interval", "late_interval", "environment", "cc", "formation", "precise", "locality",
-               "frames"]      # frames: [[나이, 위도, 경도, rotated], …]
+               "frames"]      # frames: [[나이, 위도, 경도, rotated, 다음 시점 나이의 위도, 경도], …] — 뒤의 둘은 판이 있을 때만(061)
 
 
 def number(value):
@@ -96,7 +96,7 @@ def write_chunks(rows, colls, out, target_bytes):
             size += 60 + len(row[4]) + len(row[7])                      # 산출 한 행의 어림
             if row[1] not in used:
                 used.add(row[1])
-                size += 80 + 26 * len(colls[row[1]]["frames"])          # 산지 칸과 시점 좌표의 어림
+                size += 80 + 40 * len(colls[row[1]]["frames"])          # 산지 칸과 시점 좌표의 어림
             end += 1
         part = rows[start:end]
         name = f"chunk/{len(chunks):04d}.json"
