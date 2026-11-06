@@ -1299,7 +1299,7 @@
         if (!effort[k]) effort[k] = 0;                  // 찾은 분류군의 산지가 거르기로 빠졌어도 칸은 표본이 있다
       });
     }
-    var steps = ANALYSIS.occupancy ? ANALYSIS.occupancy.effort_steps : [1, 3, 10, 30];
+    var effortSteps = (ANALYSIS.occupancy && ANALYSIS.occupancy.effort_steps) || [];   // 함수 steps 를 가리지 않게(060)
     var grey = cssVar("--cell-effort", "#d9d9d9"), taxonColor = cssVar("--taxon", "#2ee6a6");
     var keys = Object.keys(effort), byCount = $("occ-value") && $("occ-value").value === "n";
     var maxN = 1;
@@ -1311,7 +1311,7 @@
         style = { fillColor: taxonColor, fillOpacity: 0.25 + 0.6 * v, color: taxonColor, weight: 0.6, opacity: 0.8 };
       } else if (layers.effort) {
         var level = 0;
-        steps.forEach(function (s) { if (effort[k] >= s) level += 1; });
+        effortSteps.forEach(function (s) { if (effort[k] >= s) level += 1; });
         style = { fillColor: grey, fillOpacity: 0.12 + 0.12 * level, stroke: false };
       } else return;
       cellRings(k).forEach(function (ring) {
@@ -1321,7 +1321,8 @@
     // 표본 없는 곳 — 지구 전체에서 표본 칸을 뺀 하나의 다각형에 빗금(연구자: "찾아보지 않은 곳" 이 보이게)
     if (layers.effort) {
       var lo = (state.proj === "moll" ? Mollweide.lon0 : 0) - 180 + SEAM_EPS, hi = lo + 360 - 2 * SEAM_EPS;
-      var outer = [[-90, lo], [-90, hi], [90, hi], [90, lo]];
+      // 경선을 따라 점을 찍는다 — 네 귀퉁이만 두면 몰바이데에서 극이 한 점이라 다각형이 선으로 줄어, 빗금이 거꾸로(표본 칸에만) 앉았다(060)
+      var outer = steps(-90, 90).map(function (la) { return [la, hi]; }).concat(steps(-90, 90).reverse().map(function (la) { return [la, lo]; }));
       var holes = [];
       keys.forEach(function (k) { holes.push.apply(holes, cellRings(k)); });
       L.polygon([outer].concat(holes), { renderer: hatchRenderer, interactive: false, stroke: false, fillColor: "url(#wd-hatch)", fillOpacity: 1 })
@@ -2130,7 +2131,7 @@
           return base;
         }
         return liveSeries();
-      }).catch(function () { return liveSeries(); });
+      }).catch(function () { base.snapshotFailed = true; return liveSeries(); });   // 사본을 못 읽었다 — 화면에 적는다(060)
       function liveSeries() {
       if (base.stageTotal > OCC_LIMIT) return overlap();
       return getJSON(PBDB + "occs/list.json?" + baseParam(name) + cc +
@@ -3667,7 +3668,8 @@
       (byColls ? " " + esc(tr("lat.colls")) : "") +
       (seriesList().some(function (it) { return it.base.summary; }) ? " " + esc(tr("lat.summary")) : "");
     // 분석이 PBDB 사본에서 왔는가(연구자: 분석만 사본, 지도의 찾기 점은 실시간) — 받은 날을 적는다
-    $("anal-note").textContent = snapDate ? tr("snap.note", { date: String(snapDate).slice(0, 10) }) : "";
+    $("anal-note").textContent = snapDate ? tr("snap.note", { date: String(snapDate).slice(0, 10) }) :
+      seriesList().some(function (it) { return it.base.snapshotFailed; }) ? tr("snap.fail") : "";
     // 다양성 곡선이 어떻게 세었나 — 늘 PBDB 절 단위(major)라 퇴적기원·연대 범위 거르기가 들지 않는다
     var sqsOn = $("div-metric").value === "sqs";
     $("div-note").textContent = sqsOn ? tr("div.sqsRule", { q: state.quorum || (ANALYSIS && ANALYSIS.coverage_quorum), x: ANALYSIS ? ANALYSIS.coverage_max_extrapolation : 2 }) +
