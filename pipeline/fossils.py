@@ -116,14 +116,18 @@ def build(ages, keep=None):
     from .reconstruct import Reconstructor
     rebuilder = Reconstructor()
     stats.update(rotated=0, pbdb_fallback=0)
+    # 다음(더 젊은) 시점의 나이 — 직전 시점의 산지를 지금 시점의 판 배치에 놓는 데 쓴다(점유 변화, koprifossillab 061, P03 §2.1)
+    ordered = sorted(ages)
+    younger = {a: ordered[k - 1] for k, a in enumerate(ordered) if k}
     for age, items in assign(rows, ages).items():
         name = f"fossils/{age_key(age)}.json"
         # 시점마다 현재 좌표를 그 나이로 돌린다(017). 행은 시점마다 좌표가 다르므로 복사한다.
         lons = [item[3] for item in items]
         lats = [item[4] for item in items]
         rlon, rlat, ok = rebuilder.rotate(lons, lats, age)
+        nlon, nlat, nok = (rebuilder.rotate(lons, lats, younger[age]) if keep is not None and age in younger else (None, None, None))
         members = []
-        for item, x, y, rotated in zip(items, rlon, rlat, ok):
+        for k, (item, x, y, rotated) in enumerate(zip(items, rlon, rlat, ok)):
             if item[2][1] is None and (age < PLATE_ONLY_FROM_MA or not rotated):
                 continue                                  # PBDB 고좌표가 없는 산지는 판 복원만 있는 시점에서, 돌렸을 때만(019)
             row = list(item[2])
@@ -139,7 +143,9 @@ def build(ages, keep=None):
                     c = keep[row[0]] = {"max_ma": row[8], "min_ma": row[9], "early": row[6], "late": row[7], "environment": row[11],
                                         "cc": row[12], "formation": row[10], "precise": row[13], "lng": item[3], "lat": item[4],
                                         "frames": []}
-                c["frames"].append([age, row[2], row[1], row[-1]])
+                # [나이, 위도, 경도, rotated] + 판이 있으면 다음 시점 나이의 [위도, 경도]
+                c["frames"].append([age, row[2], row[1], row[-1]] +
+                                   ([round(float(nlat[k]), 2), round(float(nlon[k]), 2)] if nok is not None and nok[k] else []))
         members.sort(key=lambda row: row[0])
         payload = {"age": age, "window_ma": WINDOW_MA, "fields": FIELDS, "rows": members}
         (DERIVED / name).write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")),

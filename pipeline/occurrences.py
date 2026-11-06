@@ -26,7 +26,7 @@ from .quality import marks
 OCC_FIELDS = ["occurrence_no", "collection_no", "accepted_no", "lft", "name", "rank", "genus", "identified_name", "marks",
               "reference_no"]
 COLL_FIELDS = ["max_ma", "min_ma", "early_interval", "late_interval", "environment", "cc", "formation", "precise", "locality",
-               "frames"]      # frames: [[나이, 위도, 경도, rotated], …]
+               "frames"]      # frames: [[나이, 위도, 경도, rotated, 다음 시점 나이의 위도, 경도], …] — 뒤의 둘은 판이 있을 때만(061)
 
 
 def number(value):
@@ -96,7 +96,7 @@ def write_chunks(rows, colls, out, target_bytes):
             size += 60 + len(row[4]) + len(row[7])                      # 산출 한 행의 어림
             if row[1] not in used:
                 used.add(row[1])
-                size += 80 + 26 * len(colls[row[1]]["frames"])          # 산지 칸과 시점 좌표의 어림
+                size += 80 + 40 * len(colls[row[1]]["frames"])          # 산지 칸과 시점 좌표의 어림
             end += 1
         part = rows[start:end]
         name = f"chunk/{len(chunks):04d}.json"
@@ -127,6 +127,8 @@ def write_names(names, accepted, counts, out):
     return sorted(shards)
 
 
+# 조각 목록의 이름 — index.json 으로 두면 주간 갱신의 `rsync --exclude index.json` 에 걸려 운영에 안 갔다(어느 깊이든 걸린다, koprifossillab 060)
+LIST_FILE = "list.json"
 REF_SHARD = 1000      # 참고문헌 조각 — reference_no // 1000 마다 한 파일
 
 
@@ -292,8 +294,8 @@ def build(kept, ages, receipt):
         "summary_min_occs": ANALYSIS["summary_min_occs"], "stats": dict(stats),
         "refs": "occs/refs/{shard}.json" if refs else None, "ref_shard": REF_SHARD,
     }
-    (out / "index.json").write_text(json.dumps(meta, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    (out / LIST_FILE).write_text(json.dumps(meta, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     size = sum(p.stat().st_size for p in out.rglob("*.json"))
     print(f"  조각 {len(chunks)} 개, 이름표 {len(letters)} 개, 요약 {len(summaries)} 개 — {size / 1e6:.0f} MB")
-    return {"index": "occs/index.json", "snapshot": meta["snapshot"], "retrieved_at": meta["retrieved_at"],
+    return {"index": f"occs/{LIST_FILE}", "snapshot": meta["snapshot"], "retrieved_at": meta["retrieved_at"],
             "records": len(rows), "chunks": len(chunks)}

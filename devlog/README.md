@@ -139,3 +139,6 @@
 | koprifossillab 057 | 2026-10-23 | [10-20~10-23 작업에서 생긴 문제와 그 처리](20261023_koprifossillab_057_issues_so_far.md) |
 | koprifossillab 058 | 2026-10-23 | [지도 위의 층: 격자 점유와 표본 노력(빗금으로 표본 없는 곳)](20261023_koprifossillab_058_occupancy_effort_layers.md) |
 | koprifossillab 059 | 2026-10-23 | [세 주 멈춘 주간 갱신을 되살리고 1.13.0 을 운영에 올린다](20261023_koprifossillab_059_refresh_revived.md) |
+| koprifossillab 060 | 2026-11-06 | [운영의 분포 분석이 사본을 못 읽고 있었다, 몰바이데의 빗금이 거꾸로였다](20261106_koprifossillab_060_occs_list_404.md) |
+| koprifossillab 061 | 2026-11-06 | [직전 시점 대비 점유 변화: 같은 판 배치에서 견준다](20261106_koprifossillab_061_occupancy_change.md) |
+| koprifossillab 062 | 2026-11-06 | [무게중심: 지금 지도에는 판에 대한 이동만, 긴 궤적은 그래프로](20261106_koprifossillab_062_centroid_layer.md) |

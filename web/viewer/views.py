@@ -135,6 +135,9 @@ def healthz(request):
     missing = [f["relief"] for f in frames if not (data / f["relief"]).is_file()]
     missing_terrain = [f["terrain"]["file"] for f in frames
                        if f.get("terrain") and not (data / f["terrain"]["file"]).is_file()]
+    # 산출 사본의 조각 목록(koprifossillab 060) — 없으면 분포 분석이 말없이 PBDB 로 돌아간다
+    occs = index.get("occurrences") or {}
+    missing_occs = bool(occs.get("index")) and not (data / occs["index"]).is_file()
     # 최근의 절 기온(PaleoClim, tupandactyl 010) — index.json 밖의 목록
     paleoclim = None
     try:
@@ -153,6 +156,8 @@ def healthz(request):
         problems.append(f"배경 그림 {len(missing)} 개가 없다")
     if missing_terrain:
         problems.append(f"지형 격자 {len(missing_terrain)} 개가 없다")
+    if missing_occs:
+        problems.append("산출 사본의 조각 목록이 없다")
     if paleoclim and (paleoclim["missing"] or paleoclim.get("unreadable")):
         problems.append("PaleoClim 기온 그림이 없거나 목록을 읽을 수 없다")
     body.update(
@@ -162,6 +167,7 @@ def healthz(request):
         pbdb_retrieved_at=index.get("pbdb", {}).get("receipt", {}).get("retrieved_at"),
         missing_relief=len(missing),
         missing_terrain=len(missing_terrain),
+        missing_occurrences=missing_occs,
         paleoclim=paleoclim,
         refresh=refresh,
     )

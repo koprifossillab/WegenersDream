@@ -101,5 +101,25 @@ var parts = A.splitAtSeam(edge, 180);
 check(parts.length === 2, "날짜변경선에 걸친 칸은 둘로 " + parts.length);
 check(A.splitAtSeam([[0, 10], [0, 12], [2, 12], [2, 10]], 180).length === 1, "걸치지 않으면 하나");
 
+// 점유 변화(koprifossillab 061)
+var cmp = A.compareCells({ a: 1, b: 1, c: 1 }, { b: 1, d: 1 }, { a: 0.4, b: 1, d: 1 });
+check(cmp.gained.join() === "d" && cmp.lostSampled.join() === "a" && cmp.lostUnsampled.join() === "c" && cmp.kept === 1, "칸 견주기 " + JSON.stringify(cmp));
+
+// 무게중심(koprifossillab 062) — 날짜변경선을 건너도 평균이 그 가운데, 칸 가운데가 그 칸, 점이 많으면 타원이 작아진다, 씨앗이 같으면 같다
+var m0 = A.sphericalMean([[0, 179], [0, -179]]);
+check(near(m0.lat, 0, 1e-6) && near(Math.abs(m0.lng), 180, 1e-6), "날짜변경선을 건넌 평균 " + JSON.stringify(m0));
+check(A.sphericalMean([[0, 0], [0, 180]]) === null, "정반대 두 점은 평균이 없다");
+check(A.gridCell.apply(null, A.cellCenter("10:20", 200).concat([200])) === "10:20", "칸 가운데가 그 칸");
+check(near(A.greatCircleKm([0, 0], [0, 90]), 6371.0088 * Math.PI / 2, 1e-6), "적도 90° 의 거리");
+var cloud = function (n) {
+  var out = [], r3 = A.rng(5);
+  for (var q = 0; q < n; q++) out.push([40 + r3() * 10, -100 + r3() * 10]);
+  return out;
+};
+var e10 = A.bootstrapEllipse(cloud(10), 200, 3, 0.95), e200 = A.bootstrapEllipse(cloud(200), 200, 3, 0.95);
+check(e200.aKm < e10.aKm, "칸이 많으면 타원이 작다 " + e10.aKm + " " + e200.aKm);
+check(e10.ring.length === 48 && e10.aKm >= e10.bKm, "타원 고리");
+check(JSON.stringify(A.bootstrapEllipse(cloud(10), 200, 3, 0.95)) === JSON.stringify(e10), "같은 씨앗 같은 타원");
+
 if (fail) { console.log(fail + " 개 틀림"); process.exit(1); }
 console.log("분석 셈 시험 통과");

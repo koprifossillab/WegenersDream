@@ -183,6 +183,13 @@ class LocalityKeyTest(unittest.TestCase):
             self.assertEqual(locality_key(lat, lng, formation, old, young), want)
 
 
+class OccurrenceListNameTest(unittest.TestCase):
+    def test_not_named_index(self):
+        # 주간 갱신이 맨 위 index.json 을 맨 나중에 옮기려고 그 이름을 뺀다 — 조각 목록이 같은 이름이면 운영에 안 간다(koprifossillab 060)
+        from pipeline.occurrences import LIST_FILE
+        self.assertNotEqual(LIST_FILE, "index.json")
+
+
 class OccurrenceChunkTest(unittest.TestCase):
     """산출 사본의 조각(koprifossillab 050) — 나무 순서로 자른 조각이 빈틈·겹침 없이 모든 산출을 담고, 분류군의 [lft, rgt] 가 한 구간이다."""
 

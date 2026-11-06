@@ -425,6 +425,10 @@
   map.getPane("cells").style.pointerEvents = "none";
   var cellRenderer = L.canvas({ padding: 0.3, pane: "cells" }), hatchRenderer = L.svg({ pane: "cells" });
   var cellLayer = L.layerGroup().addTo(map);
+  // 무게중심(062)은 점 위에 — 점에 가리지 않게. 눌리지 않는다
+  map.createPane("center").style.zIndex = 460;
+  map.getPane("center").style.pointerEvents = "none";
+  var centerRenderer = L.svg({ pane: "center" }), centerLayer = L.layerGroup().addTo(map);
   map.createPane("fossils").style.zIndex = 450;
   var renderer = L.canvas({ padding: 0.3, pane: "fossils" });
   var fossilLayer = L.layerGroup().addTo(map);
@@ -1266,7 +1270,7 @@
   // 2 표본 노력 — 그 시점 전체 산지(지도의 거르기를 따른다)의 칸마다 몫 합을 회색 단계로. 표본 없는 곳은 옅은 빗금(연구자: 표시한다)
   // 기본은 Scientific 에서 1+2 켬, Casual 끔 — 모드마다 기억한다(043 과 같은 방식). 칸 크기는 053 의 rules.analysis.grid_km
   var LAYERS_KEY = "wegener.layers." + I18N.mode;
-  var layers = I18N.mode === "sci" ? { occ: true, effort: true } : { occ: false, effort: false };
+  var layers = I18N.mode === "sci" ? { occ: true, effort: true, change: false, center: false } : { occ: false, effort: false, change: false, center: false };
   try { var layersStored = JSON.parse(localStorage.getItem(LAYERS_KEY)); if (layersStored) Object.keys(layers).forEach(function (k) { if (typeof layersStored[k] === "boolean") layers[k] = layersStored[k]; }); } catch (e) { /* 막힌 저장소 */ }
   function cellsOn() { return !!ANALYSIS && !!AN && ANALYSIS.grid_km != null && !state.overview; }
   function cssVar(name, fallback) { var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim(); return v || fallback; }
@@ -1278,10 +1282,162 @@
       return ring.map(function (p) { return [p[0], Math.max(seam - 360 + SEAM_EPS, Math.min(seam - SEAM_EPS, p[1]))]; });
     });
   }
+  // 찾은 분류군(사본의 산출)이 시점 f 에 있는 칸 — 좌표는 viewF 의 판 배치. f 와 viewF 의 지도 나이가 다르면 viewF 는 f 의 다음(더 젊은) 시점이어야 하고,
+  // 파이프라인이 구운 "다음 시점 나이의 좌표" 를 쓴다 — 고좌표 칸끼리 견주면 판 이동이 "사라짐 + 새로 점유" 로 보인다(P03 §2.1, 061)
+  function frameAgeOf(f) { return f.src ? f.src.age : f.age; }
+  function occCellsIn(base, f, viewF) {
+    var cells = {}, fa = frameAgeOf(f), same = fa === frameAgeOf(viewF), missing = 0;
+    base.occs.forEach(function (o) {
+      if (!state.enabled[termKey(o.env)] || qualDrops(o.q, o.out) || straddleDrops(o.old, o.young)) return;
+      if (!ageOk(isPrecise(o.early, o.late), o.old, o.young) || !inWin(f, o.old, o.young)) return;
+      var lat = null, lng = null;
+      if (same) { lat = occLat(o, f); lng = occLng(o, f); }
+      else { var p = o.atNext && o.atNext[fa]; if (p) { lat = p[0]; lng = p[1]; } }
+      if (lat == null || lng == null) { missing += 1; return; }
+      cells[cellOf(lat, lng)] = true;
+    });
+    return { cells: cells, missing: missing };
+  }
+  // 층 4 — 무게중심(062, P03 §2.2). 점유 칸 단위의 구면 평균과 부트스트랩 타원을 지금 지도에, 직전 시점의 무게중심은 **지금 나이로 돌린** 칸으로 구해 화살표 하나로만.
+  // 지난 시점의 무게중심(그때 고좌표)을 지금 지도에 찍으면 판 이동과 분포 이동이 섞인다 — 긴 궤적은 분석 패널의 그래프로
+  function cellPoints(cells) { return Object.keys(cells).map(function (k) { return AN.cellCenter(k, ANALYSIS.grid_km); }); }
+  function seamRings(ring) {
+    var seam = (state.proj === "moll" ? Mollweide.lon0 : 0) + 180;
+    return AN.splitAtSeam(ring, seam).map(function (part) {
+      return part.map(function (p) { return [p[0], Math.max(seam - 360 + SEAM_EPS, Math.min(seam - SEAM_EPS, p[1]))]; });
+    });
+  }
+  function crossesSeam(a, b) {
+    var lon0 = state.proj === "moll" ? Mollweide.lon0 : 0;
+    return Math.abs(wrap180(a[1] - lon0) - wrap180(b[1] - lon0)) > 180;
+  }
+  function drawCenter(f) {
+    centerLayer.clearLayers();
+    state.centerInfo = null;
+    if (!layers.center || !state.taxon || !cellsOn()) return;
+    var base = state.distBase, opt = ANALYSIS.occupancy;
+    if (!base || !base.occs || !base.snapshot || !opt) { state.centerInfo = { unavailable: true }; return; }
+    var pts = cellPoints(occCellsIn(base, f, f).cells);
+    if (pts.length < opt.min_cells) { state.centerInfo = { few: pts.length }; return; }
+    var el = AN.bootstrapEllipse(pts, opt.bootstrap, ANALYSIS.mc_seed, opt.ellipse_p);
+    if (!el) { state.centerInfo = { few: pts.length }; return; }
+    var ink = cssVar("--center", "#ffffff"), style = { renderer: centerRenderer, interactive: false };
+    seamRings(el.ring).forEach(function (ring) {
+      L.polygon(ring, L.extend({ color: ink, weight: 1.6, fillColor: ink, fillOpacity: 0.12 }, style)).addTo(centerLayer);
+    });
+    var here = [el.lat, el.lng], info = { n: pts.length, lat: el.lat, lng: el.lng, a: el.aKm, b: el.bKm };
+    // 판에 대한 이동 — 직전 시점의 칸을 지금 판 배치로 놓아 구한 무게중심 → 지금 무게중심
+    var prev = state.frames[state.frames.indexOf(f) - 1];
+    if (prev) {
+      var older = occCellsIn(base, prev, f), oldPts = cellPoints(older.cells);
+      var from = oldPts.length >= opt.min_cells ? AN.sphericalMean(oldPts) : null;
+      if (from) {
+        var tail = [from.lat, from.lng];
+        info.shift = AN.greatCircleKm(tail, here);
+        info.age = prev.age;
+        if (!crossesSeam(tail, here)) {
+          L.polyline([tail, here], L.extend({ color: ink, weight: 2.4, opacity: 0.95 }, style)).addTo(centerLayer);
+          L.circleMarker(tail, L.extend({ radius: 3, color: ink, weight: 1.4, fill: false }, style)).addTo(centerLayer);
+        }
+      }
+    }
+    L.circleMarker(here, L.extend({ radius: 5, color: "#111111", weight: 1.4, fillColor: ink, fillOpacity: 1 }, style)).addTo(centerLayer);
+    state.centerInfo = info;
+  }
+  // 분석 패널의 궤적 — 시점마다 그 시점 고좌표의 무게중심(절대)과 판에 대한 이동(같은 판 배치에서 직전 시점과의 거리). 거르기가 같으면 다시 세지 않는다
+  function centerSeries(base) {
+    if (!base.occs || !base.snapshot || !ANALYSIS || !ANALYSIS.occupancy || ANALYSIS.grid_km == null) return null;
+    var sig = JSON.stringify([state.maxSpan === Infinity ? null : state.maxSpan, state.showWide, state.dropUncertain, state.dropCoarse, state.dropStraddle, state.dropOutlier,
+      RIGOR, Object.keys(state.enabled).filter(function (k) { return !state.enabled[k]; })]);
+    if (base._centerSig === sig) return base._center;
+    var out = [], min = ANALYSIS.occupancy.min_cells, plain = state.frames.filter(function (f) { return !f.src; });
+    plain.forEach(function (f, k) {
+      var pts = cellPoints(occCellsIn(base, f, f).cells);
+      if (pts.length < min) return;
+      var m = AN.sphericalMean(pts);
+      if (!m) return;
+      var w = win(f), row = { base: w[1], top: w[0], age: f.age, lat: m.lat, lng: m.lng, n: pts.length, shift: null };
+      var prev = plain[k - 1];
+      if (prev) {
+        var oldPts = cellPoints(occCellsIn(base, prev, f).cells), from = oldPts.length >= min ? AN.sphericalMean(oldPts) : null;
+        if (from) row.shift = AN.greatCircleKm([from.lat, from.lng], [m.lat, m.lng]);
+      }
+      out.push(row);
+    });
+    base._centerSig = sig;
+    base._center = out;
+    return out;
+  }
+  function drawCenterChart(svg, W, H) {
+    svg.innerHTML = "";
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    var list = seriesList(), dom = domain(list), key = $("center-metric").value, any = false;
+    if (!dom) return false;
+    list.forEach(function (it) { it.rows = centerSeries(it.base) || []; if (it.rows.length) any = true; });
+    if (!any) return false;
+    var L0 = 34, R0 = 6, T0 = 6, B0 = 18, val = function (r) { return r[key]; };
+    var lo = key === "lng" ? -180 : key === "lat" ? -90 : 0, hi = key === "lng" ? 180 : key === "lat" ? 90 : 0;
+    if (key === "shift") list.forEach(function (it) { it.rows.forEach(function (r) { if (r.shift != null) hi = Math.max(hi, r.shift); }); });
+    hi = key === "shift" ? niceMax(hi) : hi;
+    var x = function (a) { return L0 + (dom[0] - a) / (dom[0] - dom[1]) * (W - L0 - R0); };
+    var y = function (v) { return H - B0 - (v - lo) / (hi - lo) * (H - T0 - B0); };
+    var g = svgEl("g", {}, svg);
+    [0, .5, 1].forEach(function (k) {
+      var v = lo + (hi - lo) * k;
+      svgEl("line", { x1: L0, x2: W - R0, y1: y(v), y2: y(v), "class": "grid" }, g);
+      svgEl("text", { x: L0 - 4, y: y(v) + 3, "class": "lab", "text-anchor": "end" }, g).textContent = fmtNum(Math.round(v));
+    });
+    eventLines(g, x, T0, H - B0, dom);
+    list.forEach(function (it) {
+      var run = [], flush = function () {
+        if (run.length > 1) svgEl("path", { d: "M" + run.map(function (p) { return p[0].toFixed(1) + "," + p[1].toFixed(1); }).join("L"), "class": "ln " + it.cls }, g);
+        run.forEach(function (p) { svgEl("circle", { cx: p[0], cy: p[1], r: 1.6, "class": "pt " + it.cls }, g); });
+        run = [];
+      };
+      var prev = null;
+      it.rows.forEach(function (r) {
+        var v = val(r);
+        // 이어진 시점끼리만 잇고, 경도는 ±180 을 넘는 곳에서 끊는다
+        if (v == null || (prev && Math.abs(prev.top - r.base) > 0.5) || (prev && key === "lng" && Math.abs(prev.lng - r.lng) > 180)) flush();
+        if (v != null) run.push([x(r.age), y(v)]);
+        prev = r;
+      });
+      flush();
+    });
+    axisX(g, x, dom, H - B0, W);
+    hoverChart(svg, x, dom, list, function (st) {
+      return tr("center.read", { lat: latText(st.lat), lng: fmtNum(Math.round(st.lng)), n: fmtNum(st.n), d: st.shift == null ? "—" : fmtNum(Math.round(st.shift)) });
+    }, L0, W - R0);
+    return true;
+  }
+  // 층 3 — 직전(더 오래된) 시점 대비. 사본의 산출을 하나하나 받은 분류군만(요약에는 산출이 없다)
+  function drawChange(f, effort) {
+    state.changeInfo = null;
+    if (!layers.change || !state.taxon) return;
+    var base = state.distBase, j = state.frames.indexOf(f), prev = state.frames[j - 1];
+    if (!base || !base.occs || !base.snapshot) { state.changeInfo = { unavailable: true }; return; }
+    if (!prev) return;
+    var older = occCellsIn(base, prev, f), now = occCellsIn(base, f, f);
+    // 옛 조각(다음 시점 좌표가 없다)이면 견줄 수 없다 — 없는 것을 "새로 점유" 로 그리지 않는다
+    if (older.missing && !Object.keys(older.cells).length) { state.changeInfo = { unavailable: true }; return; }
+    var r = AN.compareCells(older.cells, now.cells, effort);
+    var line = function (keys, style) {
+      keys.forEach(function (k) {
+        cellRings(k).forEach(function (ring) {
+          L.polygon(ring, L.extend({ renderer: cellRenderer, interactive: false, fill: false, opacity: 0.95 }, style)).addTo(cellLayer);
+        });
+      });
+    };
+    line(r.gained, { color: cssVar("--cell-new", "#3ddc6e"), weight: 1.6 });
+    line(r.lostSampled, { color: cssVar("--cell-lost", "#ff4d4d"), weight: 1.6 });
+    line(r.lostUnsampled, { color: cssVar("--cell-unknown", "#c8c8c8"), weight: 1.2, dashArray: "3 3" });
+    state.changeInfo = { gained: r.gained.length, lost: r.lostSampled.length, unknown: r.lostUnsampled.length, age: prev.age, missing: older.missing };
+  }
   function drawCells() {
     cellLayer.clearLayers();
     var f = frame(), payload = state.payload;
-    if (!cellsOn() || !f || !payload || (!layers.occ && !layers.effort)) { syncCellLegend(); return; }
+    if (f) drawCenter(f);
+    if (!cellsOn() || !f || !payload || (!layers.occ && !layers.effort && !layers.change)) { syncCellLegend(); return; }
     var col = columns(payload), effort = {};
     // 표본 노력 — 지도에 보이는 산지(퇴적기원·나라·연대 거르기)의 칸마다 몫 합
     payload.rows.forEach(function (row) {
@@ -1299,7 +1455,7 @@
         if (!effort[k]) effort[k] = 0;                  // 찾은 분류군의 산지가 거르기로 빠졌어도 칸은 표본이 있다
       });
     }
-    var steps = ANALYSIS.occupancy ? ANALYSIS.occupancy.effort_steps : [1, 3, 10, 30];
+    var effortSteps = (ANALYSIS.occupancy && ANALYSIS.occupancy.effort_steps) || [];   // 함수 steps 를 가리지 않게(060)
     var grey = cssVar("--cell-effort", "#d9d9d9"), taxonColor = cssVar("--taxon", "#2ee6a6");
     var keys = Object.keys(effort), byCount = $("occ-value") && $("occ-value").value === "n";
     var maxN = 1;
@@ -1311,7 +1467,7 @@
         style = { fillColor: taxonColor, fillOpacity: 0.25 + 0.6 * v, color: taxonColor, weight: 0.6, opacity: 0.8 };
       } else if (layers.effort) {
         var level = 0;
-        steps.forEach(function (s) { if (effort[k] >= s) level += 1; });
+        effortSteps.forEach(function (s) { if (effort[k] >= s) level += 1; });
         style = { fillColor: grey, fillOpacity: 0.12 + 0.12 * level, stroke: false };
       } else return;
       cellRings(k).forEach(function (ring) {
@@ -1321,13 +1477,15 @@
     // 표본 없는 곳 — 지구 전체에서 표본 칸을 뺀 하나의 다각형에 빗금(연구자: "찾아보지 않은 곳" 이 보이게)
     if (layers.effort) {
       var lo = (state.proj === "moll" ? Mollweide.lon0 : 0) - 180 + SEAM_EPS, hi = lo + 360 - 2 * SEAM_EPS;
-      var outer = [[-90, lo], [-90, hi], [90, hi], [90, lo]];
+      // 경선을 따라 점을 찍는다 — 네 귀퉁이만 두면 몰바이데에서 극이 한 점이라 다각형이 선으로 줄어, 빗금이 거꾸로(표본 칸에만) 앉았다(060)
+      var outer = steps(-90, 90).map(function (la) { return [la, hi]; }).concat(steps(-90, 90).reverse().map(function (la) { return [la, lo]; }));
       var holes = [];
       keys.forEach(function (k) { holes.push.apply(holes, cellRings(k)); });
       L.polygon([outer].concat(holes), { renderer: hatchRenderer, interactive: false, stroke: false, fillColor: "url(#wd-hatch)", fillOpacity: 1 })
         .addTo(cellLayer);
       ensureHatch();                                   // svg 는 첫 다각형을 더할 때 생긴다
     }
+    drawChange(f, effort);
     syncCellLegend(Object.keys(occ).length, keys.length - Object.keys(occ).length);
   }
   // 빗금 무늬 — SVG 렌더러의 svg 에 한 번 단다
@@ -1345,11 +1503,28 @@
   function syncCellLegend(nOcc, nEffort) {
     var box = $("cells-legend");
     if (!box) return;
-    box.hidden = !cellsOn() || (!layers.occ && !layers.effort);
+    box.hidden = !cellsOn() || (!layers.occ && !layers.effort && !layers.change && !layers.center);
     if (box.hidden) return;
     box.innerHTML = (layers.occ && state.taxon ? '<span class="sw occ"></span>' + esc(tr("cells.occ", { n: fmtNum(nOcc || 0) })) + " " : "") +
       (layers.effort ? '<span class="sw effort"></span>' + esc(tr("cells.effort", { n: fmtNum(nEffort || 0) })) + ' <span class="sw none"></span>' + esc(tr("cells.none")) : "") +
-      " <small>" + esc(tr("cells.unit", { km: ANALYSIS.grid_km })) + "</small>";
+      changeLegend() + centerLegend() + " <small>" + esc(tr("cells.unit", { km: ANALYSIS.grid_km })) + "</small>";
+  }
+  function centerLegend() {
+    var c = state.centerInfo;
+    if (!layers.center || !state.taxon || !c) return "";
+    if (c.unavailable) return "<br>" + esc(tr("change.none"));
+    if (c.few != null) return "<br>" + esc(tr("center.few", { n: fmtNum(c.few) }));
+    return "<br>" + esc(tr("center.legend", { lat: latText(c.lat), lng: fmtNum(Math.round(c.lng)), n: fmtNum(c.n), p: Math.round(ANALYSIS.occupancy.ellipse_p * 100),
+      a: fmtNum(Math.round(c.a)), b: fmtNum(Math.round(c.b)) })) +
+      (c.shift != null ? " " + esc(tr("center.shift", { age: fmtAge(c.age), d: fmtNum(Math.round(c.shift)) })) : "");
+  }
+  function changeLegend() {
+    var c = state.changeInfo;
+    if (!layers.change || !state.taxon || !c) return "";
+    if (c.unavailable) return "<br>" + esc(tr("change.none"));
+    return "<br>" + esc(tr("change.head", { age: fmtAge(c.age) })) + ' <span class="sw new"></span>' + esc(tr("change.new", { n: fmtNum(c.gained) })) +
+      ' <span class="sw lost"></span>' + esc(tr("change.lost", { n: fmtNum(c.lost) })) +
+      ' <span class="sw unknown"></span>' + esc(tr("change.unknown", { n: fmtNum(c.unknown) }));
   }
   function setLayer(key, on) {
     layers[key] = on;
@@ -2130,7 +2305,7 @@
           return base;
         }
         return liveSeries();
-      }).catch(function () { return liveSeries(); });
+      }).catch(function () { base.snapshotFailed = true; return liveSeries(); });   // 사본을 못 읽었다 — 화면에 적는다(060)
       function liveSeries() {
       if (base.stageTotal > OCC_LIMIT) return overlap();
       return getJSON(PBDB + "occs/list.json?" + baseParam(name) + cc +
@@ -2184,10 +2359,13 @@
               if (!c) return;
               if (state.country && c[cc.cc] !== state.country) return;
               if (state.formation && formKey(c[cc.formation]) !== formKey(state.formation)) return;
-              var at = c._at, lngs = c._lng;
-              if (!at) { at = c._at = {}; lngs = c._lng = {}; c[cc.frames].forEach(function (fr) { at[fr[0]] = fr[1]; lngs[fr[0]] = fr[2]; }); }
+              var at = c._at, lngs = c._lng, nxt = c._next;
+              if (!at) {
+                at = c._at = {}; lngs = c._lng = {}; nxt = c._next = {};
+                c[cc.frames].forEach(function (fr) { at[fr[0]] = fr[1]; lngs[fr[0]] = fr[2]; if (fr.length > 5) nxt[fr[0]] = [fr[4], fr[5]]; });
+              }
               occs.push({ old: c[cc.max_ma], young: c[cc.min_ma], env: c[cc.environment] || "", early: c[cc.early_interval],
-                          late: c[cc.late_interval], coll: r[oc.collection_no], q: r[oc.marks] || "", at: at, atLng: lngs, genus: r[oc.genus],
+                          late: c[cc.late_interval], coll: r[oc.collection_no], q: r[oc.marks] || "", at: at, atLng: lngs, atNext: nxt, genus: r[oc.genus],
                           loc: c[cc.locality], ref: r[oc.reference_no], no: r[oc.occurrence_no], name: r[oc.name] });
             });
           });
@@ -2301,6 +2479,7 @@
     renderDist();
     renderChrono();
     renderAnalysis();
+    drawCells();                       // 점유 변화는 사본의 산출을 쓴다 — 산출을 받은 뒤에 다시(061)
   }
 
   function allEnvEnabled() {
@@ -3655,6 +3834,8 @@
     var W = Math.max(240, Math.round($("chart-div").parentNode.getBoundingClientRect().width) || 300);
     var okDiv = drawDiversity($("chart-div"), W, 130);
     var okLat = drawLatitude($("chart-lat"), W, 130);
+    var okCenter = drawCenterChart($("chart-center"), W, 130);          // 무게중심 궤적(062)
+    $("chart-center").parentNode.hidden = !okCenter;
     $("chart-div").parentNode.hidden = !okDiv;
     $("chart-lat").parentNode.hidden = !okDiv;
     // 산출이 많아 고위도를 산출로 셀 수 없는 분류군 — 누르면 시점마다 산지로 묻는다
@@ -3667,7 +3848,8 @@
       (byColls ? " " + esc(tr("lat.colls")) : "") +
       (seriesList().some(function (it) { return it.base.summary; }) ? " " + esc(tr("lat.summary")) : "");
     // 분석이 PBDB 사본에서 왔는가(연구자: 분석만 사본, 지도의 찾기 점은 실시간) — 받은 날을 적는다
-    $("anal-note").textContent = snapDate ? tr("snap.note", { date: String(snapDate).slice(0, 10) }) : "";
+    $("anal-note").textContent = snapDate ? tr("snap.note", { date: String(snapDate).slice(0, 10) }) :
+      seriesList().some(function (it) { return it.base.snapshotFailed; }) ? tr("snap.fail") : "";
     // 다양성 곡선이 어떻게 세었나 — 늘 PBDB 절 단위(major)라 퇴적기원·연대 범위 거르기가 들지 않는다
     var sqsOn = $("div-metric").value === "sqs";
     $("div-note").textContent = sqsOn ? tr("div.sqsRule", { q: state.quorum || (ANALYSIS && ANALYSIS.coverage_quorum), x: ANALYSIS ? ANALYSIS.coverage_max_extrapolation : 2 }) +
@@ -4992,6 +5174,11 @@
   // 지도 위의 분석 층(058)
   $("layer-occ").checked = layers.occ;
   $("layer-effort").checked = layers.effort;
+  $("layer-change").checked = layers.change;
+  $("layer-change").addEventListener("change", function () { setLayer("change", this.checked); });
+  $("layer-center").checked = layers.center;
+  $("layer-center").addEventListener("change", function () { setLayer("center", this.checked); });
+  $("center-metric").addEventListener("change", function () { renderAnalysis(); });
   $("layer-occ").addEventListener("change", function () { setLayer("occ", this.checked); });
   $("layer-effort").addEventListener("change", function () { setLayer("effort", this.checked); });
   $("occ-value").addEventListener("change", drawCells);
