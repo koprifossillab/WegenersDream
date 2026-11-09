@@ -7,8 +7,9 @@
 
 - [ ] **11-16 cron 뒤 사본 목록이 `occs/list.json` 으로 바뀌었는지** — 운영 `index.json` 의 `occurrences.index` 와 `/healthz` 가 ok 인지. 손으로 옮긴 `occs/index.json` 은 그 뒤 지워도 된다(koprifossillab 060)
 - [ ] **11-16 cron 이 바깥 사이트 자료를 올렸는지** — `last_refresh.json` 의 note 가 "바깥 사이트 자료를 올렸다" 인지, 릴리스 `site-data` 의 날짜(koprifossillab 063)
-- [ ] **주간 갱신 실패를 사람에게 알린다** — 10-05~10-19 세 주 동안 `last_refresh.json`·`/healthz` 의 실패를 아무도 못 봤다(koprifossillab 052).
-      메일·메신저 가운데 연구실이 쓰는 곳으로
+- [ ] **Teams 알림을 켠다(paleoadmin)** — 코드는 1.15.2 에 있다(tupandactyl 032). Teams 채널 → Workflows "웹후크 요청을 받으면 채널에 게시" 로 주소를 만들어
+      `~/.config/wegenersdream/teams_webhook`(chmod 600)에 두고, `deploy/host/crontab.WegenersDream` 의 08:00 줄을 crontab 에 더하고, `deploy/host/refresh_alert.py --test`
+- [ ] **11-16 cron 뒤 고좌표가 없는 산지가 들어갔는지** — 0 Ma 시점 산지가 약 8 천 → 3 만 곳인지, 갱신이 산지 급감 검사에 걸리지 않았는지(tupandactyl 033)
 - [ ] **paleoadmin SSH 열쇠** — `authorized_keys` 가 664 이고 jschoi 의 열쇠(`O+W0SUB56…`) 줄이 없다(10-23 확인, 057 §1.2·059).
       `chmod 600` 하고 jschoi 의 공개 열쇠 한 줄을 더한다
 
