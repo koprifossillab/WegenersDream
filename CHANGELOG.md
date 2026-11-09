@@ -3,6 +3,12 @@
 괄호 안의 번호는 `devlog/` 의 그 문서다. **지금 무엇이 도는지는 이 파일이 아니라
 [HANDOFF.md](HANDOFF.md) 다.**
 
+## 1.13.1 — 2026-11-06 · `feature/occs-list-fix`
+
+- **운영의 분포 분석이 PBDB 사본을 못 읽던 것** — 조각 목록 `occs/index.json` 이 주간 갱신의 rsync 에서 빠져, 말없이 PBDB 로 돌아가고 있었다. 이름을 `occs/list.json` 으로,
+  rsync 는 맨 위 index.json 만 빼고, 목록이 없으면 `/healthz` 가 degraded. 다음 주간 갱신부터 사본으로 돈다 (koprifossillab 060)
+- **몰바이데에서 빗금이 표본 칸에 앉던 것** — 표본 없는 곳에 앉게 (koprifossillab 060)
+
 ## 1.13.0 — 2026-10-23 · `feature/occupancy-layers`
 
 - **지도 위의 격자 점유·표본 노력 층** — Equal Earth 200 km 칸으로, 찾은 분류군이 있는 칸은 분류군 색(있을 기대값), 표본만 있는 칸은 회색 단계,
