@@ -425,6 +425,10 @@
   map.getPane("cells").style.pointerEvents = "none";
   var cellRenderer = L.canvas({ padding: 0.3, pane: "cells" }), hatchRenderer = L.svg({ pane: "cells" });
   var cellLayer = L.layerGroup().addTo(map);
+  // 무게중심(062)은 점 위에 — 점에 가리지 않게. 눌리지 않는다
+  map.createPane("center").style.zIndex = 460;
+  map.getPane("center").style.pointerEvents = "none";
+  var centerRenderer = L.svg({ pane: "center" }), centerLayer = L.layerGroup().addTo(map);
   map.createPane("fossils").style.zIndex = 450;
   var renderer = L.canvas({ padding: 0.3, pane: "fossils" });
   var fossilLayer = L.layerGroup().addTo(map);
@@ -1266,7 +1270,7 @@
   // 2 표본 노력 — 그 시점 전체 산지(지도의 거르기를 따른다)의 칸마다 몫 합을 회색 단계로. 표본 없는 곳은 옅은 빗금(연구자: 표시한다)
   // 기본은 Scientific 에서 1+2 켬, Casual 끔 — 모드마다 기억한다(043 과 같은 방식). 칸 크기는 053 의 rules.analysis.grid_km
   var LAYERS_KEY = "wegener.layers." + I18N.mode;
-  var layers = I18N.mode === "sci" ? { occ: true, effort: true, change: false } : { occ: false, effort: false, change: false };
+  var layers = I18N.mode === "sci" ? { occ: true, effort: true, change: false, center: false } : { occ: false, effort: false, change: false, center: false };
   try { var layersStored = JSON.parse(localStorage.getItem(LAYERS_KEY)); if (layersStored) Object.keys(layers).forEach(function (k) { if (typeof layersStored[k] === "boolean") layers[k] = layersStored[k]; }); } catch (e) { /* 막힌 저장소 */ }
   function cellsOn() { return !!ANALYSIS && !!AN && ANALYSIS.grid_km != null && !state.overview; }
   function cssVar(name, fallback) { var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim(); return v || fallback; }
@@ -1294,6 +1298,118 @@
     });
     return { cells: cells, missing: missing };
   }
+  // 층 4 — 무게중심(062, P03 §2.2). 점유 칸 단위의 구면 평균과 부트스트랩 타원을 지금 지도에, 직전 시점의 무게중심은 **지금 나이로 돌린** 칸으로 구해 화살표 하나로만.
+  // 지난 시점의 무게중심(그때 고좌표)을 지금 지도에 찍으면 판 이동과 분포 이동이 섞인다 — 긴 궤적은 분석 패널의 그래프로
+  function cellPoints(cells) { return Object.keys(cells).map(function (k) { return AN.cellCenter(k, ANALYSIS.grid_km); }); }
+  function seamRings(ring) {
+    var seam = (state.proj === "moll" ? Mollweide.lon0 : 0) + 180;
+    return AN.splitAtSeam(ring, seam).map(function (part) {
+      return part.map(function (p) { return [p[0], Math.max(seam - 360 + SEAM_EPS, Math.min(seam - SEAM_EPS, p[1]))]; });
+    });
+  }
+  function crossesSeam(a, b) {
+    var lon0 = state.proj === "moll" ? Mollweide.lon0 : 0;
+    return Math.abs(wrap180(a[1] - lon0) - wrap180(b[1] - lon0)) > 180;
+  }
+  function drawCenter(f) {
+    centerLayer.clearLayers();
+    state.centerInfo = null;
+    if (!layers.center || !state.taxon || !cellsOn()) return;
+    var base = state.distBase, opt = ANALYSIS.occupancy;
+    if (!base || !base.occs || !base.snapshot || !opt) { state.centerInfo = { unavailable: true }; return; }
+    var pts = cellPoints(occCellsIn(base, f, f).cells);
+    if (pts.length < opt.min_cells) { state.centerInfo = { few: pts.length }; return; }
+    var el = AN.bootstrapEllipse(pts, opt.bootstrap, ANALYSIS.mc_seed, opt.ellipse_p);
+    if (!el) { state.centerInfo = { few: pts.length }; return; }
+    var ink = cssVar("--center", "#ffffff"), style = { renderer: centerRenderer, interactive: false };
+    seamRings(el.ring).forEach(function (ring) {
+      L.polygon(ring, L.extend({ color: ink, weight: 1.6, fillColor: ink, fillOpacity: 0.12 }, style)).addTo(centerLayer);
+    });
+    var here = [el.lat, el.lng], info = { n: pts.length, lat: el.lat, lng: el.lng, a: el.aKm, b: el.bKm };
+    // 판에 대한 이동 — 직전 시점의 칸을 지금 판 배치로 놓아 구한 무게중심 → 지금 무게중심
+    var prev = state.frames[state.frames.indexOf(f) - 1];
+    if (prev) {
+      var older = occCellsIn(base, prev, f), oldPts = cellPoints(older.cells);
+      var from = oldPts.length >= opt.min_cells ? AN.sphericalMean(oldPts) : null;
+      if (from) {
+        var tail = [from.lat, from.lng];
+        info.shift = AN.greatCircleKm(tail, here);
+        info.age = prev.age;
+        if (!crossesSeam(tail, here)) {
+          L.polyline([tail, here], L.extend({ color: ink, weight: 2.4, opacity: 0.95 }, style)).addTo(centerLayer);
+          L.circleMarker(tail, L.extend({ radius: 3, color: ink, weight: 1.4, fill: false }, style)).addTo(centerLayer);
+        }
+      }
+    }
+    L.circleMarker(here, L.extend({ radius: 5, color: "#111111", weight: 1.4, fillColor: ink, fillOpacity: 1 }, style)).addTo(centerLayer);
+    state.centerInfo = info;
+  }
+  // 분석 패널의 궤적 — 시점마다 그 시점 고좌표의 무게중심(절대)과 판에 대한 이동(같은 판 배치에서 직전 시점과의 거리). 거르기가 같으면 다시 세지 않는다
+  function centerSeries(base) {
+    if (!base.occs || !base.snapshot || !ANALYSIS || !ANALYSIS.occupancy || ANALYSIS.grid_km == null) return null;
+    var sig = JSON.stringify([state.maxSpan === Infinity ? null : state.maxSpan, state.showWide, state.dropUncertain, state.dropCoarse, state.dropStraddle, state.dropOutlier,
+      RIGOR, Object.keys(state.enabled).filter(function (k) { return !state.enabled[k]; })]);
+    if (base._centerSig === sig) return base._center;
+    var out = [], min = ANALYSIS.occupancy.min_cells, plain = state.frames.filter(function (f) { return !f.src; });
+    plain.forEach(function (f, k) {
+      var pts = cellPoints(occCellsIn(base, f, f).cells);
+      if (pts.length < min) return;
+      var m = AN.sphericalMean(pts);
+      if (!m) return;
+      var w = win(f), row = { base: w[1], top: w[0], age: f.age, lat: m.lat, lng: m.lng, n: pts.length, shift: null };
+      var prev = plain[k - 1];
+      if (prev) {
+        var oldPts = cellPoints(occCellsIn(base, prev, f).cells), from = oldPts.length >= min ? AN.sphericalMean(oldPts) : null;
+        if (from) row.shift = AN.greatCircleKm([from.lat, from.lng], [m.lat, m.lng]);
+      }
+      out.push(row);
+    });
+    base._centerSig = sig;
+    base._center = out;
+    return out;
+  }
+  function drawCenterChart(svg, W, H) {
+    svg.innerHTML = "";
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    var list = seriesList(), dom = domain(list), key = $("center-metric").value, any = false;
+    if (!dom) return false;
+    list.forEach(function (it) { it.rows = centerSeries(it.base) || []; if (it.rows.length) any = true; });
+    if (!any) return false;
+    var L0 = 34, R0 = 6, T0 = 6, B0 = 18, val = function (r) { return r[key]; };
+    var lo = key === "lng" ? -180 : key === "lat" ? -90 : 0, hi = key === "lng" ? 180 : key === "lat" ? 90 : 0;
+    if (key === "shift") list.forEach(function (it) { it.rows.forEach(function (r) { if (r.shift != null) hi = Math.max(hi, r.shift); }); });
+    hi = key === "shift" ? niceMax(hi) : hi;
+    var x = function (a) { return L0 + (dom[0] - a) / (dom[0] - dom[1]) * (W - L0 - R0); };
+    var y = function (v) { return H - B0 - (v - lo) / (hi - lo) * (H - T0 - B0); };
+    var g = svgEl("g", {}, svg);
+    [0, .5, 1].forEach(function (k) {
+      var v = lo + (hi - lo) * k;
+      svgEl("line", { x1: L0, x2: W - R0, y1: y(v), y2: y(v), "class": "grid" }, g);
+      svgEl("text", { x: L0 - 4, y: y(v) + 3, "class": "lab", "text-anchor": "end" }, g).textContent = fmtNum(Math.round(v));
+    });
+    eventLines(g, x, T0, H - B0, dom);
+    list.forEach(function (it) {
+      var run = [], flush = function () {
+        if (run.length > 1) svgEl("path", { d: "M" + run.map(function (p) { return p[0].toFixed(1) + "," + p[1].toFixed(1); }).join("L"), "class": "ln " + it.cls }, g);
+        run.forEach(function (p) { svgEl("circle", { cx: p[0], cy: p[1], r: 1.6, "class": "pt " + it.cls }, g); });
+        run = [];
+      };
+      var prev = null;
+      it.rows.forEach(function (r) {
+        var v = val(r);
+        // 이어진 시점끼리만 잇고, 경도는 ±180 을 넘는 곳에서 끊는다
+        if (v == null || (prev && Math.abs(prev.top - r.base) > 0.5) || (prev && key === "lng" && Math.abs(prev.lng - r.lng) > 180)) flush();
+        if (v != null) run.push([x(r.age), y(v)]);
+        prev = r;
+      });
+      flush();
+    });
+    axisX(g, x, dom, H - B0, W);
+    hoverChart(svg, x, dom, list, function (st) {
+      return tr("center.read", { lat: latText(st.lat), lng: fmtNum(Math.round(st.lng)), n: fmtNum(st.n), d: st.shift == null ? "—" : fmtNum(Math.round(st.shift)) });
+    }, L0, W - R0);
+    return true;
+  }
   // 층 3 — 직전(더 오래된) 시점 대비. 사본의 산출을 하나하나 받은 분류군만(요약에는 산출이 없다)
   function drawChange(f, effort) {
     state.changeInfo = null;
@@ -1320,6 +1436,7 @@
   function drawCells() {
     cellLayer.clearLayers();
     var f = frame(), payload = state.payload;
+    if (f) drawCenter(f);
     if (!cellsOn() || !f || !payload || (!layers.occ && !layers.effort && !layers.change)) { syncCellLegend(); return; }
     var col = columns(payload), effort = {};
     // 표본 노력 — 지도에 보이는 산지(퇴적기원·나라·연대 거르기)의 칸마다 몫 합
@@ -1386,11 +1503,20 @@
   function syncCellLegend(nOcc, nEffort) {
     var box = $("cells-legend");
     if (!box) return;
-    box.hidden = !cellsOn() || (!layers.occ && !layers.effort && !layers.change);
+    box.hidden = !cellsOn() || (!layers.occ && !layers.effort && !layers.change && !layers.center);
     if (box.hidden) return;
     box.innerHTML = (layers.occ && state.taxon ? '<span class="sw occ"></span>' + esc(tr("cells.occ", { n: fmtNum(nOcc || 0) })) + " " : "") +
       (layers.effort ? '<span class="sw effort"></span>' + esc(tr("cells.effort", { n: fmtNum(nEffort || 0) })) + ' <span class="sw none"></span>' + esc(tr("cells.none")) : "") +
-      changeLegend() + " <small>" + esc(tr("cells.unit", { km: ANALYSIS.grid_km })) + "</small>";
+      changeLegend() + centerLegend() + " <small>" + esc(tr("cells.unit", { km: ANALYSIS.grid_km })) + "</small>";
+  }
+  function centerLegend() {
+    var c = state.centerInfo;
+    if (!layers.center || !state.taxon || !c) return "";
+    if (c.unavailable) return "<br>" + esc(tr("change.none"));
+    if (c.few != null) return "<br>" + esc(tr("center.few", { n: fmtNum(c.few) }));
+    return "<br>" + esc(tr("center.legend", { lat: latText(c.lat), lng: fmtNum(Math.round(c.lng)), n: fmtNum(c.n), p: Math.round(ANALYSIS.occupancy.ellipse_p * 100),
+      a: fmtNum(Math.round(c.a)), b: fmtNum(Math.round(c.b)) })) +
+      (c.shift != null ? " " + esc(tr("center.shift", { age: fmtAge(c.age), d: fmtNum(Math.round(c.shift)) })) : "");
   }
   function changeLegend() {
     var c = state.changeInfo;
@@ -3708,6 +3834,8 @@
     var W = Math.max(240, Math.round($("chart-div").parentNode.getBoundingClientRect().width) || 300);
     var okDiv = drawDiversity($("chart-div"), W, 130);
     var okLat = drawLatitude($("chart-lat"), W, 130);
+    var okCenter = drawCenterChart($("chart-center"), W, 130);          // 무게중심 궤적(062)
+    $("chart-center").parentNode.hidden = !okCenter;
     $("chart-div").parentNode.hidden = !okDiv;
     $("chart-lat").parentNode.hidden = !okDiv;
     // 산출이 많아 고위도를 산출로 셀 수 없는 분류군 — 누르면 시점마다 산지로 묻는다
@@ -5048,6 +5176,9 @@
   $("layer-effort").checked = layers.effort;
   $("layer-change").checked = layers.change;
   $("layer-change").addEventListener("change", function () { setLayer("change", this.checked); });
+  $("layer-center").checked = layers.center;
+  $("layer-center").addEventListener("change", function () { setLayer("center", this.checked); });
+  $("center-metric").addEventListener("change", function () { renderAnalysis(); });
   $("layer-occ").addEventListener("change", function () { setLayer("occ", this.checked); });
   $("layer-effort").addEventListener("change", function () { setLayer("effort", this.checked); });
   $("occ-value").addEventListener("change", drawCells);

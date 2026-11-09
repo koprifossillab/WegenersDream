@@ -274,6 +274,7 @@
           </select>
           <label><input type="checkbox" id="layer-effort"> <span data-i18n="layer.effort">표본 노력(그 시점 전체 산지)</span></label>
           <label><input type="checkbox" id="layer-change"> <span data-i18n="layer.change">직전 시점 대비 점유 변화</span></label>
+          <label><input type="checkbox" id="layer-center"> <span data-i18n="layer.center">무게중심과 판에 대한 이동</span></label>
           <p class="note cells-legend" id="cells-legend" hidden></p>
         </div>
         <label id="share-opacity-row" hidden><input type="checkbox" id="share-opacity"> <span data-i18n="share.opacity">점 진하기를 시점 몫으로</span> <small data-i18n="share.opacity.small">(범위가 길수록 흐리게)</small><br>
@@ -359,6 +360,17 @@
             <svg class="chart-svg" id="chart-lat" role="img" aria-label="고위도 그래프" data-i18n-attr="aria-label:anal.lat"></svg>
             <p class="chart-read"></p>
             <p class="note" id="lat-note"></p>
+          </div>
+          <div class="chart" hidden>
+            <h3><span data-i18n="anal.center">무게중심 궤적</span>
+              <select id="center-metric" aria-label="무게중심 지표" data-i18n-attr="aria-label:anal.center">
+                <option value="lat" selected data-i18n="center.lat">고위도(그 시점 고좌표)</option>
+                <option value="lng" data-i18n="center.lng">경도(그 시점 고좌표)</option>
+                <option value="shift" data-i18n="center.shiftOpt">판에 대한 이동(km)</option>
+              </select></h3>
+            <svg class="chart-svg" id="chart-center" role="img" aria-label="무게중심 궤적" data-i18n-attr="aria-label:anal.center"></svg>
+            <p class="chart-read"></p>
+            <p class="note" data-i18n="center.about">점유 칸마다 하나로 센 구면 평균이다. 고위도·경도는 그 시점의 고좌표라 판 이동이 들어 있다. 판에 대한 이동은 직전 시점의 칸을 지금 나이로 돌려 잰 거리다.</p>
           </div>
           <div class="chart">
             <h3 data-i18n="anal.now">지금 시점 — 10° 띠마다 산지 수</h3>
