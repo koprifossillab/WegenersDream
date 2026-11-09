@@ -2309,13 +2309,14 @@
       function liveSeries() {
       if (base.stageTotal > OCC_LIMIT) return overlap();
       return getJSON(PBDB + "occs/list.json?" + baseParam(name) + cc +
-                     "&show=env,paleoloc,ident&pgm=scotese&vocab=pbdb&limit=" + (OCC_LIMIT + 1)).then(function (d) {
+                     "&show=env,paleoloc,ident,strat&pgm=scotese&vocab=pbdb&limit=" + (OCC_LIMIT + 1)).then(function (d) {
         var recs = d.records || [];
         if (recs.length <= OCC_LIMIT) {
           base.occs = recs.map(function (r) {
             return { old: +r.max_ma, young: +r.min_ma, env: r.environment || "", early: r.early_interval, late: r.late_interval,
                      plat: r.paleolat == null || r.paleolat === "" ? null : +r.paleolat,
-                     plng: r.paleolng == null || r.paleolng === "" ? null : +r.paleolng, coll: r.collection_no, q: marksOf(r) };
+                     plng: r.paleolng == null || r.paleolng === "" ? null : +r.paleolng, coll: r.collection_no, q: marksOf(r),
+                     fm: r.formation || "" };
           });
         }
         return base.occs ? base : overlap();
@@ -2366,7 +2367,8 @@
               }
               occs.push({ old: c[cc.max_ma], young: c[cc.min_ma], env: c[cc.environment] || "", early: c[cc.early_interval],
                           late: c[cc.late_interval], coll: r[oc.collection_no], q: r[oc.marks] || "", at: at, atLng: lngs, atNext: nxt, genus: r[oc.genus],
-                          loc: c[cc.locality], ref: r[oc.reference_no], no: r[oc.occurrence_no], name: r[oc.name] });
+                          loc: c[cc.locality], ref: r[oc.reference_no], no: r[oc.occurrence_no], name: r[oc.name],
+                          fm: c[cc.formation] || "" });
             });
           });
           markOutliers(occs);
@@ -2419,6 +2421,7 @@
     var base = state.distBase;
     if (!base) { state.dist = null; renderDist(); renderChrono(); return; }
     var units = {}, frames = {}, total = 0, shares = null, band = null, groups = null;
+    var forms = base.occs ? {} : null;                           // 산출 지층(tupandactyl 034) — 산출 하나하나를 셀 때만
     if (base.occs && shareOn()) { shares = {}; groups = {}; }
     if (base.summary) {
       // 큰 분류군의 요약(파이프라인) — 시점 수·몫·몬테카를로. 기 칩·합은 절 단위 수 그대로
@@ -2445,6 +2448,10 @@
         var precise = isPrecise(o.early, o.late);
         if (!ageOk(precise, o.old, o.young)) return;
         total += 1;
+        if (o.fm) {
+          var fk = formKey(o.fm), fe = forms[fk] || (forms[fk] = { name: o.fm, n: 0 });
+          fe.n += 1;
+        }
         if (precise) addUnits((o.old + o.young) / 2, 1);
         else Object.keys(state.units).forEach(function (id) {
           var u = state.units[id];
@@ -2476,6 +2483,13 @@
     state.dist = { key: base.key, stages: base.stages, app: base.app, units: units, frames: frames, total: total, shares: shares, band: band,
                    exact: !!base.occs, snapshot: base.snapshot || null, summary: !!base.summary, filtered: !!base.occs && (!allEnvEnabled() || state.maxSpan !== Infinity ||
                      (qualOn() && (state.dropUncertain || state.dropCoarse || state.dropStraddle || state.dropOutlier))) };
+    // 산출 지층(tupandactyl 034) — 지층을 걸면 산출이 그 지층으로 줄어드니 걸기 전의 목록을 둔다(그래야 다른 지층으로 옮겨 갈 수 있다).
+    // 퇴적기원·연대 범위 거르기는 기 칩과 같이 따른다
+    var fmKey = base.name + "|" + (state.country || "");
+    if (forms && (!state.formation || !state.fmList || state.fmList.key !== fmKey)) {
+      state.fmList = { key: fmKey, list: Object.keys(forms).map(function (k) { return forms[k]; })
+        .sort(function (a, b) { return b.n - a.n || (a.name < b.name ? -1 : 1); }) };
+    } else if (!forms && (!state.fmList || state.fmList.key !== fmKey)) state.fmList = null;
     renderDist();
     renderChrono();
     renderAnalysis();
@@ -2564,6 +2578,7 @@
       (d.filtered ? tr("dist.filtered") : "") + (d.exact ? "" : tr("dist.stage"));
     // 산출이 있는 기 — 층서표 색 아이콘에 수를 붙인다. 누르면 그 기의 가운데 지도로 간다.
     var periods = state.periods.slice().sort(byOldFirst).filter(function (p) { return d.units[p.id]; });
+    renderFormations();
     $("dist-periods").innerHTML = "";
     periods.forEach(function (p) {
       var b = document.createElement("button");
@@ -2605,6 +2620,40 @@
         strip.appendChild(line);
       });
     });
+  }
+
+  // 속 이하를 찾았을 때 산출 시대 위에 산출 지층 — 산출 수 차례로, 누르면 그 지층으로 건다(지층 찾기와 같다, tupandactyl 028).
+  // 건 지층을 다시 누르면 푼다. 이름은 영문 그대로(지층 이름은 옮기지 않는다)
+  var FM_SHOW = 12;
+  function renderFormations() {
+    var box = $("dist-formations"), row = $("dist-fm-chips");
+    var fl = state.fmList, list = fl && fl.list || [];
+    box.hidden = !GENUS_RANKS[state.taxonRank] || !list.length || !fl || fl.key !== state.taxon + "|" + (state.country || "");
+    row.innerHTML = "";
+    if (box.hidden) return;
+    $("dist-fm-total").textContent = tr("dist.fmTotal", { n: fmtNum(list.length) });
+    var on = state.formation ? formKey(state.formation) : null;
+    var shown = state.fmAll ? list : list.slice(0, FM_SHOW);
+    // 건 지층이 앞 FM_SHOW 개 밖이어도 보이게
+    if (on && !shown.some(function (f) { return formKey(f.name) === on; })) shown = shown.concat(list.filter(function (f) { return formKey(f.name) === on; }));
+    shown.forEach(function (f) {
+      var b = document.createElement("button"), here = formKey(f.name) === on;
+      b.type = "button";
+      b.className = "chip fm" + (here ? " on" : "");
+      b.setAttribute("aria-pressed", here ? "true" : "false");
+      b.innerHTML = esc(f.name) + '<span class="cnt">' + fmtNum(f.n) + "</span>";
+      b.title = tr(here ? "dist.fmOff" : "dist.fmChip", { name: f.name, n: fmtNum(f.n) });
+      b.addEventListener("click", function () { stopTour(); setFormation(here ? null : f.name, !here); });
+      row.appendChild(b);
+    });
+    if (list.length > FM_SHOW) {
+      var more = document.createElement("button");
+      more.type = "button";
+      more.className = "chip fm-more";
+      more.textContent = state.fmAll ? tr("dist.fmLess") : tr("dist.fmMore", { n: fmtNum(list.length - FM_SHOW) });
+      more.addEventListener("click", function () { state.fmAll = !state.fmAll; renderFormations(); });
+      row.appendChild(more);
+    }
   }
 
   function taxonUrl(name, f) {
@@ -2663,13 +2712,14 @@
     if (fromFind) { state.taxon = name; startOverview(); }        // 찾기 칸에서 골랐으면 먼저 모든 시대를 오늘날 자리에
     var f = frame();
     var seq = ++taxonSeq;
-    if (changed) { state.dist = null; state.distBase = null; }
+    if (changed) { state.dist = null; state.distBase = null; state.fmAll = false; }
     state.taxon = name;
     state.taxa = null;
     loadDistribution(name);
     lookupRank(name).then(function (rank) {
       if (seq !== taxonSeq) return;
       state.taxonRank = rank;
+      renderFormations();                                         // 산출 지층은 속 이하에만(tupandactyl 034)
       var shownName = koTaxon(name, rank);                        // Casual 의 한글 이름은 계급을 안 뒤에(속·종만)
       if (shownName !== plainName(name)) { $("taxon-chip-name").textContent = shownName; $("taxon-chip-name").title = idLabel(name); }
       markHomonym(name);
@@ -2895,6 +2945,7 @@
     state.taxon = "";
     state.taxa = null;
     state.taxonRank = "";
+    state.fmList = null;
     state.dist = null;
     state.distBase = null;
     renderDist();
