@@ -144,3 +144,4 @@
 | koprifossillab 062 | 2026-11-06 | [무게중심: 지금 지도에는 판에 대한 이동만, 긴 궤적은 그래프로](20261106_koprifossillab_062_centroid_layer.md) |
 | koprifossillab 063 | 2026-11-09 | [바깥 사이트 자료가 멈춘 것은 로그인이 아니라 cron 의 PATH 였다](20261109_koprifossillab_063_cron_gh_path.md) |
 | tupandactyl 032 | 2026-11-09 | [주간 갱신이 실패하거나 안 돌면 Teams 로 알린다](20261109_tupandactyl_032_refresh_alert_teams.md) |
+| tupandactyl 033 | 2026-11-09 | [PBDB 고좌표가 없는 산지를 판으로 돌릴 수 있는 시점에 올린다](20261109_tupandactyl_033_plate_rotated_sites.md) |
