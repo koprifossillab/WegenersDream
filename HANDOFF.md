@@ -11,8 +11,8 @@
 **브랜치** `main` = `1.15.1` (11-09 — PR #65 1.13.1 사본 목록·몰바이데 빗금 [koprifossillab 060](devlog/20261106_koprifossillab_060_occs_list_404.md), #66 1.14.0 점유 변화 층
 [061](devlog/20261106_koprifossillab_061_occupancy_change.md), #67 1.15.0 무게중심 층·궤적 [062](devlog/20261106_koprifossillab_062_centroid_layer.md), #68 1.15.1 cron 의 gh PATH
 [063](devlog/20261109_koprifossillab_063_cron_gh_path.md) — 계획 [P03](devlog/20261022_koprifossillab_P03_occupancy_layers.md) 의 층 1~4). 병합을 기다리는 브랜치는 없다.
-**운영은 v1.15.1(11-09), 자료는 PBDB 11-08**(11-09 cron `ok`). **분포 분석은 아직 PBDB 사본으로 돌지 않는다** — 조각 목록이 운영에 없어
-`/healthz` 가 `missing_occurrences` 로 degraded 다(분석은 말없이 PBDB 로). 다음 cron(11-16)이 `occs/list.json` 을 만들어 옮기면 켜진다(060).
+**운영은 v1.15.1(11-09), 자료는 PBDB 11-08**(11-09 cron `ok`). **분포 분석은 11-09 부터 PBDB 사본으로 돈다** — 옛 rsync 에서 빠졌던
+`occs/index.json` 을 손으로 옮겼다(`/healthz` ok, 바깥 사이트에도). 11-16 cron 부터는 새 이름 `occs/list.json` 으로 스스로 간다(060).
 갱신 13 분, 백업 154 MB, 운영 자료 559 MB, 바깥 사이트 압축본 188 MB. 0.11.1 부터 GitHub PR 로 병합하고,
 판을 올리면 CHANGELOG 로 GitHub 릴리스를 만든다(v0.11.2 부터).
 다음 코드 작업은 각자 자기 계정에서 `feature/<기능 이름>` 브랜치를 `main` 에서 만들고, 끝나면 PR 을 만든다

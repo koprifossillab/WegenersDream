@@ -5,7 +5,7 @@
 
 ## 배포
 
-- [ ] **11-16 cron 뒤 분포 분석이 사본으로 도는지** — `/healthz` 가 ok(`missing_occurrences` 없음)이고 분석 패널이 "PBDB 사본" 인지(koprifossillab 060)
+- [ ] **11-16 cron 뒤 사본 목록이 `occs/list.json` 으로 바뀌었는지** — 운영 `index.json` 의 `occurrences.index` 와 `/healthz` 가 ok 인지. 손으로 옮긴 `occs/index.json` 은 그 뒤 지워도 된다(koprifossillab 060)
 - [ ] **11-16 cron 이 바깥 사이트 자료를 올렸는지** — `last_refresh.json` 의 note 가 "바깥 사이트 자료를 올렸다" 인지, 릴리스 `site-data` 의 날짜(koprifossillab 063)
 - [ ] **주간 갱신 실패를 사람에게 알린다** — 10-05~10-19 세 주 동안 `last_refresh.json`·`/healthz` 의 실패를 아무도 못 봤다(koprifossillab 052).
       메일·메신저 가운데 연구실이 쓰는 곳으로
