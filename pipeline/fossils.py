@@ -5,6 +5,7 @@ PBDB 에 바로 묻는다 — 백만 건이 넘는 산출을 미리 다 싣지 �
 
 좌표는 산지의 현재 좌표를 **그 시점의 나이로** PALEOMAP v19o 판 모델로 돌린 것이다(reconstruct.py, 017).
 그 나이에 판을 못 찾으면 PBDB 고좌표(pgm=scotese, 산지 연대의 중간값)를 쓰고 `rotated = 0` 으로 표시한다.
+PBDB 가 고좌표를 못 준 산지("not computable using this model")는 판으로 돌린 시점에만 오른다(tupandactyl 033).
 
 연대가 절 단위로 정해지지 않은 **모호한 연대** 산지("Middle Cambrian", "Late Triassic" …)는
 `precise = 0` 으로 표시해 뷰어가 세모로 그린다. 절 이름 여럿으로 정해진 범위("Norian–Rhaetian")는
@@ -14,7 +15,7 @@ import bisect
 import csv
 import json
 
-from .common import DERIVED, PLATE_ONLY_FROM_MA, WINDOW_MA, age_key, environment_class, manifest, source_path
+from .common import DERIVED, WINDOW_MA, age_key, environment_class, manifest, source_path
 from .intervals import is_vague, load_types
 
 FIELDS = ["collection_no", "paleolng", "paleolat", "env", "n_occs", "collection_name",
@@ -54,10 +55,9 @@ def read_collections(path):
                 continue
             plng, plat = number(record.get("paleolng")), number(record.get("paleolat"))
             if plng is None or plat is None:
-                # 판 복원만 있는 시점(에디아카라기, 019)에 걸칠 수 있는 산지는 남긴다 — 그 시점에서만, 판으로 돌렸을 때만 쓴다
-                if old + WINDOW_MA < PLATE_ONLY_FROM_MA:
-                    stats["no_pbdb_paleo"] += 1
-                    continue
+                # PBDB 가 고좌표를 못 준 산지도 남긴다 — build 가 시점마다 v19o 로 돌려 보고, 판이 없는 시점에서만 뺀다
+                # (tupandactyl 033. 그 전에는 에디아카라기만 이랬다, 019)
+                stats["no_pbdb_paleo"] += 1
             environment = (record.get("environment") or "").strip()
             stats["environments"][environment] = stats["environments"].get(environment, 0) + 1
             early = (record.get("early_interval") or "").strip()
@@ -115,7 +115,7 @@ def build(ages, keep=None):
     # numpy·pygplates 는 여기서만 부른다 — assign 등 규칙은 표준 라이브러리만으로 시험한다(CI)
     from .reconstruct import Reconstructor
     rebuilder = Reconstructor()
-    stats.update(rotated=0, pbdb_fallback=0)
+    stats.update(rotated=0, pbdb_fallback=0, unplaced=0)
     # 다음(더 젊은) 시점의 나이 — 직전 시점의 산지를 지금 시점의 판 배치에 놓는 데 쓴다(점유 변화, koprifossillab 061, P03 §2.1)
     ordered = sorted(ages)
     younger = {a: ordered[k - 1] for k, a in enumerate(ordered) if k}
@@ -128,8 +128,9 @@ def build(ages, keep=None):
         nlon, nlat, nok = (rebuilder.rotate(lons, lats, younger[age]) if keep is not None and age in younger else (None, None, None))
         members = []
         for k, (item, x, y, rotated) in enumerate(zip(items, rlon, rlat, ok)):
-            if item[2][1] is None and (age < PLATE_ONLY_FROM_MA or not rotated):
-                continue                                  # PBDB 고좌표가 없는 산지는 판 복원만 있는 시점에서, 돌렸을 때만(019)
+            if item[2][1] is None and not rotated:
+                stats["unplaced"] += 1                    # PBDB 고좌표도 없고 그 나이에 판도 없다 — 이 시점에서 뺀다(tupandactyl 033)
+                continue
             row = list(item[2])
             if rotated:
                 row[1], row[2], row[-1] = round(float(x), 2), round(float(y), 2), 1

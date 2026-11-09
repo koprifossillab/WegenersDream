@@ -2701,10 +2701,14 @@
   // 산출을 산지로 묶는다 — 한 산지의 여러 산출이 같은 자리에 겹쳐 그려지지 않게. 찾은 분류군(A)과 비교 분류군(B)이 같이 쓴다
   var TAXON_LIMIT = 20000;
   function buildTaxonRows(records, f) {
-    var byColl = {}, rows = [];
+    var byColl = {}, rows = [], payload = state.payload, pcol = payload && columns(payload);
     records.forEach(function (r) {
       // 연대 범위의 상한은 없다 — 모호한 연대는 precise = 0 으로 세모로 그린다(016)
-      if (r.paleolat == null || r.paleolng == null) return;
+      // PBDB 가 고좌표를 못 준 산출은 산지 파일에 이 시점 나이로 판으로 돌린 자리가 있을 때만 쓴다(tupandactyl 033)
+      if (r.paleolat == null || r.paleolng == null) {
+        var own = payload && payload.age === f.age && payload.byNo && payload.byNo[r.collection_no];
+        if (!own || pcol.rotated == null || !own[pcol.rotated]) return;
+      }
       if (f.window && !inWin(f, r.max_ma, r.min_ma)) return;      // PBDB 의 overlap 은 경계에 닿은 것도 준다 — 절 시점은 안쪽만
       var row = byColl[r.collection_no];
       if (!row) {
@@ -2813,6 +2817,7 @@
     rows.forEach(function (row) {
       var own = payload && payload.byNo[row[COLUMNS.collection_no]];
       var rotated = own && col.rotated != null && own[col.rotated];
+      if (!rotated && row.pbdb[0] == null) return;      // PBDB 고좌표가 없는 산지(tupandactyl 033) — 만들 때 넣은 산지 파일의 좌표 그대로
       row[COLUMNS.paleolng] = rotated ? own[col.paleolng] : row.pbdb[0];
       row[COLUMNS.paleolat] = rotated ? own[col.paleolat] : row.pbdb[1];
       row[COLUMNS.rotated] = rotated ? 1 : 0;
