@@ -242,6 +242,10 @@ body {
 .chip.none-found { opacity: .3; }
 .dist h3 small { font-weight: 400; }
 .dist .chips { margin-bottom: 4px; }
+/* 산출 지층(tupandactyl 034) — 층서표 색이 없는 칩 */
+.chip.fm, .chip.fm-more { background: var(--bg); color: var(--ink); border-color: var(--line); }
+.chip.fm .cnt { background: var(--muted); }
+.chip.fm-more { color: var(--muted); }
 .coeval { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; margin-top: 6px; }
 .coeval select, .dist .tour select {
   border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 4px; padding: 1px 4px; font: inherit; font-size: 12px;
