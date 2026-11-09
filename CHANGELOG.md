@@ -3,6 +3,11 @@
 괄호 안의 번호는 `devlog/` 의 그 문서다. **지금 무엇이 도는지는 이 파일이 아니라
 [HANDOFF.md](HANDOFF.md) 다.**
 
+## 1.15.2 — 2026-11-09 · `feature/refresh-alert`
+
+- **주간 갱신 실패 알림** — 월요일 08:00 에 지난 갱신이 실패·skip·안 돌았거나 NAS 백업이 실패했으면 Teams 채널로 보낸다.
+  웹훅 주소는 paleoadmin 의 `~/.config/wegenersdream/teams_webhook`. 화면은 그대로다 (tupandactyl 032)
+
 ## 1.15.1 — 2026-11-09 · `feature/cron-gh-path`
 
 - **주간 갱신이 바깥 사이트 자료를 못 올리던 것** — cron 의 PATH 에 `~/.local/bin` 이 없어 `gh` 를 못 찾았는데, "gh 로그인 없음" 으로 적혀 로그인 문제로 보였다.
