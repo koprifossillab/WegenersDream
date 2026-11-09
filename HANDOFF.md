@@ -11,8 +11,8 @@
 **브랜치** `main` = `1.15.1` (11-09 — PR #65 1.13.1 사본 목록·몰바이데 빗금 [koprifossillab 060](devlog/20261106_koprifossillab_060_occs_list_404.md), #66 1.14.0 점유 변화 층
 [061](devlog/20261106_koprifossillab_061_occupancy_change.md), #67 1.15.0 무게중심 층·궤적 [062](devlog/20261106_koprifossillab_062_centroid_layer.md), #68 1.15.1 cron 의 gh PATH
 [063](devlog/20261109_koprifossillab_063_cron_gh_path.md) — 계획 [P03](devlog/20261022_koprifossillab_P03_occupancy_layers.md) 의 층 1~4). 병합을 기다리는 브랜치는 없다.
-**운영은 아직 v1.13.0, 자료는 PBDB 11-08**(11-09 cron `ok`). **분포 분석은 아직 PBDB 사본으로 돌지 않는다** — 고침(1.13.1)은 main 에 들어갔지만, 운영 이미지를
-v1.15.1 로 띄우고 다음 cron(11-16)이 `occs/list.json` 을 만들어 옮겨야 켜진다. 새 이미지만 먼저 띄우면 그 사이 `/healthz` 가 `missing_occurrences` 로 degraded 다(분석은 지금처럼 PBDB 로).
+**운영은 v1.15.1(11-09), 자료는 PBDB 11-08**(11-09 cron `ok`). **분포 분석은 아직 PBDB 사본으로 돌지 않는다** — 조각 목록이 운영에 없어
+`/healthz` 가 `missing_occurrences` 로 degraded 다(분석은 말없이 PBDB 로). 다음 cron(11-16)이 `occs/list.json` 을 만들어 옮기면 켜진다(060).
 갱신 13 분, 백업 154 MB, 운영 자료 559 MB, 바깥 사이트 압축본 188 MB. 0.11.1 부터 GitHub PR 로 병합하고,
 판을 올리면 CHANGELOG 로 GitHub 릴리스를 만든다(v0.11.2 부터).
 다음 코드 작업은 각자 자기 계정에서 `feature/<기능 이름>` 브랜치를 `main` 에서 만들고, 끝나면 PR 을 만든다
@@ -22,13 +22,13 @@ v1.15.1 로 띄우고 다음 cron(11-16)이 `occs/list.json` 을 만들어 옮�
 몰바이데 `moll-*`(024)가 있어야 한다. `python -m pipeline fetch`(PBDB 시대 이름 목록 `intervals.json` 이 든다) 다음
 `build`(배경 포함, 7 분 남짓). 몰바이데 배경이 없으면 투영 고르기가 숨는다.
 
-**배포**: paleoserver — **http://paleolab/WegenersDream/**(`172.16.116.98`) = `v1.13.0`(Docker Hub 이미지, 10-23 · 띄울 때 `WEGENER_TAG=v1.13.0` 을 준다 — compose 가 `.env` 가 아니라 환경변수로 판을 받고, 안 주면 `latest` 를 찾다 실패한다). 컨테이너 `wegenersdream-web-1`
-**주간 갱신**은 10-26·11-02·11-09 cron 모두 `ok`, `/healthz` ok. 다음은 11-16(월) 02:30. **바깥 사이트 자료는 10-23 에 멈춰 있다** — 로그인은 돼 있었고, cron 의 PATH 에
-`~/.local/bin` 이 없어 `gh` 를 못 찾았다(결과는 `ok` 로 나와 놓치기 쉽다). 1.15.1 에서 고쳤다(063) — 11-16 cron 이 처음으로 올린다.
+**배포**: paleoserver — **http://paleolab/WegenersDream/**(`172.16.116.98`) = `v1.15.1`(Docker Hub 이미지, 11-09 · 띄울 때 `WEGENER_TAG=v1.15.1` 을 준다 — compose 가 `.env` 가 아니라 환경변수로 판을 받고, 안 주면 `latest` 를 찾다 실패한다). 컨테이너 `wegenersdream-web-1`
+**주간 갱신**은 10-26·11-02·11-09 cron 모두 `ok`, `/healthz` ok. 다음은 11-16(월) 02:30. **바깥 사이트 자료는 10-23 에 멈춰 있었다** — 로그인은 돼 있었고, cron 의 PATH 에
+`~/.local/bin` 이 없어 `gh` 를 못 찾았다(결과는 `ok` 로 나와 놓치기 쉽다). 1.15.1 에서 고쳤고(063), 11-09 의 자료는 손으로 올렸다. 11-16 cron 이 처음으로 스스로 올린다.
 
 **연구소 밖**: **https://koprifossillab.github.io/WegenersDream/** — 같은 뷰어의 고정 사본(GitHub Pages, tupandactyl 029). `deploy/static_site.py` 로
 굽고 `.github/workflows/pages.yml` 이 올린다. 자료는 릴리스 `site-data` 의 `wegener-data.tar.gz`(주간 갱신이 덮어쓴다). Pages(Source "GitHub Actions")는
-10-02 에 켰고 릴리스마다 올라간다(바깥 사이트의 자료는 주간 갱신이 올린 `site-data` — 지금 10-23 의 것, 11-16 cron 부터 다시 올라간다(063)). 배포 환경 `github-pages` 는 `main` 브랜치와 `v*` 태그에서만 올릴 수 있다 — 릴리스로 도는
+10-02 에 켰고 릴리스마다 올라간다(바깥 사이트의 자료는 주간 갱신이 올린 `site-data` — 지금 11-09 의 것, 11-16 cron 부터 다시 스스로 올라간다(063)). 배포 환경 `github-pages` 는 `main` 브랜치와 `v*` 태그에서만 올릴 수 있다 — 릴리스로 도는
 작업은 태그 위라, 태그 규칙이 없으면 배포 단계가 막힌다(10-02 v1.1.0 에서 한 번 막혀 더했다). 손으로 다시 올리려면 `gh workflow run pages.yml`.
 (`127.0.0.1:8095`), nginx `snippets/WegenersDream-subpath.conf`, paleolab 첫 화면 카드. 운영 compose·`.env` 는
 `/srv/WegenersDream/`, 자료는 `/srv/WegenersDream/data`(읽기 전용), 명칭 덮어쓰기·비밀키는 `/srv/WegenersDream/state`.

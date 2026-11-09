@@ -5,7 +5,7 @@
 
 ## 배포
 
-- [ ] **운영 이미지를 v1.15.1 로 띄운다**(`WEGENER_TAG=v1.15.1`) — 층 3·4 가 보이고, 11-16 cron 뒤 분포 분석이 사본으로 돈다. 그 뒤 `/healthz` 의 `missing_occurrences` 와 분석 패널의 "PBDB 사본" 을 본다(koprifossillab 060)
+- [ ] **11-16 cron 뒤 분포 분석이 사본으로 도는지** — `/healthz` 가 ok(`missing_occurrences` 없음)이고 분석 패널이 "PBDB 사본" 인지(koprifossillab 060)
 - [ ] **11-16 cron 이 바깥 사이트 자료를 올렸는지** — `last_refresh.json` 의 note 가 "바깥 사이트 자료를 올렸다" 인지, 릴리스 `site-data` 의 날짜(koprifossillab 063)
 - [ ] **주간 갱신 실패를 사람에게 알린다** — 10-05~10-19 세 주 동안 `last_refresh.json`·`/healthz` 의 실패를 아무도 못 봤다(koprifossillab 052).
       메일·메신저 가운데 연구실이 쓰는 곳으로
