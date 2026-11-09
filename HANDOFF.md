@@ -8,10 +8,10 @@
 패키지 `wegenerweb` (020, CLAUDE.md "이름"). **로컬 실행·시험의 `MIH_*` 환경변수는 이제 안 먹는다.**
 
 **저장소** https://github.com/koprifossillab/WegenersDream (09-30 에 `MIH` 에서 바꿈 — 옛 주소는 GitHub 가 넘겨 준다).
-**브랜치** `main` = `1.16.0` (11-09 — PR #70 1.16.0 PBDB 고좌표가 없는 산지를 판으로 돌릴 수 있는 시점에 [tupandactyl 033](devlog/20261109_tupandactyl_033_plate_rotated_sites.md), #69 1.15.2 주간 갱신 실패 Teams 알림 [tupandactyl 032](devlog/20261109_tupandactyl_032_refresh_alert_teams.md), PR #65 1.13.1 사본 목록·몰바이데 빗금 [koprifossillab 060](devlog/20261106_koprifossillab_060_occs_list_404.md), #66 1.14.0 점유 변화 층
+**브랜치** `main` = `1.17.0` (11-09 — PR #71 1.17.0 산출 지층 [tupandactyl 034](devlog/20261109_tupandactyl_034_taxon_formations.md), PR #70 1.16.0 PBDB 고좌표가 없는 산지를 판으로 돌릴 수 있는 시점에 [tupandactyl 033](devlog/20261109_tupandactyl_033_plate_rotated_sites.md), #69 1.15.2 주간 갱신 실패 Teams 알림 [tupandactyl 032](devlog/20261109_tupandactyl_032_refresh_alert_teams.md), PR #65 1.13.1 사본 목록·몰바이데 빗금 [koprifossillab 060](devlog/20261106_koprifossillab_060_occs_list_404.md), #66 1.14.0 점유 변화 층
 [061](devlog/20261106_koprifossillab_061_occupancy_change.md), #67 1.15.0 무게중심 층·궤적 [062](devlog/20261106_koprifossillab_062_centroid_layer.md), #68 1.15.1 cron 의 gh PATH
 [063](devlog/20261109_koprifossillab_063_cron_gh_path.md) — 계획 [P03](devlog/20261022_koprifossillab_P03_occupancy_layers.md) 의 층 1~4). 병합을 기다리는 브랜치는 없다.
-**운영은 v1.16.0(11-09), 자료는 PBDB 11-08**(11-09 cron `ok`). 1.16.0 의 산지 규칙(고좌표가 없는 산지 약 2 만 2 천 곳, 거의 제4기)은 자료를 다시 가공해야 들어가 **11-16 cron 부터** 보인다. Teams 알림(032)은 paleoadmin 이 웹훅 주소와 cron 줄을 넣어야 돈다(TODOs). **분포 분석은 11-09 부터 PBDB 사본으로 돈다** — 옛 rsync 에서 빠졌던
+**운영은 v1.17.0(11-09), 자료는 PBDB 11-08**(11-09 cron `ok`). 1.16.0 의 산지 규칙(고좌표가 없는 산지 약 2 만 2 천 곳, 거의 제4기)은 자료를 다시 가공해야 들어가 **11-16 cron 부터** 보인다. Teams 알림(032)은 paleoadmin 이 웹훅 주소와 cron 줄을 넣어야 돈다(TODOs). **분포 분석은 11-09 부터 PBDB 사본으로 돈다** — 옛 rsync 에서 빠졌던
 `occs/index.json` 을 손으로 옮겼다(`/healthz` ok, 바깥 사이트에도). 11-16 cron 부터는 새 이름 `occs/list.json` 으로 스스로 간다(060).
 갱신 13 분, 백업 154 MB, 운영 자료 559 MB, 바깥 사이트 압축본 188 MB. 0.11.1 부터 GitHub PR 로 병합하고,
 판을 올리면 CHANGELOG 로 GitHub 릴리스를 만든다(v0.11.2 부터).
