@@ -5,9 +5,8 @@
 
 ## 배포
 
-- [ ] **PR #66(층 3)·#67(층 4)** — #65 다음 차례로 병합한다. 운영 이미지를 새 판으로 띄워야 보인다
-- [ ] **PR #65 병합**(1.13.1) — 병합해야 11-09 cron 에서 분포 분석이 사본으로 돈다. 그 뒤 `/healthz` 의 `missing_occurrences` 와 분석 패널의 "PBDB 사본" 을 본다(koprifossillab 060)
-- [ ] **paleoadmin 의 `gh auth login`** — 없어서 10-26·11-02 에 바깥 사이트 자료를 못 올렸다. 지금 10-23 의 것이다
+- [ ] **운영 이미지를 v1.15.1 로 띄운다**(`WEGENER_TAG=v1.15.1`) — 층 3·4 가 보이고, 11-16 cron 뒤 분포 분석이 사본으로 돈다. 그 뒤 `/healthz` 의 `missing_occurrences` 와 분석 패널의 "PBDB 사본" 을 본다(koprifossillab 060)
+- [ ] **11-16 cron 이 바깥 사이트 자료를 올렸는지** — `last_refresh.json` 의 note 가 "바깥 사이트 자료를 올렸다" 인지, 릴리스 `site-data` 의 날짜(koprifossillab 063)
 - [ ] **주간 갱신 실패를 사람에게 알린다** — 10-05~10-19 세 주 동안 `last_refresh.json`·`/healthz` 의 실패를 아무도 못 봤다(koprifossillab 052).
       메일·메신저 가운데 연구실이 쓰는 곳으로
 - [ ] **paleoadmin SSH 열쇠** — `authorized_keys` 가 664 이고 jschoi 의 열쇠(`O+W0SUB56…`) 줄이 없다(10-23 확인, 057 §1.2·059).
