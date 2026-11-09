@@ -12,7 +12,7 @@
 [P03](devlog/20261022_koprifossillab_P03_occupancy_layers.md) 의 1 단계). 그 앞 `1.12.1` (10-23, 보안 판 — 이미지 안 pip 26.1 · 서버 디스크 자리
 [koprifossillab 056](devlog/20261023_koprifossillab_056_pip_security_and_disk_moves.md)), `1.12.0` (10-21, PR #53~#62 — 분석 엄밀성 [P01](devlog/20261020_koprifossillab_P01_analysis_rigor.md) 043~051, 연구 관행
 [P02](devlog/20261021_koprifossillab_P02_research_conventions.md) 053~055, 주간 갱신 rsync 고침 052) · 병합을 기다리는 브랜치는 없다.
-**운영은 v1.13.0, 자료는 PBDB 10-23** — 세 주 멈췄던 주간 갱신을 10-23 에 손으로 돌려 되살렸다(koprifossillab 059). 분석 기능(`rules.analysis`·`rules.quality`·`occurrences`)이
+**운영은 v1.13.0, 자료는 PBDB 11-01**(11-02 cron `ok`). **다만 분포 분석은 아직 PBDB 사본으로 돌지 않는다** — 조각 목록 `occs/index.json` 이 rsync 에서 빠져 운영에 없어, 말없이 PBDB 로 돌아간다. 고침은 PR #65(1.13.1, [koprifossillab 060](devlog/20261106_koprifossillab_060_occs_list_404.md)) — 병합하면 다음 cron(11-09)에 켜진다. 세 주 멈췄던 주간 갱신은 10-23 에 되살렸다(koprifossillab 059). 갱신 13 분, 백업 154 MB, 운영 자료 559 MB. 0.11.1 부터 GitHub PR 로 병합하고,
 운영·바깥 사이트에서 켜졌다. 갱신 13 분, 백업 154 MB, 운영 자료 518 MB, 바깥 사이트 압축본 188 MB. 0.11.1 부터 GitHub PR 로 병합하고,
 판을 올리면 CHANGELOG 로 GitHub 릴리스를 만든다(v0.11.2 부터).
 다음 코드 작업은 각자 자기 계정에서 `feature/<기능 이름>` 브랜치를 `main` 에서 만들고, 끝나면 PR 을 만든다
@@ -23,12 +23,12 @@
 `build`(배경 포함, 7 분 남짓). 몰바이데 배경이 없으면 투영 고르기가 숨는다.
 
 **배포**: paleoserver — **http://paleolab/WegenersDream/**(`172.16.116.98`) = `v1.13.0`(Docker Hub 이미지, 10-23 · 띄울 때 `WEGENER_TAG=v1.13.0` 을 준다 — compose 가 `.env` 가 아니라 환경변수로 판을 받고, 안 주면 `latest` 를 찾다 실패한다). 컨테이너 `wegenersdream-web-1`
-**주간 갱신**은 10-23 에 손으로 돌린 것이 `ok` — 운영·바깥 사이트 모두 PBDB 10-23, `/healthz` ok(koprifossillab 059). 다음 정기 실행은 10-26(월) 02:30 —
+**주간 갱신**은 10-26·11-02 cron 모두 `ok`, `/healthz` ok. 다음은 11-09(월) 02:30. **바깥 사이트 자료는 10-23 에 멈춰 있다** — paleoadmin 의 `gh` 로그인이 없어 두 번 다 `site-data` 를 못 올렸다(결과는 `ok` 로 나와 놓치기 쉽다).
 디스크를 옮긴 뒤(056) cron 의 첫 실행이다.
 
 **연구소 밖**: **https://koprifossillab.github.io/WegenersDream/** — 같은 뷰어의 고정 사본(GitHub Pages, tupandactyl 029). `deploy/static_site.py` 로
 굽고 `.github/workflows/pages.yml` 이 올린다. 자료는 릴리스 `site-data` 의 `wegener-data.tar.gz`(주간 갱신이 덮어쓴다). Pages(Source "GitHub Actions")는
-10-02 에 켰고 릴리스마다 올라간다(바깥 사이트의 자료는 주간 갱신이 올린 `site-data` — 지금 10-23 의 것). 배포 환경 `github-pages` 는 `main` 브랜치와 `v*` 태그에서만 올릴 수 있다 — 릴리스로 도는
+10-02 에 켰고 릴리스마다 올라간다(바깥 사이트의 자료는 주간 갱신이 올린 `site-data` — 지금 10-23 의 것, paleoadmin 의 `gh auth login` 이 있어야 다시 올라간다). 배포 환경 `github-pages` 는 `main` 브랜치와 `v*` 태그에서만 올릴 수 있다 — 릴리스로 도는
 작업은 태그 위라, 태그 규칙이 없으면 배포 단계가 막힌다(10-02 v1.1.0 에서 한 번 막혀 더했다). 손으로 다시 올리려면 `gh workflow run pages.yml`.
 (`127.0.0.1:8095`), nginx `snippets/WegenersDream-subpath.conf`, paleolab 첫 화면 카드. 운영 compose·`.env` 는
 `/srv/WegenersDream/`, 자료는 `/srv/WegenersDream/data`(읽기 전용), 명칭 덮어쓰기·비밀키는 `/srv/WegenersDream/state`.
@@ -125,7 +125,7 @@ PALEOMAP 고지리(PaleoDEM 배경·PaleoCoastlines 해안선) 위에 PBDB 채�
 `build --no-relief` 는 배경을 다시 그리지 않는다(30 초 남짓). 원본은 `data/sources/`, 매니페스트는 `sources/*.json`.
 Zenodo 것은 SHA-256 으로 고정, PBDB·Natural Earth 는 받은 날의 값을 `receipt.json` 에 남긴다.
 
-**지금 가공물(paleoserver·운영)은 2026-10-23 05:12 UTC 에 받은 PBDB(채집지 278,593)로 만든 것이다** — 매주 월요일 02:30(KST)
+**지금 가공물(paleoserver·운영)은 2026-11-01 17:30 UTC 에 받은 PBDB(채집지 278,879)로 만든 것이다** — 매주 월요일 02:30(KST)
 cron 이 새로 받는다(koprifossillab 032). 언제 받은 것인지는 `/healthz` 의 `pbdb_retrieved_at`.
 
 ### 시험
