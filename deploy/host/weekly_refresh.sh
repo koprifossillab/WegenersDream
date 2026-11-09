@@ -21,6 +21,9 @@
 # — 다른 브랜치의 파이프라인으로 운영 자료를 만들지 않게. 가공 전에 main 을 앞으로만 당긴다(025). 운영에 옮긴 뒤 smoke 로 확인한다.
 # 결과는 logs/last_refresh.json 에 남는다.
 set -uo pipefail
+# cron 의 PATH 는 /usr/bin:/bin 이라 ~/.local/bin 의 gh 가 안 보였다 — 로그인이 돼 있는데도 10-26·11-02·11-09 에
+# "gh 로그인 없음" 으로 바깥 사이트 자료를 못 올렸다 (koprifossillab 063)
+export PATH="$HOME/.local/bin:$PATH"
 # /data 는 누구나 들어오는 디스크다 — 백업은 paleoadmin 그룹까지만 읽게
 umask 027
 
@@ -167,8 +170,11 @@ rsync -rlt --omit-dir-times "$REPO/data/derived/index.json" "$SRV/data/index.jso
 # 운영 자료의 사본을 릴리스 site-data 에 올리고 Pages 워크플로를 부른다. gh 가 로그인돼 있을 때만 — 안 되면 바깥 사이트가
 # 지난 자료로 남을 뿐 갱신은 성공이다
 STEP=publish
-PUB_NOTE=" (바깥 사이트는 그대로 — gh 로그인 없음)"
-if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+if ! command -v gh >/dev/null 2>&1; then
+    PUB_NOTE=" (바깥 사이트는 그대로 — gh 를 못 찾음, PATH=$PATH)"
+elif ! gh auth status >/dev/null 2>&1; then
+    PUB_NOTE=" (바깥 사이트는 그대로 — gh 로그인 없음)"
+else
     PUB=$(mktemp -d)
     if tar -czf "$PUB/wegener-data.tar.gz" -C "$SRV/data" . \
        && timeout 1800 gh release upload site-data "$PUB/wegener-data.tar.gz" --clobber --repo koprifossillab/WegenersDream \
