@@ -8,3 +8,7 @@
 # 04:40·05:10 NAS 동기화, 05:00 타임랩스)과 겹치지 않게 비껴 뒀다. 받기·가공·점검이 실패하면 운영은 지난 자료
 # 그대로이고, 결과는 /data/WegenersDream/logs/last_refresh.json 에 남는다. 로그: /data/WegenersDream/logs/weekly_refresh.log
 30 2 * * 1 /home/paleoadmin/projects/WegenersDream/deploy/host/weekly_refresh.sh >> /data/WegenersDream/logs/weekly_refresh.log 2>&1
+#
+# 매주 월요일 08:00 — 위의 갱신이 실패했거나 아예 안 돌았으면 Teams 로 알린다(tupandactyl 032). 웹훅 주소는
+# ~/.config/wegenersdream/teams_webhook (chmod 600). 로그: /data/WegenersDream/logs/refresh_alert.log
+0 8 * * 1 /usr/bin/python3 /home/paleoadmin/projects/WegenersDream/deploy/host/refresh_alert.py >> /data/WegenersDream/logs/refresh_alert.log 2>&1
