@@ -10,7 +10,7 @@
   **Scientific 에서만** — Casual 에는 창이 없고 분석 층은 늘 꺼진다 (tupandactyl 035)
 - **조상 범위 층(이산 지역)** — 연대 나무와 BioGeoBEARS 결과를 시점의 고지리 위에: 지역(현생 분포 지점을 그때 자리로 돌린 껍질), 이 시점을 지나는
   계통(지역 확률 파이), 시점 창 안의 분기(화살표), 창 안의 연대 나무(누르면 그 나이로). 첫 연구는 꼽등이과(Kim et al. 2024, DIVALIKE+J) —
-  공개 자료로 다시 돌린 것이다. 묶음은 `python -m pipeline phylogeo` (tupandactyl 035)
+  공개 자료로 다시 돌린 것이다(DEC·DIVALIKE 넷은 논문 LnL 과 맞고, 논문의 BAYAREALIKE 줄은 그 모수에서 맞지 않는다). 묶음은 `python -m pipeline phylogeo` (tupandactyl 035)
 - **고지형 등고선** — PaleoDEM 지형 격자로 그 시점의 등고선(500·1000·2000 m, 0 m 굵게, 고르면 바다 등심선). 세 투영 모두 (tupandactyl 035)
 - 검토: [docs/계통생물지리_검토.md](docs/계통생물지리_검토.md) — Kim 2024·Flannery-Sutherland 2025 의 방법, 베게너의 꿈이 지원할 것, GBIF
 

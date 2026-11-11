@@ -36,7 +36,20 @@
 
 | 모델 | 논문 LnL | 다시 계산한 LnL |
 |---|---|---|
-| RESULTS_TABLE | | |
+| DEC | −51.0 | −51.00526 |
+| DEC+J | −50.1 | −50.10182 |
+| DIVALIKE | −48.5 | −48.50045 |
+| **DIVALIKE+J** | **−45.92** | **−45.92248** |
+| BAYAREALIKE | −48.5 | **−344.30852** |
+| BAYAREALIKE+J | −45.92 | **−69.39271** |
+
+- DEC·DIVALIKE 네 모델은 논문 값과 소수 둘째 자리까지 맞는다 — 끝 지역·분산 계수·나무를 제대로 옮긴 근거다
+- **BAYAREALIKE 둘은 맞지 않는다.** 논문 Table S4 의 BAYAREALIKE 줄은 DIVALIKE 줄과 숫자가 같은데, 그 모수에서 BAYAREALIKE 의 우도를 실제로
+  계산하면 훨씬 낮다. BAYAREALIKE 는 갈라질 때 범위를 그대로 복사하므로 넓은 조상에서 한 지역 끝으로 가려면 소멸(e)이 있어야 하는데 e≈0 이면
+  그 길이 막힌다. 다른 네 모델이 맞으니 우리 쪽 설정 문제라기보다 **표의 BAYAREALIKE 줄이 DIVALIKE 줄을 옮겨 적은 것**으로 본다(검토 §2.3-1)
+- 고정 모수의 우도는 그 모델 최적값의 아래 한계일 뿐이라, BAYAREALIKE 의 참 최적 LnL·AIC 는 최적화(`bgb_run.R optim BAYAREALIKE BAYAREALIKE+J`)를
+  돌려야 안다. 최적 모델이 DIVALIKE+J 라는 논문의 결론은 BAYAREALIKE 가 그보다 나을 때만 바뀐다
+- DIVALIKE+J 최적화(optimx)는 두 시간 넘게 돌아 LnL −46.23 까지 와서(논문 −45.92 로 가는 중) 멈췄다 — 고정 모수 재현으로 충분하고 서버를 같이 쓴다
 
 ## 4. 화면 — 시간으로 자른 나무
 
