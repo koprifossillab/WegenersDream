@@ -26,3 +26,8 @@ Thumbs.db
 
 # ../kopri-devdocs/guides 로 가는 심볼릭 링크 — kopri-devdocs 는 private 이라 커밋하지 않는다 (CLAUDE.md "공통 규약")
 .guides
+
+# 계통 생물지리 R 상자(tupandactyl 035) — 사내 인증서와 R 결과물은 커밋하지 않는다
+pipeline/r/*.crt
+pipeline/r/*/res_*.rds
+pipeline/r/*/tree.newick

@@ -1,0 +1,71 @@
+{
+  "id": "rhaphidophoridae_kim2024",
+  "title": "Rhaphidophoridae (camel crickets)",
+  "title_ko": "꼽등이과",
+  "method": "biogeobears",
+  "citation": "Kim, S., Kim, T., Song, H. & Shin, S. (2024) Phylogeny and biogeography of the wingless orthopteran family Rhaphidophoridae. Communications Biology 7, 401. https://doi.org/10.1038/s42003-024-06068-x",
+  "data": {
+    "url": "https://doi.org/10.5281/zenodo.8026258",
+    "license": "CC BY 4.0",
+    "tree": "Trees/Dating_tree.tre (MrBayes 연대 나무, 바깥 무리 Comicus campestris 를 뺀 109 끝)",
+    "tip_ranges": "BioGeobears/*.pdf 의 끝 범위 글자에서 옮김 — 원 자료에 지역 파일이 없다",
+    "dispersal_multipliers": "보충 자료 Table S3 (0–30·30–60·60–90·90–120·120–150 Ma)"
+  },
+  "note": "지역 정의는 논문 Methods 의 아홉 지역. 지점은 현생 분포의 대표 자리(연구실이 고른 것)이고, 지역의 그때 자리는 이 지점들을 PALEOMAP v19o 로 돌린 것이다 — 논문(Scotese 2021 지도로 연결성을 매김)과 같은 PALEOMAP 계열이다. 부탄(B 의 Diestramima)은 PALEOMAP 에서 인도판 위라 백악기에는 마다가스카르 곁으로 돌아간다 — 지역 껍질이 인도양을 가로지르지 않게 B 의 지점에서 뺐다(오늘의 부탄 꼽등이는 충돌 뒤에 들어온 것이다).",
+  "areas": {
+    "A": {
+      "name": "Eastern Asia",
+      "name_ko": "동아시아",
+      "detail": "Korea, Japan, Far East Russia",
+      "points": [[37.5, 127.0], [33.4, 126.5], [35.7, 139.7], [32.8, 130.7], [43.1, 141.3], [43.1, 131.9], [48.5, 135.1], [35.2, 128.6]]
+    },
+    "B": {
+      "name": "Southeast Asia",
+      "name_ko": "동남아시아",
+      "detail": "South China, Vietnam, Bhutan, Indonesia, Philippines",
+      "points": [[23.8, 108.3], [25.0, 102.7], [21.0, 105.8], [-7.5, 110.0], [0.0, 101.0], [16.0, 121.0], [7.5, 125.0]]
+    },
+    "C": {
+      "name": "Tasmania",
+      "name_ko": "태즈메이니아",
+      "detail": "Tasmania, Australia",
+      "points": [[-42.9, 147.3], [-41.4, 146.0], [-42.0, 145.5], [-43.1, 146.6]]
+    },
+    "D": {
+      "name": "New Zealand",
+      "name_ko": "뉴질랜드",
+      "detail": "New Zealand",
+      "points": [[-36.8, 174.7], [-41.3, 174.8], [-43.5, 172.6], [-45.9, 170.5], [-39.0, 175.8]]
+    },
+    "E": {
+      "name": "South Africa",
+      "name_ko": "남아프리카",
+      "detail": "South Africa",
+      "points": [[-33.9, 18.4], [-34.0, 22.0], [-33.0, 26.0]]
+    },
+    "F": {
+      "name": "South America",
+      "name_ko": "남아메리카",
+      "detail": "South America, Falkland Islands",
+      "points": [[-51.7, -59.0], [-41.1, -71.3], [-36.8, -73.0], [-33.4, -70.6]]
+    },
+    "G": {
+      "name": "Mediterranean",
+      "name_ko": "지중해",
+      "detail": "Mediterranean region",
+      "points": [[41.9, 12.5], [40.1, 9.0], [38.0, 23.7], [35.2, 24.9], [42.1, 9.1], [45.8, 14.5], [43.6, 3.9], [42.8, 0.5], [37.0, 30.0]]
+    },
+    "H": {
+      "name": "North America",
+      "name_ko": "북아메리카",
+      "detail": "North America (east of the Pacific coast)",
+      "points": [[32.2, -104.4], [37.2, -86.1], [30.3, -97.7], [42.5, -75.0], [44.0, -79.5], [39.0, -105.0]]
+    },
+    "I": {
+      "name": "West Coast of North America",
+      "name_ko": "북아메리카 서해안",
+      "detail": "California",
+      "points": [[37.8, -122.4], [34.1, -118.2], [36.6, -121.9], [44.5, -123.2]]
+    }
+  }
+}
