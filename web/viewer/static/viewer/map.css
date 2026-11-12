@@ -294,6 +294,7 @@ body {
 .env.group > .row, .env.term > .row { font-size: 13px; }
 .line.border { border-top: 1px solid var(--ink); opacity: .6; }
 .line.contour { border-top: 2px solid #5a3a1a; }
+.line.shade { height: 8px; border: 0; border-radius: 2px; background: linear-gradient(90deg, #2a1a0c, #8a7a66, #fff8e8); }
 .contour-opts { display: flex; gap: 10px; align-items: center; font-size: 12px; margin: 2px 0 2px 22px; }
 .line.temp { height: 8px; border: 0; border-radius: 2px; background: linear-gradient(90deg, #2c3e9e, #7fc4e8, #f5f0c8, #f39a4a, #b2182b); }
 .opacity { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-bottom: 4px; }

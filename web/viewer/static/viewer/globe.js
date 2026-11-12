@@ -99,7 +99,7 @@
     L.DomEvent.disableScrollPropagation(host);
 
     var C = null, widget = null, scene = null;
-    var reliefLayer = null, reliefFor = null, climateLayer = null, climateFor = null;
+    var reliefLayer = null, reliefFor = null, climateLayer = null, climateFor = null, shadeLayer = null, shadeFor = null;
     var points = null, lines = null;
     var dirty = {}, frameReq = 0, ready = null, active = false;
     var pop = null, tip = null, hoverReq = 0, hoverPos = null, pending = null;
@@ -189,7 +189,7 @@
 
     // ── 층을 비추기 ────────────────────────────────────────────────────
     function mark(what) {
-      if (what === "all") { dirty.relief = dirty.climate = dirty.points = dirty.lines = dirty.terrain = true; }
+      if (what === "all") { dirty.relief = dirty.climate = dirty.shade = dirty.points = dirty.lines = dirty.terrain = true; }
       else dirty[what] = true;
       if (!active || !scene || frameReq) return;
       frameReq = requestAnimationFrame(flush);
@@ -201,6 +201,7 @@
       var f = opts.frame();
       if (dirty.relief && f) syncRelief(f);
       if (dirty.climate && f) syncClimate(f);
+      if (dirty.shade && f && opts.shade) syncShade(f);
       // 지형은 격자를 받은 뒤에 점·선을 그 높이로 다시 앉힌다 — 받는 동안은 옛 높이로 둔다
       if ((dirty.terrain || dirty.relief) && f) syncTerrain(f);
       if (dirty.points) syncPoints();
@@ -322,6 +323,27 @@
           if (climateLayer) scene.imageryLayers.remove(climateLayer, true);
           climateLayer = scene.imageryLayers.addImageryProvider(provider);
           climateLayer.alpha = opts.climateOpacity();
+          scene.requestRender();
+        });
+      });
+    }
+
+    // 높이 도드라지게(tupandactyl 037) — map.js 가 만든 정거원통 캔버스를 배경 바로 위에(기온 밑에) 입힌다.
+    // 같은 캔버스면 다시 올리지 않는다(시점·방식·과장이 그대로)
+    function syncShade(f) {
+      var token = {};
+      shadeFor = token;
+      opts.shade(f).then(function (canvas) {
+        if (shadeFor !== token) return;
+        if (shadeLayer && shadeLayer._src === canvas) return;
+        if (shadeLayer) { scene.imageryLayers.remove(shadeLayer, true); shadeLayer = null; }
+        if (!canvas) { scene.requestRender(); return; }
+        return C.SingleTileImageryProvider.fromUrl(canvas.toDataURL()).then(function (provider) {
+          if (shadeFor !== token) return;
+          if (shadeLayer) scene.imageryLayers.remove(shadeLayer, true);
+          var at = reliefLayer ? scene.imageryLayers.indexOf(reliefLayer) + 1 : 1;
+          shadeLayer = scene.imageryLayers.addImageryProvider(provider, at);
+          shadeLayer._src = canvas;
           scene.requestRender();
         });
       });
