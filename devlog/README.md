@@ -147,3 +147,4 @@
 | tupandactyl 033 | 2026-11-09 | [PBDB 고좌표가 없는 산지를 판으로 돌릴 수 있는 시점에 올린다](20261109_tupandactyl_033_plate_rotated_sites.md) |
 | tupandactyl 034 | 2026-11-09 | [속 이하를 찾으면 산출 시대 위에 산출 지층을, 누르면 그 지층으로](20261109_tupandactyl_034_taxon_formations.md) |
 | tupandactyl 035 | 2026-11-11 | [계통 생물지리: 이산 지역 결과를 시점 단면으로, 연구방법론 창, 고지형 등고선](20261111_tupandactyl_035_phylogeography_methods.md) |
+| tupandactyl 036 | 2026-11-12 | [GBDB 단면의 채집을 PBDB 곁에 따로 올리고, 겹침을 표시한다](20261112_tupandactyl_036_gbdb_sections.md) |

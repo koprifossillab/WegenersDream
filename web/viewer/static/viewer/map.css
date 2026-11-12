@@ -17,6 +17,7 @@
   --other: #f5f5f5;
   --coast: #ff3da8;
   --taxon: #2ee6a6;
+  --gbdb: #b06cff;            /* GBDB 채집의 네모(tupandactyl 036) */
   --cell-new: #3ddc6e; --cell-lost: #ff4d4d; --cell-unknown: #c8c8c8;   /* 점유 변화(061) */
   --center: #ffffff;          /* 무게중심(062) */
   --cell-effort: #dcdcdc;     /* 표본 노력 음영(058) — 지도 위라 밝기와 상관없이 같다 */
@@ -292,6 +293,8 @@ body {
 .env .kids { margin-left: 13px; padding-left: 12px; border-left: 1px solid var(--line); }
 .env.group > .row, .env.term > .row { font-size: 13px; }
 .line.border { border-top: 1px solid var(--ink); opacity: .6; }
+.line.contour { border-top: 2px solid #5a3a1a; }
+.contour-opts { display: flex; gap: 10px; align-items: center; font-size: 12px; margin: 2px 0 2px 22px; }
 .line.temp { height: 8px; border: 0; border-radius: 2px; background: linear-gradient(90deg, #2c3e9e, #7fc4e8, #f5f0c8, #f39a4a, #b2182b); }
 .opacity { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
 .opacity input { flex: 1; min-width: 0; }
@@ -1100,3 +1103,12 @@ button, input, select { font-family: inherit; }
 .cells-legend .sw.new { background: transparent; border: 2px solid var(--cell-new); }
 .cells-legend .sw.lost { background: transparent; border: 2px solid var(--cell-lost); }
 .cells-legend .sw.unknown { background: transparent; border: 2px dashed var(--cell-unknown); }
+
+/* GBDB 단면의 채집(tupandactyl 036) — 네모. 속 빈 네모는 PBDB 와 겹친 것 */
+.shape.sq { border-radius: 1px; background: var(--gbdb); outline: 1px solid #2b1d10; }
+.gbdb-row { display: block; margin-top: 4px; }
+.gbdb-pop h4 { margin: 8px 0 4px; font-size: 12px; }
+.gbdb-pop .ref { font-size: 11px; }
+.gbdb-column { margin: 0; padding-left: 18px; max-height: 220px; overflow-y: auto; font-size: 12px; }
+.gbdb-column li { margin: 1px 0; }
+.gbdb-column li.here { background: color-mix(in srgb, var(--gbdb) 30%, transparent); border-radius: 3px; }

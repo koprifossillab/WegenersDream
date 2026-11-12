@@ -1,0 +1,20 @@
+{
+  "id": "gbdb",
+  "title": "GBDB (Geobiodiversity Database) — 단면·층 단위·채집·산출, Zenodo 정적 사본(2020-11)",
+  "citation": "Xu, H., Niu, Z., Chen, Y. et al. (2020). A status report on a section-based stratigraphic and palaeontological database — the Geobiodiversity Database. Earth System Science Data, 12, 3443–3452. https://doi.org/10.5194/essd-12-3443-2020 — Data: Xu, H. (2020) Data of fossils and sections of the Geobiodiversity Database (GBDB). Zenodo. https://doi.org/10.5281/zenodo.4245604",
+  "record": "https://doi.org/10.5281/zenodo.4245604",
+  "snapshot": "2020-11 (Zenodo 4245604)",
+  "license": {
+    "name": "CC BY 4.0",
+    "note": "Zenodo 레코드의 조건. 사이트(geobiodiversity.com)의 최신 자료는 조건이 적혀 있지 않아 쓰지 않는다(tupandactyl 036)",
+    "url": "https://creativecommons.org/licenses/by/4.0/"
+  },
+  "role": "PBDB 에 얇은 중국 단면의 채집과 한 단면 안의 층 차례(tupandactyl 036). PBDB 와 겹치는 채집은 표시해 두 번 세지 않는다",
+  "archive": {
+    "url": "https://zenodo.org/api/records/4245604/files/GBDB%20fossils%20and%20sections.zip/content",
+    "path": "data/sources/gbdb/GBDB_fossils_and_sections.zip", "bytes": 174469214,
+    "sha256": "9bbd8aa0823046cb808bdd2ac7dbdbed3b6407ae710608c9b447e26a4021ca38",
+    "unzip": "data/sources/gbdb", "members": ["GBDB_all sections.xlsx"]
+  },
+  "sheet": "data/sources/gbdb/GBDB_all sections.xlsx"
+}

@@ -248,6 +248,7 @@ def main(argv=None):
     fetch_pinned("paleocoastlines")
     fetch_pinned("paleotemp")
     fetch_pinned("paleoclim")        # 최근의 절 기온(tupandactyl 010) — SHA-256 으로 고정된 원본이라 다른 Zenodo 것과 같이 받는다
+    fetch_pinned("gbdb")             # GBDB 단면(tupandactyl 036) — Zenodo 2020-11 정적 사본, 174 MB 한 번
     fetch_receipted("countries")
     fetch_pbdb(refresh="--refresh-pbdb" in argv, allow_shrink="--allow-shrink" in argv)
 
