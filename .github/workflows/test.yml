@@ -43,6 +43,10 @@ jobs:
       - name: 분석 셈 시험
         run: node web/viewer/jstest/analysis.test.js
 
+      # 계통 생물지리·고지형 등고선(phylogeo.js) — 시점을 지나는 가지·지역 확률·껍질·마칭 스퀘어(tupandactyl 035)
+      - name: 계통 생물지리 셈 시험
+        run: node web/viewer/jstest/phylogeo.test.js
+
       - name: collectstatic
         run: python web/manage.py collectstatic --noinput
         env:

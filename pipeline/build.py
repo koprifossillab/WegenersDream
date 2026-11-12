@@ -10,7 +10,7 @@
 import json
 from datetime import datetime, timezone
 
-from . import climate, coastlines, countries, fossils, lithology, relief, terrain
+from . import climate, coastlines, countries, fossils, lithology, phylogeo, relief, terrain
 from .common import ANALYSIS, DERIVED, EDIACARAN_AGE, PLATE_ONLY_FROM_MA, WINDOW_MA, manifest, period, source_path
 from .environments import classify, tree_for_index
 from .intervals import VAGUE_TYPES, load_types, vague_names
@@ -152,6 +152,7 @@ def build(skip_relief=False):
         "taxa_ko": found_ko,                    # 한글 → 학명 찾기 표(tupandactyl 021)
         "lithology": lithology.for_index(),     # 암상 용어의 한글(tupandactyl 020) — lithology.py 한 곳
         "events": events_for_index(),           # 대멸종·전 지구 사건(tupandactyl 016) — events.py 한 곳
+        "phylogeo": phylogeo.build(frames),     # 계통 생물지리 묶음(tupandactyl 035) — sources/phylogeo 의 검토된 분석 결과
         "countries": countries.country_list(country_names),
         "pbdb": fossil_meta,
         "occurrences": occs_meta,               # 산출 사본의 조각 목록(koprifossillab 050) — 없으면 null, 뷰어는 PBDB 에 바로 묻는다

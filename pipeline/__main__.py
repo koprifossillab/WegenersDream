@@ -15,6 +15,7 @@ USAGE = """사용법: python -m pipeline <명령>
   events           대멸종·전 지구 사건(events.py)만 지금 index.json 에 다시 붙인다 (1 초)
   taxa_ko          한글 → 학명 찾기 표(PBDB 속·종 이름을 미리 음차, node 필요)만 굽고 지금 index.json 에 붙인다 (1 분 남짓)
   lithology        암상 용어의 한글(lithology.py)만 지금 index.json 에 다시 붙인다 (1 초)
+  phylogeo         계통 생물지리 묶음(sources/phylogeo — 연대 나무와 조상 범위)만 굽고 지금 index.json 에 붙인다 (몇 초)
   paleoclim        최근의 절에 붙이는 PaleoClim 기온 지도만 받고 굽는다 (climate/pc_*.png·recent.json, 1 분 안쪽)
 """
 
@@ -39,6 +40,9 @@ def main(argv):
     elif command == "lithology":
         from . import lithology
         lithology.attach()
+    elif command == "phylogeo":
+        from . import phylogeo
+        phylogeo.attach()
     elif command == "paleoclim":
         from . import paleoclim
         paleoclim.main()

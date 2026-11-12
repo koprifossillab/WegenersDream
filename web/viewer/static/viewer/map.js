@@ -425,6 +425,21 @@
   map.getPane("cells").style.pointerEvents = "none";
   var cellRenderer = L.canvas({ padding: 0.3, pane: "cells" }), hatchRenderer = L.svg({ pane: "cells" });
   var cellLayer = L.layerGroup().addTo(map);
+  // 고지형 등고선(tupandactyl 035) — 기온(390) 위, 분석 칸(395) 밑. 지구본도 비추도록 선 층 목록에 넣는다
+  map.createPane("topo").style.zIndex = 392;
+  map.getPane("topo").style.pointerEvents = "none";
+  var topoLayer = L.geoJSON(null, {
+    style: function (ft) {
+      var p = ft.properties || {};
+      return p.coast ? { color: "#1d1208", weight: 1.8, opacity: 0.9 } : p.sea ? { color: "#d9f0ff", weight: 0.8, opacity: 0.6, dashArray: "3 3" }
+        : { color: "#2a1a0c", weight: p.major ? 1.4 : 0.9, opacity: p.major ? 0.85 : 0.6 };
+    },
+    interactive: false, renderer: L.canvas({ padding: 0.3, pane: "topo" }), pane: "topo",
+  }).addTo(map);
+  // 조상 범위(tupandactyl 035) — 지역 껍질·분기 화살표는 점(450) 위, 무게중심(460) 밑. 계통 파이는 표지 층(눌러서 읽는다)
+  map.createPane("phylo").style.zIndex = 455;
+  map.getPane("phylo").style.pointerEvents = "none";
+  var phyloRenderer = L.svg({ pane: "phylo" }), phyloLayer = L.layerGroup().addTo(map);
   // 무게중심(062)은 점 위에 — 점에 가리지 않게. 눌리지 않는다
   map.createPane("center").style.zIndex = 460;
   map.getPane("center").style.pointerEvents = "none";
@@ -454,7 +469,7 @@
   // (점 만 개를 더해도 알림은 다음 그리기 틀에 한 번 모인다). 지구본을 고르기 전에는 아무것도 하지 않는다.
   var globe = window.WegenerGlobe ? window.WegenerGlobe({
     L: L, map: map, box: $("map"), base: $("app").dataset.cesiumBase,
-    layers: { fossils: fossilLayer, taxa: taxonLayer, lines: [gridLayer, coastLayer, borderLayer] },
+    layers: { fossils: fossilLayer, taxa: taxonLayer, lines: [gridLayer, topoLayer, coastLayer, borderLayer] },
     frame: frame,
     reliefUrl: function (f) { var files = f.relief_files || {}; return dataUrl(files["4096"] || files["2048"] || f.relief); },
     climate: globeClimate, climateOpacity: function () { return climateLayer.options.opacity; },
@@ -576,6 +591,8 @@
     drawGrid();
     drawCells();                       // 칸도 이음매에서 자른다(058)
     if (!f) return;
+    drawTopo(f);                       // 등고선도 이음매에서 자른다(tupandactyl 035)
+    drawPhylo();
     if (measure && measure.pts.length) { if (measure.age !== f.age) clearMeasure(); else drawMeasure(); }   // 잰 선(wetherilli 014)
     drawCoast(f);
     drawBorders(f, false);
@@ -979,6 +996,8 @@
     state.taxonReady = state.taxon && !state.overview ? searchTaxon(state.taxon) : null;
     if (state.cmp) loadCmpFrame();                            // 비교 분류군도 이 시점으로(024)
     renderAnalysis();
+    drawTopo(f);                                              // 고지형 등고선·조상 범위(tupandactyl 035)
+    drawPhylo();
     // 옆 시점의 배경과 산지 자료를 미리 받아 둔다 — 밀대를 한 칸 옮길 때 기다리지 않게(021)
     [state.i - 1, state.i + 1].forEach(function (j) {
       var g = state.frames[j];
@@ -1239,6 +1258,8 @@
   }
   function syncShareRow() {
     var row = $("share-opacity-row"); if (row) row.hidden = !shareOn();
+    $("by-grid-row").hidden = !shareOn();                      // 연구방법론 창 "표본과 셈"(tupandactyl 035)
+    $("mg-count-off").hidden = shareOn();
     var q = $("qual-row"); if (q) q.hidden = !qualOn();
   }
   function shareOn() { return RIGOR && !!ANALYSIS && !!AN; }
@@ -1272,6 +1293,9 @@
   var LAYERS_KEY = "wegener.layers." + I18N.mode;
   var layers = I18N.mode === "sci" ? { occ: true, effort: true, change: false, center: false } : { occ: false, effort: false, change: false, center: false };
   try { var layersStored = JSON.parse(localStorage.getItem(LAYERS_KEY)); if (layersStored) Object.keys(layers).forEach(function (k) { if (typeof layersStored[k] === "boolean") layers[k] = layersStored[k]; }); } catch (e) { /* 막힌 저장소 */ }
+  // 통계·분석 층은 Scientific 에서만(연구자, tupandactyl 035) — Casual 에서는 연구방법론 창이 없고 층도 늘 끈다
+  var METHODS = I18N.mode === "sci";
+  if (!METHODS) Object.keys(layers).forEach(function (k) { layers[k] = false; });
   function cellsOn() { return !!ANALYSIS && !!AN && ANALYSIS.grid_km != null && !state.overview; }
   function cssVar(name, fallback) { var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim(); return v || fallback; }
   // 칸 고리들을 지도의 이음매로 잘라 Leaflet 다각형 꼴([[lat, lng] …])로
@@ -5103,6 +5127,338 @@
     });
   }
 
+  // ── 연구방법론 창(tupandactyl 035) ─────────────────────────────────────
+  // 지도 위의 분석 층과 셈의 선택을 목적끼리 묶은 떠 있는 창 — Scientific 에서만. 접으면 왼쪽 아래 아이콘 하나, ⚙ 는 설명.
+  // 열림·설명 펼침은 브라우저에 기억한다(모드와 상관없이 하나 — Casual 에는 창이 없다)
+  var PH = window.WegenerPhylo;
+  var METHODS_KEY = "wegener.methods";
+  var GUIDE = [
+    { g: "m.g.count.short", items: ["share", "grid"] },
+    { g: "m.g.surface.short", items: ["occ", "effort"] },
+    { g: "m.g.change.short", items: ["change", "center"] },
+    { g: "m.g.phylo.short", items: ["phylo"] },
+    { g: "m.g.topo.short", items: ["contour"] },
+  ];
+  function renderGuide() {
+    var html = '<p class="note">' + esc(tr("m.guide.lead")) + "</p>";
+    GUIDE.forEach(function (grp) {
+      html += "<h3>" + esc(tr(grp.g)) + "</h3>";
+      grp.items.forEach(function (id) {
+        var title = "m." + id + ".t";
+        html += "<h4>" + esc(tr(title)) + "</h4><dl>";
+        ["what", "use", "read", "caveat", "ref"].forEach(function (k) {
+          var key = "m." + id + "." + k, s = tr(key), label = "m.k." + k;
+          if (s !== key) html += "<dt>" + esc(tr(label)) + "</dt><dd" + (k === "ref" ? ' class="ref"' : "") + ">" + esc(s) + "</dd>";
+        });
+        html += "</dl>";
+      });
+    });
+    $("methods-guide").innerHTML = html;
+  }
+  function setupMethods() {
+    var box = $("methods");
+    if (!METHODS || !box) return;
+    box.hidden = false;
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem(METHODS_KEY)) || {}; } catch (e) { /* 막힌 저장소 */ }
+    function remember() { try { localStorage.setItem(METHODS_KEY, JSON.stringify(saved)); } catch (e) { /* 막힌 저장소 */ } }
+    function setOpen(on) {
+      saved.open = on; remember();
+      box.classList.toggle("open", on);
+      $("methods-win").hidden = !on;
+      $("methods-open").setAttribute("aria-expanded", String(on));
+      if (on) $("methods-close").focus({ preventScroll: true }); else $("methods-open").focus({ preventScroll: true });
+    }
+    function setHelp(on) {
+      saved.help = on; remember();
+      if (on && !$("methods-guide").innerHTML) renderGuide();
+      $("methods-guide").hidden = !on;
+      $("methods-help").setAttribute("aria-pressed", String(on));
+    }
+    $("methods-open").addEventListener("click", function () { setOpen(true); });
+    $("methods-close").addEventListener("click", function () { setOpen(false); });
+    $("methods-help").addEventListener("click", function () { setHelp($("methods-guide").hidden); });
+    box.addEventListener("keydown", function (e) { if (e.key === "Escape" && !$("methods-win").hidden) setOpen(false); });
+    // 지도의 끌기·휠이 창 안에서 일지 않게
+    L.DomEvent.disableClickPropagation(box);
+    L.DomEvent.disableScrollPropagation(box);
+    box.classList.toggle("open", !!saved.open);
+    $("methods-win").hidden = !saved.open;
+    $("methods-open").setAttribute("aria-expanded", String(!!saved.open));
+    if (saved.help) setHelp(true);
+    // 고지형·조상 범위의 고르기(기억하지 않는 것: 고른 연구는 기억한다)
+    $("layer-contour").checked = !!saved.contour;
+    $("contour-step").value = saved.step || "1000";
+    $("contour-sea").checked = !!saved.sea;
+    $("layer-contour").addEventListener("change", function () { saved.contour = this.checked; remember(); drawTopo(frame()); });
+    $("contour-step").addEventListener("change", function () { saved.step = this.value; remember(); topo.key = null; drawTopo(frame()); });
+    $("contour-sea").addEventListener("change", function () { saved.sea = this.checked; remember(); topo.key = null; drawTopo(frame()); });
+    $("layer-phylo").checked = !!saved.phylo;
+    $("layer-phylo").addEventListener("change", function () { saved.phylo = this.checked; remember(); loadPhylo(); });
+    $("phylo-study").addEventListener("change", function () { saved.study = this.value; remember(); loadPhylo(); });
+    state.methodsSaved = saved;
+  }
+
+  // ── 고지형 등고선(tupandactyl 035) ─────────────────────────────────────
+  // 지구본의 지형 격자(terrain/*.webp, 1/4°, R·G 16 비트 — terrain.py)를 브라우저가 풀어 마칭 스퀘어로 등고선을 낸다. 파이프라인은 새로 굽지 않는다.
+  // 격자는 두 칸에 하나(1/2°)로 줄여 읽는다 — 지구 전체에서 1/4° 선은 보이지 않고 셈이 네 배다. 시점·간격이 같으면 선을 다시 셈하지 않고 이음매만 다시 자른다
+  var topo = { key: null, geo: null, pending: null };
+  function loadTerrainGrid(t) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = function () {
+        var c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+        var ctx = c.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0);
+        var g = PH.decodeTerrain(ctx.getImageData(0, 0, c.width, c.height).data, c.width, c.height, t.offset, t.unit, 2);
+        g.deg = t.step * 2;
+        resolve(g);
+      };
+      img.onerror = reject;
+      img.src = dataUrl(t.file);
+    });
+  }
+  function contourGeo(g, stepM, sea) {
+    var max = -1e9, min = 1e9, i;
+    for (i = 0; i < g.z.length; i++) { if (g.z[i] > max) max = g.z[i]; if (g.z[i] < min) min = g.z[i]; }
+    var levels = [];
+    for (var v = stepM; v < max; v += stepM) levels.push(v);
+    levels.push(0);
+    if (sea) for (v = -1000; v > min; v -= 1000) levels.push(v);       // 바다는 1000 m 간격 — 촘촘하면 대양이 선으로 덮인다
+    var features = [];
+    levels.forEach(function (lv) {
+      var lines = PH.contours(g.z, g.w, g.h, lv).filter(function (l) { return l.length > 3; });
+      if (!lines.length) return;
+      features.push({ type: "Feature", properties: { level: lv, coast: lv === 0, sea: lv < 0, major: lv > 0 && lv % (stepM * 2) === 0 },
+        geometry: { type: "MultiLineString", coordinates: lines.map(function (l) { return l.map(function (p) { return [-180 + p[1] * g.deg, 90 - p[0] * g.deg]; }); }) } });
+    });
+    return { type: "FeatureCollection", features: features };
+  }
+  function drawTopo(f) {
+    if (!METHODS || !f) return;
+    var on = $("layer-contour").checked, t = f.terrain, note = $("contour-note");
+    note.hidden = !on;
+    if (!on) { topoLayer.clearLayers(); topo.key = null; return; }
+    if (!t) { topoLayer.clearLayers(); topo.key = null; note.textContent = tr("contour.none"); return; }
+    var step = +$("contour-step").value, sea = $("contour-sea").checked, key = t.file + "|" + step + "|" + sea;
+    note.textContent = tr("contour.note", { age: fmtAge(f.age), step: fmtNum(step) });
+    if (topo.key === key && topo.geo) { topoLayer.clearLayers(); topoLayer.addData(seamGeo(topo.geo)); return; }
+    topo.pending = key;
+    loadTerrainGrid(t).then(function (g) {
+      if (topo.pending !== key) return;
+      topo.geo = contourGeo(g, step, sea); topo.key = key;
+      topoLayer.clearLayers(); topoLayer.addData(seamGeo(topo.geo));
+    }).catch(function (e) { console.error(e); if (topo.pending === key) note.textContent = tr("contour.none"); });
+  }
+
+  // ── 조상 범위 — 이산 지역 모델(tupandactyl 035) ─────────────────────────
+  // index.json 의 phylogeo 목록(pipeline/phylogeo.py) → 고른 연구의 묶음을 받아 시점마다 지역 껍질·계통 파이·분기 화살표, 창 안에 연대 나무
+  var phylo = { list: [], bundle: null, P: null, id: null };
+  function setupPhylo(list) {
+    phylo.list = list || [];
+    if (!METHODS || !phylo.list.length) return;
+    $("phylo-box").hidden = false;
+    var sel = $("phylo-study"), saved = state.methodsSaved || {};
+    sel.innerHTML = "";
+    phylo.list.forEach(function (s) {
+      var o = document.createElement("option");
+      o.value = s.id;
+      o.textContent = (EN || !s.title_ko ? s.title : s.title_ko + " · " + s.title) + " (" + fmtNum(Math.round(s.root_age)) + " Ma)";
+      sel.appendChild(o);
+    });
+    if (saved.study && phylo.list.some(function (s) { return s.id === saved.study; })) sel.value = saved.study;
+    loadPhylo();
+  }
+  function loadPhylo() {
+    var on = $("layer-phylo").checked, id = $("phylo-study").value;
+    $("phylo-tree").hidden = $("phylo-legend").hidden = !on;
+    if (!on) { phyloLayer.clearLayers(); return; }
+    if (phylo.id === id && phylo.bundle) { drawPhyloTree(); drawPhylo(); return; }
+    var item = phylo.list.filter(function (s) { return s.id === id; })[0];
+    if (!item) return;
+    phylo.id = id; phylo.bundle = null;
+    getJSON(dataUrl(item.file)).then(function (b) {
+      if (phylo.id !== id) return;
+      phylo.bundle = b; phylo.P = PH.prepare(b);
+      drawPhyloTree(); drawPhylo();
+    });
+  }
+  function phyloOn() { return METHODS && $("layer-phylo") && $("layer-phylo").checked && phylo.bundle; }
+  // 지도의 가운데 경선 둘레로 경도를 편다 — 몰바이데에서 표지·껍질이 이음매 건너편으로 튀지 않게
+  function nearLon(lng) { var c = state.proj === "moll" ? Mollweide.lon0 : 0; return c + wrap180(lng - c); }
+  function rangeLabel(range) {
+    var b = phylo.bundle;
+    return range.split("").map(function (c) { var a = b.areas[c]; return c + (a ? " " + (EN || !a.name_ko ? a.name : a.name_ko) : ""); }).join(" + ");
+  }
+  function pieSvg(marg, codes, color, r, n) {
+    var tot = 0; codes.forEach(function (c) { tot += marg[c]; });
+    var parts = "", a0 = -Math.PI / 2, size = 2 * r + 4, cx = r + 2;
+    codes.forEach(function (c) {
+      var v = tot ? marg[c] / tot : 0;
+      if (v <= 0) return;
+      if (v > 0.999) { parts += '<circle cx="' + cx + '" cy="' + cx + '" r="' + r + '" fill="' + color[c] + '"/>'; return; }
+      var a1 = a0 + v * 2 * Math.PI, large = v > 0.5 ? 1 : 0;
+      parts += '<path d="M' + cx + "," + cx + "L" + (cx + r * Math.cos(a0)).toFixed(2) + "," + (cx + r * Math.sin(a0)).toFixed(2) +
+        "A" + r + "," + r + " 0 " + large + " 1 " + (cx + r * Math.cos(a1)).toFixed(2) + "," + (cx + r * Math.sin(a1)).toFixed(2) + 'Z" fill="' + color[c] + '"/>';
+      a0 = a1;
+    });
+    // 조각 사이 2px 틈과 바깥 고리 — 겹친 파이를 가르고 어두운 배경에서도 테두리가 보이게
+    var ring = '<circle cx="' + cx + '" cy="' + cx + '" r="' + r + '" fill="none" stroke="#fff" stroke-width="1.5"/>';
+    var label = n > 1 ? '<text x="' + cx + '" y="' + (cx + 4) + '" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" stroke="#000" stroke-width="2.5" paint-order="stroke">' + n + "</text>" : "";
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + size + '" height="' + size + '"><g stroke="#fff" stroke-width="1">' + parts + "</g>" + ring + label + "</svg>";
+  }
+  function drawPhylo() {
+    phyloLayer.clearLayers();
+    if (!phyloOn() || state.proj === "globe") { if (phylo.bundle) markTreeNow(); return; }
+    var f = frame();
+    if (!f) return;
+    var b = phylo.bundle, P = phylo.P, age = frameAgeOf(f), legend = $("phylo-legend");
+    var pos = b.positions[ageKeyOf(age)];
+    markTreeNow();
+    if (!pos) { legend.innerHTML = esc(tr("phylo.nodata")) + phyloCite(); return; }
+    // 지역 — 돌린 지점의 껍질과 가운데
+    // 지역마다 지점을 한 덩어리로 편다 — 가운데를 지도 가운데 경선 둘레에 두고, 지점은 그 가운데 둘레로(날짜변경선·극 가까이에서 껍질이 지도를 가로지르지 않게)
+    var centers = {}, spots = {};
+    P.codes.forEach(function (c) {
+      var raw = pos[c] || [];
+      if (!raw.length) return;
+      var mid = PH.sphericalCentroid(raw), lon = nearLon(mid[1]);
+      centers[c] = [mid[0], lon];
+      spots[c] = raw.map(function (p) { return [p[0], lon + wrap180(p[1] - mid[1])]; });
+    });
+    var lineages = PH.lineagesAt(P, age);
+    var occ = {}; P.codes.forEach(function (c) { occ[c] = 0; });
+    lineages.forEach(function (l) { var m = PH.areaMarginals(l.probs, P.codes); P.codes.forEach(function (c) { occ[c] = Math.max(occ[c], m[c]); }); });
+    P.codes.forEach(function (c) {
+      var pts = spots[c];
+      if (!pts) return;
+      var lon = centers[c][1], hull = PH.convexHull(pts).map(function (p) { return [p[0], lon + wrap180(p[1] - lon)]; });
+      var area = b.areas[c];
+      if (hull.length >= 3) L.polygon(hull, { renderer: phyloRenderer, interactive: false, color: P.color[c], weight: 1.5, opacity: 0.9,
+        fillColor: P.color[c], fillOpacity: 0.08 + 0.32 * occ[c], dashArray: occ[c] < 0.05 ? "4 3" : null }).addTo(phyloLayer);
+      pts.forEach(function (p) { L.circleMarker(p, { renderer: phyloRenderer, interactive: false, radius: 2, weight: 0, fillColor: P.color[c], fillOpacity: 0.9 }).addTo(phyloLayer); });
+      L.marker(centers[c], { interactive: false, keyboard: false, icon: L.divIcon({ className: "phylo-area-label", iconSize: null, iconAnchor: [-8, 18],
+        html: esc(c + " " + (EN || !area.name_ko ? area.name : area.name_ko)) }) }).addTo(phyloLayer);
+    });
+    function rangeCenter(range) {
+      var pts = range.split("").map(function (c) { return centers[c]; }).filter(Boolean);
+      var c = PH.sphericalCentroid(pts);
+      return c ? [c[0], nearLon(c[1])] : null;
+    }
+    // 분기 — 시점 창 안에서 갈라진 노드의 범위 → 딸 가지의 범위(같으면 안 그린다)
+    var w = WINDOW_MA, splitsText = [];
+    PH.splitsNear(P, age - w, age + w).forEach(function (sp) {
+      if (!sp.from.range) return;
+      var from = rangeCenter(sp.from.range);
+      sp.kids.forEach(function (k) {
+        if (!k.to.range || k.to.range === sp.from.range) return;
+        var to = rangeCenter(k.to.range);
+        if (!from || !to) return;
+        var col = k.to.range.length === 1 ? P.color[k.to.range] : "#ffffff", arc = greatArc(from, to);
+        to = arc[arc.length - 1];
+        L.polyline(arc, { renderer: phyloRenderer, interactive: false, color: "#000", weight: 4, opacity: 0.35 }).addTo(phyloLayer);
+        L.polyline(arc, { renderer: phyloRenderer, interactive: false, color: col, weight: 2, opacity: 0.95, dashArray: "6 4" }).addTo(phyloLayer);
+        L.circleMarker(to, { renderer: phyloRenderer, interactive: false, radius: 4, color: "#fff", weight: 1.5, fillColor: col, fillOpacity: 1 }).addTo(phyloLayer);
+        splitsText.push(tr("phylo.split", { age: (+sp.node.age).toFixed(1), from: sp.from.range, to: k.to.range }));
+      });
+    });
+    // 계통 — 가장 그럴듯한 범위가 같은 것끼리 한 파이(지역 확률의 평균)
+    var groups = {};
+    lineages.forEach(function (l) {
+      var bst = PH.best(l.probs).range || "_";
+      (groups[bst] = groups[bst] || []).push(l);
+    });
+    Object.keys(groups).forEach(function (range) {
+      var ls = groups[range], at = range === "_" ? null : rangeCenter(range);
+      if (!at) return;
+      var marg = {}; P.codes.forEach(function (c) { marg[c] = 0; });
+      ls.forEach(function (l) { var m = PH.areaMarginals(l.probs, P.codes); P.codes.forEach(function (c) { marg[c] += m[c] / ls.length; }); });
+      var r = Math.round(7 + 3 * Math.sqrt(ls.length)), size = 2 * r + 4;
+      var tip = "<b>" + esc(rangeLabel(range)) + "</b><br>" + ls.slice(0, 8).map(function (l) {
+        var lab = PH.cladeLabel(P, l.node.id), name = typeof lab === "string" ? "<i>" + esc(lab) + "</i>"
+          : tr("phylo.lineage", { clade: "<i>" + esc(lab.genera[0]) + "</i>" + (lab.genera.length > 1 ? " " + esc(tr("phylo.more", { name: "", n: lab.genera.length - 1 })).trim() : ""), n: lab.tips });
+        var tops = Object.keys(l.probs).filter(function (k) { return k !== "_"; }).sort(function (a, b2) { return l.probs[b2] - l.probs[a]; }).slice(0, 3)
+          .map(function (k) { return k + " " + Math.round(l.probs[k] * 100) + "%"; }).join(", ");
+        return name + " <small>(" + esc(tops) + ")</small>";
+      }).join("<br>") + (ls.length > 8 ? "<br>…" : "");
+      L.marker(at, { keyboard: false, icon: L.divIcon({ className: "phylo-pie", iconSize: [size, size], iconAnchor: [size / 2, size / 2], html: pieSvg(marg, P.codes, P.color, r, ls.length) }) })
+        .bindTooltip(tip, { direction: "top", offset: [0, -r] }).addTo(phyloLayer);
+    });
+    var html = esc(tr("phylo.legend", { model: b.model, lnl: b.lnl != null ? (+b.lnl).toFixed(2) : "?", d: fmtP(b.params && b.params.d), e: fmtP(b.params && b.params.e), j: fmtP(b.params && b.params.j), n: lineages.length }));
+    if (lineages.length === 1 && lineages[0].stem) html = esc(tr("phylo.before", { root: (+b.root_age).toFixed(1) }));
+    html += "<br>" + P.codes.map(function (c) { return '<span class="sw" style="background:' + P.color[c] + '">' + esc(c) + "</span>" + esc(EN || !b.areas[c].name_ko ? b.areas[c].name : b.areas[c].name_ko); }).join(" ");
+    if (splitsText.length) html += "<br>" + esc(splitsText.slice(0, 4).join(" · ")) + (splitsText.length > 4 ? " …" : "");
+    legend.innerHTML = html + phyloCite();
+  }
+  // 두 점 사이의 대원 호 — 경도는 앞 점에 이어 펴서(날짜변경선을 넘어도 지도를 가로지르지 않게) 32 토막
+  function greatArc(a, b) {
+    var d = Math.PI / 180, out = [];
+    function v(p) { return [Math.cos(p[0] * d) * Math.cos(p[1] * d), Math.cos(p[0] * d) * Math.sin(p[1] * d), Math.sin(p[0] * d)]; }
+    var A = v(a), B = v(b), dot = Math.max(-1, Math.min(1, A[0] * B[0] + A[1] * B[1] + A[2] * B[2])), w = Math.acos(dot);
+    for (var i = 0; i <= 32; i++) {
+      var t = i / 32, s1 = w < 1e-9 ? 1 - t : Math.sin((1 - t) * w) / Math.sin(w), s2 = w < 1e-9 ? t : Math.sin(t * w) / Math.sin(w);
+      var x = s1 * A[0] + s2 * B[0], y = s1 * A[1] + s2 * B[1], z = s1 * A[2] + s2 * B[2];
+      var lat = Math.atan2(z, Math.sqrt(x * x + y * y)) / d, lon = Math.atan2(y, x) / d;
+      if (out.length) lon = out[out.length - 1][1] + wrap180(lon - out[out.length - 1][1]); else lon = a[1];
+      out.push([lat, lon]);
+    }
+    return out;
+  }
+  function fmtP(v) { return v == null ? "?" : (+v < 1e-6 ? "0" : (+v).toPrecision(2)); }
+  function ageKeyOf(age) { return String(Math.round(age * 10)).padStart(4, "0"); }
+  function phyloCite() {
+    var b = phylo.bundle;
+    return '<br><small class="ref">' + esc(tr("phylo.cite")) + esc(b.citation) + (b.data && b.data.url ? ' · <a href="' + esc(b.data.url) + '" target="_blank" rel="noopener">' + esc(b.data.license || "data") + "</a>" : "") + "</small>";
+  }
+  // 연대 나무 — 왼쪽이 뿌리(옛날), 오른쪽이 현재. 가지 색은 노드에서 가장 그럴듯한 범위가 한 지역이면 그 색, 여럿이면 회색.
+  // 세로선이 지금 시점이고, 나무를 누르면 그 나이에 가장 가까운 지도로 간다
+  function drawPhyloTree() {
+    var box = $("phylo-tree"), b = phylo.bundle, P = phylo.P;
+    if (!b) { box.innerHTML = ""; return; }
+    var order = [], y = {};
+    function size(id) { return P.kids[id].length ? P.kids[id].reduce(function (s, k) { return s + size(k); }, 0) : 1; }
+    (function walk(id) {
+      var ks = P.kids[id].slice().sort(function (a, c) { return size(a) - size(c); });
+      if (!ks.length) { y[id] = order.length; order.push(id); return; }
+      ks.forEach(walk);
+      y[id] = (y[ks[0]] + y[ks[ks.length - 1]]) / 2;
+    })(P.root.id);
+    var W = 340, padL = 6, padR = 6, rowH = 2.4, top = 6, H = top + order.length * rowH + 18, root = b.root_age;
+    function X(age) { return padL + (root - age) / root * (W - padL - padR); }
+    function col(n) { var bst = PH.best(n.top).range; return bst && bst.length === 1 ? P.color[bst] : "#9a9a9a"; }
+    var s = "";
+    b.nodes.forEach(function (n) {
+      var yy = top + y[n.id] * rowH;
+      if (n.parent != null) {
+        var pa = P.byId[n.parent];
+        s += '<line x1="' + X(pa.age).toFixed(1) + '" y1="' + yy.toFixed(1) + '" x2="' + X(n.age).toFixed(1) + '" y2="' + yy.toFixed(1) + '" stroke="' + col(n) + '" stroke-width="1.4"/>';
+      }
+      var ks = P.kids[n.id];
+      if (ks.length) s += '<line x1="' + X(n.age).toFixed(1) + '" y1="' + (top + y[ks[0]] * rowH).toFixed(1) + '" x2="' + X(n.age).toFixed(1) + '" y2="' + (top + y[ks[ks.length - 1]] * rowH).toFixed(1) + '" stroke="' + col(n) + '" stroke-width="1"/>';
+    });
+    var axis = '<g class="axis">', base = H - 14;
+    for (var a = 0; a <= root; a += 25) axis += '<line x1="' + X(a) + '" y1="' + base + '" x2="' + X(a) + '" y2="' + (base + 3) + '"/><text x="' + X(a) + '" y="' + (base + 12) + '" text-anchor="middle">' + a + "</text>";
+    axis += '<line x1="' + padL + '" y1="' + base + '" x2="' + (W - padR) + '" y2="' + base + '"/></g>';
+    box.innerHTML = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' + esc(b.title) + '">' + s + axis +
+      '<line class="now" id="phylo-now" x1="0" y1="' + top + '" x2="0" y2="' + base + '"/></svg>';
+    box.querySelector("svg").addEventListener("click", function (e) {
+      var r = this.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * W, age = root - (x - padL) / (W - padL - padR) * root;
+      var best = 0, d = 1e9;
+      state.frames.forEach(function (f, i) { if (f.src) return; var dd = Math.abs(f.age - age); if (dd < d) { d = dd; best = i; } });
+      show(best);
+    });
+    phylo.X = X;
+    markTreeNow();
+  }
+  function markTreeNow() {
+    var line = $("phylo-now"), f = frame();
+    if (!line || !f || !phylo.X) return;
+    var age = Math.min(frameAgeOf(f), phylo.bundle.root_age), x = phylo.X(age).toFixed(1);
+    line.setAttribute("x1", x); line.setAttribute("x2", x);
+    line.style.display = frameAgeOf(f) > phylo.bundle.root_age + 0.01 ? "none" : "";
+  }
+
   function start() {
     // 최근의 절에 붙이는 PaleoClim 기온 목록(tupandactyl 010) — 없으면 그 절은 기온 지도가 없다고 말한다
     var recentClimate = getJSON(DATA + "climate/recent.json").then(null, function () { return null; });
@@ -5116,10 +5472,11 @@
       if (index.rules) {
         WINDOW_MA = index.rules.window_ma;
         ANALYSIS = index.rules.analysis || null;
-        $("cells-box").hidden = !(ANALYSIS && ANALYSIS.grid_km != null);
+        $("cells-box").hidden = $("cells-box2").hidden = !(ANALYSIS && ANALYSIS.grid_km != null);
         QUALITY = index.rules.quality || null;
         OCCS = index.occurrences || null;
         syncShareRow();
+        setupPhylo(index.phylogeo);        // 계통 생물지리 묶음(tupandactyl 035)
         (index.rules.vague_intervals || []).forEach(function (name) { VAGUE[name] = true; });
       }
       BUILT = index.built_at || "";
@@ -5507,5 +5864,6 @@
     tb.addEventListener("click", function () { setTimebar(app.classList.contains("timebar-closed")); });
   })();
 
+  setupMethods();                 // 연구방법론 창(tupandactyl 035) — Scientific 에서만
   start();
 })();

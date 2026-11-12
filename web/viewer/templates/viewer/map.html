@@ -240,6 +240,60 @@
           <button type="button" class="fd-all" id="fd-all" aria-pressed="false"></button>
         </div>
       </div>
+      <!-- 연구방법론 창(tupandactyl 035) — Scientific 에서만. 지도 위의 분석 층과 셈의 선택을 목적끼리 묶는다. 작은 아이콘으로 접히고,
+           ⚙ 를 누르면 각 기능의 설명(무엇을·언제·읽는 법·주의)이 창 안에 펼쳐진다. 설명 글은 i18n.js 의 m.* 이고 map.js 가 그린다 -->
+      <div class="methods" id="methods" hidden>
+        <button type="button" class="methods-icon" id="methods-open" aria-expanded="false" aria-controls="methods-win"
+                title="연구방법론 — 분석 층과 셈" data-i18n-attr="title:m.open">∑</button>
+        <section class="methods-win" id="methods-win" aria-labelledby="methods-title" hidden>
+          <header class="methods-head">
+            <h2 id="methods-title"><b>Research methods</b> <small data-i18n="m.title.ko">연구방법론</small></h2>
+            <button type="button" class="methods-btn" id="methods-help" aria-pressed="false" aria-controls="methods-guide"
+                    title="각 기능의 설명" data-i18n-attr="title:m.help">⚙</button>
+            <button type="button" class="methods-btn" id="methods-close" title="아이콘으로 접기" aria-label="아이콘으로 접기"
+                    data-i18n-attr="title:m.fold;aria-label:m.fold">▾</button>
+          </header>
+          <div class="methods-body" id="methods-body">
+            <fieldset class="mgroup" id="mg-count">
+              <legend data-i18n="m.g.count">표본과 셈 — 무엇을 하나로 세나</legend>
+              <p class="note" id="mg-count-off" data-i18n="m.count.off">설정의 "분석 엄밀 표기" 를 켜면 고를 수 있다.</p>
+              <label id="share-opacity-row" hidden><input type="checkbox" id="share-opacity"> <span data-i18n="share.opacity">점 진하기를 시점 몫으로</span> <small data-i18n="share.opacity.small">(범위가 길수록 흐리게)</small></label>
+              <label id="by-grid-row" hidden><input type="checkbox" id="by-grid" checked> <span data-i18n="grid.toggle">공간은 등면적 격자 칸으로 세기</span> <small data-i18n="grid.toggle.small">(Equal Earth 200 km 칸 — 같은 자리의 여러 산지를 하나로)</small></label>
+            </fieldset>
+            <fieldset class="mgroup" id="cells-box" hidden>
+              <legend data-i18n="m.g.surface">분포 표면 — 어디에 있었고 어디를 찾아봤나</legend>
+              <label><input type="checkbox" id="layer-occ"> <span data-i18n="layer.occ">격자 점유(찾은 분류군)</span></label>
+              <select id="occ-value" aria-label="점유 값" data-i18n-attr="aria-label:occ.value">
+                <option value="share" selected data-i18n="occ.share">있을 기대값</option><option value="n" data-i18n="occ.n">산지 수</option>
+              </select>
+              <label><input type="checkbox" id="layer-effort"> <span data-i18n="layer.effort">표본 노력(그 시점 전체 산지)</span></label>
+            </fieldset>
+            <fieldset class="mgroup" id="cells-box2" hidden>
+              <legend data-i18n="m.g.change">분포의 변화 — 시점 사이에 어떻게 움직였나</legend>
+              <label><input type="checkbox" id="layer-change"> <span data-i18n="layer.change">직전 시점 대비 점유 변화</span></label>
+              <label><input type="checkbox" id="layer-center"> <span data-i18n="layer.center">무게중심과 판에 대한 이동</span></label>
+              <p class="note cells-legend" id="cells-legend" hidden></p>
+            </fieldset>
+            <fieldset class="mgroup" id="phylo-box" hidden>
+              <legend data-i18n="m.g.phylo">계통 생물지리 — 계통을 따라 어디서 왔나</legend>
+              <label><input type="checkbox" id="layer-phylo"> <span data-i18n="layer.phylo">조상 범위(이산 지역)</span></label>
+              <select id="phylo-study" aria-label="연구" data-i18n-attr="aria-label:phylo.study"></select>
+              <div class="phylo-tree" id="phylo-tree" hidden></div>
+              <p class="note phylo-legend" id="phylo-legend" hidden></p>
+            </fieldset>
+            <fieldset class="mgroup" id="topo-box">
+              <legend data-i18n="m.g.topo">고지형 — 그때 땅의 높낮이</legend>
+              <label><input type="checkbox" id="layer-contour"> <span data-i18n="layer.contour">등고선(PaleoDEM)</span></label>
+              <select id="contour-step" aria-label="등고선 간격" data-i18n-attr="aria-label:contour.step">
+                <option value="500">500 m</option><option value="1000" selected>1000 m</option><option value="2000">2000 m</option>
+              </select>
+              <label><input type="checkbox" id="contour-sea"> <span data-i18n="contour.sea">바다 등심선도</span></label>
+              <p class="note" id="contour-note" hidden></p>
+            </fieldset>
+          </div>
+          <div class="methods-guide" id="methods-guide" hidden></div>
+        </section>
+      </div>
     </div>
 
     <aside class="panel" id="panel">
@@ -267,18 +321,7 @@
           <label><input type="radio" name="color-by" value="age"> <span data-i18n="colorby.age">시대(기)</span></label>
         </div>
         <label class="opacity"><span data-i18n="opacity">포인트 불투명도</span> <input type="range" id="point-opacity" min="15" max="100" step="5" value="60" aria-label="포인트 불투명도" data-i18n-attr="aria-label:opacity"> <output id="point-opacity-value">60%</output></label>
-        <div id="cells-box" hidden>
-          <label><input type="checkbox" id="layer-occ"> <span data-i18n="layer.occ">격자 점유(찾은 분류군)</span></label>
-          <select id="occ-value" aria-label="점유 값" data-i18n-attr="aria-label:occ.value">
-            <option value="share" selected data-i18n="occ.share">있을 기대값</option><option value="n" data-i18n="occ.n">산지 수</option>
-          </select>
-          <label><input type="checkbox" id="layer-effort"> <span data-i18n="layer.effort">표본 노력(그 시점 전체 산지)</span></label>
-          <label><input type="checkbox" id="layer-change"> <span data-i18n="layer.change">직전 시점 대비 점유 변화</span></label>
-          <label><input type="checkbox" id="layer-center"> <span data-i18n="layer.center">무게중심과 판에 대한 이동</span></label>
-          <p class="note cells-legend" id="cells-legend" hidden></p>
-        </div>
-        <label id="share-opacity-row" hidden><input type="checkbox" id="share-opacity"> <span data-i18n="share.opacity">점 진하기를 시점 몫으로</span> <small data-i18n="share.opacity.small">(범위가 길수록 흐리게)</small><br>
-          <input type="checkbox" id="by-grid" checked> <span data-i18n="grid.toggle">공간은 등면적 격자 칸으로 세기</span> <small data-i18n="grid.toggle.small">(Equal Earth 200 km 칸 — 같은 자리의 여러 산지를 하나로)</small></label>
+        <!-- 분석 층·셈의 선택은 지도 왼쪽 아래 "연구방법론" 창으로 옮겼다(tupandactyl 035) -->
         <div class="shapes">
           <span><i class="shape solid"></i> <span data-i18n="shape.solid">절 단위로 정해진 기록</span></span>
           <label><input type="checkbox" id="show-wide" checked> <i class="shape tri"></i> <span data-i18n="shape.tri">모호한 연대 기록도 보기</span></label>
@@ -446,6 +489,7 @@
 <script src="{% static 'viewer/globe.js' %}?v={{ version }}"></script>
 <script src="{% static 'viewer/translit.js' %}?v={{ version }}"></script>
 <script src="{% static 'viewer/analysis.js' %}?v={{ version }}"></script>
+<script src="{% static 'viewer/phylogeo.js' %}?v={{ version }}"></script>
 <script src="{% static 'viewer/map.js' %}?v={{ version }}"></script>
 </body>
 </html>
