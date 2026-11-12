@@ -267,7 +267,7 @@
                 <option value="share" selected data-i18n="occ.share">있을 기대값</option><option value="n" data-i18n="occ.n">산지 수</option>
               </select>
               <label><input type="checkbox" id="layer-effort"> <span data-i18n="layer.effort">표본 노력(그 시점 전체 산지)</span></label>
-              <label id="gbdb-effort-row" hidden><input type="checkbox" id="gbdb-effort"> <span data-i18n="gbdb.effort">표본 노력에 GBDB 채집 더하기</span> <small data-i18n="gbdb.effort.small">(PBDB 와 겹친 것은 뺀다)</small></label>
+              <label id="gbdb-effort-row" hidden><input type="checkbox" id="gbdb-effort"> <span data-i18n="gbdb.effort">셈에 GBDB 채집 더하기</span> <small data-i18n="gbdb.effort.small">(표본 노력·점유 — PBDB 와 겹친 것은 뺀다)</small></label>
             </fieldset>
             <fieldset class="mgroup" id="cells-box2" hidden>
               <legend data-i18n="m.g.change">분포의 변화 — 시점 사이에 어떻게 움직였나</legend>
@@ -319,7 +319,7 @@
           <label><input type="checkbox" id="show-wide" checked> <i class="shape tri"></i> <span data-i18n="shape.tri">모호한 연대 기록도 보기</span></label>
         </div>
         <!-- GBDB 단면의 채집(tupandactyl 036) — 자료가 있을 때만 보인다 -->
-        <label class="gbdb-row" id="gbdb-row" hidden><input type="checkbox" id="gbdb-on"> <i class="shape sq"></i> <span data-i18n="gbdb.toggle">GBDB 단면의 채집도 보기</span> <small data-i18n="gbdb.toggle.small">(2020 사본 · 중국 중심 · 속 빈 네모는 PBDB 와 겹친 것)</small></label>
+        <label class="gbdb-row" id="gbdb-row" hidden><input type="checkbox" id="gbdb-on"> <i class="shape sq"></i> <span data-i18n="gbdb.toggle">GBDB 단면의 채집도 보기</span> <small data-i18n="gbdb.toggle.small">(2020 사본 · 중국 중심 · 찾기도 따른다 · 속 빈 네모는 PBDB 와 겹친 것)</small></label>
         <label class="opacity"><span data-i18n="span">연대 범위</span> <input type="range" id="max-span" min="0" max="10" step="1" value="10" aria-label="연대 범위 상한" data-i18n-attr="aria-label:span.max"> <output id="span-value">제한 없음</output></label>
         <p class="note" id="span-note" aria-live="polite"></p>
         <div class="legend" id="legend" aria-live="polite"></div>

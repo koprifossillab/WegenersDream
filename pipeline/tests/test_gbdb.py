@@ -98,6 +98,21 @@ class DuplicateTest(unittest.TestCase):
         self.assertAlmostEqual(gbdb.km_between(0, 0, 0, 1), 111.2, places=0)
 
 
+class SearchFieldsTest(unittest.TestCase):
+    def test_taxon_lfts(self):
+        class Table:
+            names = {"Claraia": 100, "Claraia stachei": 105, "Ophiceras": 200}
+            def lft(self, name):
+                return self.names.get(name)
+        # 종이 나무에 있으면 종, 없으면 속. 같은 lft 는 하나로
+        self.assertEqual(gbdb.taxon_lfts(["Claraia stachei", "Claraia wangi", "Claraia", "Ophiceras", "Nothing"], Table()),
+                         [105, 100, 200])
+
+    def test_country_names(self):
+        self.assertEqual(gbdb.pbdb_code(gbdb.NAME_TO_ISO["england"]), "UK")     # PBDB 는 영국을 UK 로
+        self.assertEqual(gbdb.NAME_TO_ISO["rapla county"], "EE")
+
+
 class AssignTest(unittest.TestCase):
     def test_overlap_rule(self):
         c = {"max_ma": 254.17, "min_ma": 252.17}

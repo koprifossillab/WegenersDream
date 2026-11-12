@@ -21,7 +21,10 @@ from collections import defaultdict
 
 from .common import DERIVED, WINDOW_MA, age_key, manifest, source_path
 
-FIELDS = ["id", "paleolng", "paleolat", "section", "n_taxa", "dup", "max_ma", "min_ma", "precise", "lng", "lat"]
+FIELDS = ["id", "paleolng", "paleolat", "section", "n_taxa", "dup", "max_ma", "min_ma", "precise", "lng", "lat",
+          "cc",         # PBDB 의 국가 코드(GB 는 UK) — 좌표가 든 Natural Earth 나라. 나라 찾기가 쓴다
+          "fm",         # 층 단위의 지층 이름 — 지층 찾기가 쓴다(뷰어가 formKey 로 견준다)
+          "lfts"]       # 산출 이름마다 PBDB 분류 나무의 lft — 분류군 찾기가 [lft, rgt] 로 견준다(occs/taxa 이름표, 050)
 BUCKETS = 100           # 단면 파일 수 — 단면 번호 % 100. 누른 단면 하나를 읽으려고 전부를 받지 않게
 DUP_KM = 10.0
 DUP_SHARE = 0.5
@@ -208,6 +211,11 @@ def pbdb_collections(chunk_dir):
     return {no: c + (genera.get(no, set()),) for no, c in out.items()}
 
 
+def row_of(c, lng, lat):
+    return [c["id"], round(lng, 2), round(lat, 2), c["section"], len(c["taxa"]), c["dup"], c["max_ma"], c["min_ma"], c["precise"],
+            round(c["lng"], 3), round(c["lat"], 3), c.get("cc", ""), c.get("fm", ""), c.get("lfts", [])]
+
+
 # ── 시점에 나누기 ────────────────────────────────────────────────────
 def assign(collections, ages):
     """시점마다 그 무렵 채집 — fossils.assign 과 같은 규칙(연대 범위가 시점 창과 겹친다)."""
@@ -236,6 +244,81 @@ def section_payload(sid, sec, by_id):
                     "thickness": u["thickness"], "max_ma": u["max_ma"], "min_ma": u["min_ma"], "label": u["label"], "colls": colls})
     return {"id": sid, "name": sec["name"], "country": sec["country"], "province": sec["province"],
             "lat": sec["lat"], "lng": sec["lng"], "units": out}
+
+
+# ── 찾기에 쓰는 칸: 나라·지층·분류 나무 ─────────────────────────────
+ISO_TO_PBDB = {"GB": "UK"}      # countries.PBDB_TO_ISO 의 거꾸로
+NAME_TO_ISO = {                 # 좌표가 어느 나라에도 안 들 때(해안·단순화한 경계 밖) 이름으로
+    "china": "CN", "united kingdom of great britain and northern ireland": "GB", "scotland": "GB", "england": "GB",
+    "south lanarkshire": "GB", "renfrewshire": "GB", "chester": "GB", "united states of america": "US", "iran": "IR",
+    "iran, islamic republic of...": "IR", "estonia": "EE", "vigala parish": "EE", "rapla county": "EE", "spain": "ES", "italy": "IT",
+    "russian federation": "RU", "canada": "CA", "belgium": "BE", "sweden": "SE", "dalarna": "SE", "latvia": "LV", "argentina": "AR",
+    "pakistan": "PK", "portugal": "PT", "norway": "NO", "poland": "PL", "austria": "AT", "guyana": "GY", "armenia": "AM",
+    "denmark": "DK", "tajikistan": "TJ", "czech republic": "CZ", "turkey": "TR", "kazakhstan": "KZ", "hungary": "HU",
+    "greece": "GR", "france": "FR", "germany": "DE", "india": "IN", "japan": "JP", "united republic of tanzania": "TZ",
+    "croatia": "HR", "mexico": "MX", "south africa": "ZA", "uruguay": "UY", "ukraine": "UA", "new zealand": "NZ",
+    "united arab emirates": "AE", "oman": "OM", "taijiang county": "CN", "morocco": "MA", "netherlands": "NL", "jordan": "JO",
+    "namibia": "NA", "iceland": "IS", "ireland": "IE", "kenya": "KE", "viet nam": "VN", "australia": "AU", "bolivia": "BO",
+    "libyan arab jamahiriya": "LY", "indonesia": "ID", "ecuador": "EC", "ethiopia": "ET",
+}
+
+
+def pbdb_code(iso):
+    return ISO_TO_PBDB.get(iso, iso) if iso else ""
+
+
+def country_codes(points, names):
+    """채집마다 PBDB 국가 코드. 좌표가 든 Natural Earth 나라(국경 층과 같은 자료) → 없으면 GBDB 의 나라 이름.
+    shapely·Natural Earth 가 없으면(규칙 시험) 이름만 쓴다."""
+    out = [pbdb_code(NAME_TO_ISO.get((n or "").strip().lower(), "")) for n in names]
+    try:
+        from shapely import STRtree, points as shp_points
+        from shapely.geometry import Polygon
+        from .countries import natural_earth
+        polys, isos = [], []
+        for iso, _, _, rings in natural_earth():
+            for ring in rings:
+                polys.append(Polygon(ring)); isos.append(iso)
+    except Exception as err:                 # noqa: BLE001 — 원본이 없거나 꾸러미가 없으면 이름으로만
+        print(f"  나라: 경계로 못 가른다({err}) — GBDB 의 나라 이름으로만")
+        return out
+    tree = STRtree(polys)
+    pts = shp_points([(lng, lat) for lat, lng in points])
+    hit_pt, hit_poly = tree.query(pts, predicate="within")
+    for k, j in zip(hit_pt, hit_poly):
+        out[k] = pbdb_code(isos[j])
+    return out
+
+
+class TaxonTable:
+    """이름 → PBDB 분류 나무의 lft — 산출 사본의 이름표(occs/taxa/<첫 글자>.json, 050). 같은 이름이 여럿이면 산출이 많은 것."""
+    def __init__(self, folder):
+        self.folder, self.cache = folder, {}
+
+    def lft(self, name):
+        if not name:
+            return None
+        letter = name[0].lower() if name[0].isalpha() else "_"
+        table = self.cache.get(letter)
+        if table is None:
+            path = self.folder / f"{letter}.json"
+            table = self.cache[letter] = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        entries = table.get(name)
+        if not entries:
+            return None
+        return max(entries, key=lambda e: e[4])[1]
+
+
+def taxon_lfts(taxa, table):
+    """산출 이름마다 lft — 종 이름이 나무에 있으면 종, 없으면 그 속. 한 채집 안에서 겹치는 것은 하나로."""
+    out = []
+    for name in taxa:
+        lft = table.lft(name) if " " in name else None
+        if lft is None:
+            lft = table.lft(name.split(" ")[0])
+        if lft is not None and lft not in out:
+            out.append(lft)
+    return out
 
 
 def build(ages):
@@ -267,8 +350,26 @@ def build(ages):
         for c in collections:
             c["dup"] = None
 
+    # 찾기에 쓰는 칸 — 나라(좌표), 지층(층 단위), 분류 나무의 lft(산출 사본의 이름표)
+    units = {(sid, uid): u for sid, sec in sections.items() for uid, u in sec["units"].items()}
+    codes = country_codes([(c["lat"], c["lng"]) for c in collections], [sections[c["section"]]["country"] for c in collections])
+    table = TaxonTable(DERIVED / "occs" / "taxa")
+    named = 0
+    for c, cc in zip(collections, codes):
+        c["cc"] = cc
+        c["fm"] = units[(c["section"], c["unit"])]["formation"]
+        c["lfts"] = taxon_lfts(c["taxa"], table)
+        named += len(c["lfts"]) > 0
+    stats["no_country"] = sum(1 for c in collections if not c["cc"])
+    stats["taxon_matched"] = named
+    print(f"  분류 나무에 자리가 있는 채집 {named} / {len(collections)}, 나라를 못 정한 채집 {stats['no_country']}")
+
     out = DERIVED / "gbdb"
     (out / "sections").mkdir(parents=True, exist_ok=True)
+    # 모든 시대를 오늘날 자리로(찾기의 종합 보기) — 시점 파일과 같은 칸, 고좌표 칸에 오늘날 좌표
+    every = [row_of(c, c["lng"], c["lat"]) for c in collections]
+    (out / "all.json").write_text(json.dumps({"fields": FIELDS, "rows": every}, ensure_ascii=False, separators=(",", ":")),
+                                  encoding="utf-8")
     by_id = {c["id"]: c for c in collections}
     buckets = defaultdict(dict)
     for sid, sec in sections.items():
@@ -290,8 +391,7 @@ def build(ages):
             if not good:
                 stats["unplaced"] += 1
                 continue
-            rows.append([c["id"], round(float(x), 2), round(float(y), 2), c["section"], len(c["taxa"]), c["dup"],
-                         c["max_ma"], c["min_ma"], c["precise"], round(c["lng"], 3), round(c["lat"], 3)])
+            rows.append(row_of(c, float(x), float(y)))
         if not rows:
             continue
         name = f"gbdb/{age_key(age)}.json"
@@ -301,7 +401,7 @@ def build(ages):
     print(f"  시점 {len(frames)} 장 (판이 없어 뺀 채집·시점 {stats['unplaced']})")
     return {"snapshot": spec["snapshot"], "record": spec["record"], "citation": spec["citation"],
             "license": spec["license"]["name"], "fields": FIELDS, "frames": frames,
-            "sections": "gbdb/sections/{b}.json", "buckets": BUCKETS,
+            "sections": "gbdb/sections/{b}.json", "buckets": BUCKETS, "all": "gbdb/all.json",
             "dup_rule": {"km": DUP_KM, "share": DUP_SHARE, "slack_ma": DUP_SLACK_MA}, "stats": stats}
 
 
