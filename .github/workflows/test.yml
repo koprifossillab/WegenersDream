@@ -47,6 +47,10 @@ jobs:
       - name: 계통 생물지리 셈 시험
         run: node web/viewer/jstest/phylogeo.test.js
 
+      # 높이 도드라지게(relief.js) — 여러 방향 음영·산줄기(대동여지도식) 셈(tupandactyl 037)
+      - name: 높이 도드라지게 셈 시험
+        run: node web/viewer/jstest/relief.test.js
+
       - name: collectstatic
         run: python web/manage.py collectstatic --noinput
         env:

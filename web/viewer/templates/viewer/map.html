@@ -444,6 +444,17 @@
           <label><input type="checkbox" id="contour-sea"> <span data-i18n="contour.sea">바다 등심선도</span></label>
         </div>
         <p class="note" id="contour-note" hidden></p>
+        <!-- 높이 도드라지게(tupandactyl 037) — 같은 PaleoDEM 격자의 음영 기복과 산줄기(대동여지도식). 지구본에도 입힌다 -->
+        <label class="swatch"><input type="checkbox" id="layer-shade"> <i class="line shade"></i> <span data-i18n="shade">높이 도드라지게 (PaleoDEM)</span></label>
+        <div class="contour-opts" id="shade-opts" hidden>
+          <select id="shade-style" aria-label="그리는 방식" data-i18n-attr="aria-label:shade.style">
+            <option value="shade" data-i18n="shade.shade">음영 기복</option>
+            <option value="ridge" data-i18n="shade.ridge">산줄기 (대동여지도식)</option>
+            <option value="both" selected data-i18n="shade.both">음영 + 산줄기</option>
+          </select>
+          <label><span data-i18n="shade.exag">과장</span> <input type="range" id="shade-exag" min="1" max="40" step="1" value="20" aria-label="높이 과장" data-i18n-attr="aria-label:terrain.exag"> <output id="shade-exag-value">×20</output></label>
+        </div>
+        <p class="note" id="shade-note" hidden></p>
         <label class="swatch"><input type="checkbox" id="grid"> <span data-i18n="grid">경위선 30°</span></label>
         <!-- 지구본의 지형(wetherilli 017) — 지구본이고 가공물에 지형이 있을 때만 보인다 -->
         <div id="terrain-row" hidden>
@@ -493,6 +504,7 @@
 <script src="{% static 'viewer/translit.js' %}?v={{ version }}"></script>
 <script src="{% static 'viewer/analysis.js' %}?v={{ version }}"></script>
 <script src="{% static 'viewer/phylogeo.js' %}?v={{ version }}"></script>
+<script src="{% static 'viewer/relief.js' %}?v={{ version }}"></script>
 <script src="{% static 'viewer/map.js' %}?v={{ version }}"></script>
 </body>
 </html>

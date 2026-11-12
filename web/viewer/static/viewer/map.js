@@ -412,6 +412,11 @@
   map.createPane("base").style.zIndex = 380;
   map.createPane("climate").style.zIndex = 390;
   var relief = new ReliefOverlay("", WORLD, { interactive: false, className: "relief", pane: "base" }).addTo(map);
+  // 높이 도드라지게(tupandactyl 037) — 배경 바로 위, 기온 밑. 정거원통·몰바이데 그림을 따로 둔다(기온 층과 같은 방식)
+  map.createPane("shade").style.zIndex = 385;
+  map.getPane("shade").style.pointerEvents = "none";
+  var shadeEq = new ReliefOverlay("", WORLD, { interactive: false, className: "shade", pane: "shade" });
+  var shadeMoll = new ReliefOverlay("", WORLD, { interactive: false, className: "shade", pane: "shade" });
   // 기온 격자는 1° 칸의 가운데가 정수 경위도다(361×181). 그림 가장자리를 반 칸 밖에 둬야 칸이 제자리에 앉는다.
   var climateLayer = L.imageOverlay("", [[-90.5, -180.5], [90.5, 180.5]],
     { interactive: false, className: "climate", pane: "climate", opacity: 0.55 });
@@ -488,6 +493,7 @@
     frame: frame,
     reliefUrl: function (f) { var files = f.relief_files || {}; return dataUrl(files["4096"] || files["2048"] || f.relief); },
     climate: globeClimate, climateOpacity: function () { return climateLayer.options.opacity; },
+    shade: globeShade,                   // 높이 도드라지게(tupandactyl 037) — 정거원통 그림을 그대로 입힌다
     onView: function () { if (state.proj === "globe" && frame()) writeHash(frame()); },
     avoid: function () { return [$("findfloat")]; },
     // 지형(wetherilli 017) — 가공물의 terrain 칸을 그대로 넘긴다. 옛 가공물(칸 없음)이면 매끈한 구
@@ -587,6 +593,7 @@
     relief.setUrl(reliefUrl(f));
     redrawLines(f);
     drawClimate(f);
+    drawShade(f);
     writeHash(f);
   }
   function writeHash(f) {
@@ -622,6 +629,7 @@
     renderer._reset();
     relief.paint();
     if (map.hasLayer(climateMoll)) climateMoll.paint();
+    if (map.hasLayer(shadeMoll)) shadeMoll.paint();
     redrawLines(frame());
   }
 
@@ -1012,6 +1020,7 @@
     if (state.cmp) loadCmpFrame();                            // 비교 분류군도 이 시점으로(024)
     renderAnalysis();
     drawTopo(f);                                              // 고지형 등고선·조상 범위(tupandactyl 035)
+    drawShade(f);                                             // 높이 도드라지게(tupandactyl 037)
     drawPhylo();
     // 옆 시점의 배경과 산지 자료를 미리 받아 둔다 — 밀대를 한 칸 옮길 때 기다리지 않게(021)
     [state.i - 1, state.i + 1].forEach(function (j) {
@@ -5308,6 +5317,123 @@
     $("contour-step").addEventListener("change", function () { saved.step = this.value; remember(); topo.key = null; drawTopo(frame()); });
     $("contour-sea").addEventListener("change", function () { saved.sea = this.checked; remember(); topo.key = null; drawTopo(frame()); });
   }
+  // ── 높이 도드라지게(tupandactyl 037) ────────────────────────────────
+  // 연구자: "대동여지도처럼" 높이가 도드라지게. 배경 그림(PaleoDEM 색)에는 음영이 옅어 산맥이 잘 안 읽힌다. 같은 지형 격자(1/4°)에서
+  //  - 음영 기복: 여러 방향의 빛(relief.js)으로 그늘은 검게, 볕은 희게 겹친다. 과장(×)은 경사를 몇 배로 볼지 — 1/4° 칸(약 28 km)에서는
+  //    큰 산맥도 경사가 몇 % 라 과장 없이는 거의 평평하다
+  //  - 산줄기: 대동여지도가 산을 이어진 줄기로, 큰 줄기를 굵게 그린 것처럼 능선 칸을 잇고 높이로 굵기를 준다
+  // 정거원통 그림(경도 2 칸/° 의 두 배 해상도)을 만들어 두고 몰바이데는 그것을 옮겨 그리며, 지구본에는 그대로 입힌다
+  var RL = window.WegenerRelief, SHADE_KEY = "wegener.shade", shadeCache = {}, shadeSeq = 0;
+  function shadeOn() { return !!RL && $("layer-shade").checked; }
+  function setupShade() {
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem(SHADE_KEY)) || {}; } catch (e) { /* 막힌 저장소 */ }
+    function remember() { try { localStorage.setItem(SHADE_KEY, JSON.stringify(saved)); } catch (e) { /* 막힌 저장소 */ } }
+    $("layer-shade").checked = !!saved.on;
+    if (saved.style) $("shade-style").value = saved.style;
+    if (saved.exag) $("shade-exag").value = saved.exag;
+    $("shade-exag-value").textContent = "×" + $("shade-exag").value;
+    $("layer-shade").addEventListener("change", function () { saved.on = this.checked; remember(); drawShade(frame()); });
+    $("shade-style").addEventListener("change", function () { saved.style = this.value; remember(); drawShade(frame()); });
+    $("shade-exag").addEventListener("input", function () { $("shade-exag-value").textContent = "×" + this.value; });
+    $("shade-exag").addEventListener("change", function () { saved.exag = this.value; remember(); drawShade(frame()); });
+  }
+  function shadeKey(t) { return t.file + "|" + $("shade-style").value + "|" + $("shade-exag").value; }
+  function shadeCanvas(t) {
+    var key = shadeKey(t);
+    if (shadeCache[key]) return shadeCache[key];
+    var style = $("shade-style").value, exag = +$("shade-exag").value;
+    shadeCache = {};                                   // 한 장만 둔다 — 2880×1440 이 여럿이면 메모리가 크다
+    shadeCache[key] = elevGrid(t).then(function (g) {
+      var S = 2, W = g.w * S, H = (g.h - 1) * S, c = document.createElement("canvas");
+      c.width = W; c.height = H;
+      var ctx = c.getContext("2d");
+      if (style !== "ridge") {
+        var hs = RL.hillshade(g, exag), small = document.createElement("canvas");
+        small.width = g.w; small.height = g.h;
+        var sctx = small.getContext("2d"), img = sctx.createImageData(g.w, g.h);
+        for (var k = 0; k < hs.length; k++) {
+          var v = hs[k], sea = g.z[k] < 0, a = v < 0 ? Math.min(0.85, -v * 3.0) : Math.min(0.3, v * 0.9);
+          if (sea) a *= 0.35;                                 // 바다 밑 지형은 옅게 — 대양이 무늬로 덮이지 않게
+          var col = v < 0 ? 18 : 255;
+          img.data[k * 4] = col; img.data[k * 4 + 1] = col * (v < 0 ? 0.8 : 0.97); img.data[k * 4 + 2] = col * (v < 0 ? 0.55 : 0.88);
+          img.data[k * 4 + 3] = Math.round(a * 255);
+        }
+        sctx.putImageData(img, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(small, 0, 0, W, H);
+      }
+      if (style !== "shade") {
+        var segs = RL.ridges(g).sort(function (a, b) { return a[5] - b[5]; });
+        ctx.lineCap = "round"; ctx.lineJoin = "round";
+        segs.forEach(function (s) {
+          var t01 = Math.max(0, Math.min(1, (s[5] - 400) / 2600));      // 솟은 높이 400 → 3000 m
+          ctx.lineWidth = S * (0.7 + 2.8 * Math.sqrt(t01));
+          ctx.strokeStyle = "rgba(" + Math.round(78 - 46 * t01) + "," + Math.round(52 - 30 * t01) + "," + Math.round(26 - 14 * t01) + "," + (0.6 + 0.35 * t01) + ")";
+          ctx.beginPath();
+          ctx.moveTo(s[1] * S, s[0] * S);
+          ctx.lineTo(s[3] * S, s[2] * S);
+          ctx.stroke();
+        });
+      }
+      return c;
+    }).catch(function (e) { delete shadeCache[key]; throw e; });
+    return shadeCache[key];
+  }
+  var mollShadeCache = { key: null, canvas: null };
+  function mollShade(key, src) {
+    if (mollShadeCache.key === key) return mollShadeCache.canvas;
+    var w = 1440, h = 720, c = document.createElement("canvas"), flat = { lon0: 0 };
+    c.width = w; c.height = h;
+    var sd = src.getContext("2d").getImageData(0, 0, src.width, src.height).data, SW = src.width, SH = src.height;
+    var ctx = c.getContext("2d"), out = ctx.createImageData(w, h);
+    for (var r = 0; r < h; r++) {
+      var y = SQRT2 - (r + 0.5) / h * 2 * SQRT2;
+      for (var q = 0; q < w; q++) {
+        var x = (q + 0.5) / w * 4 * SQRT2 - 2 * SQRT2;
+        if (x * x / 8 + y * y / 2 > 1) continue;
+        var ll = Mollweide.unproject.call(flat, L.point(x, y));
+        var sx = Math.min(SW - 1, Math.max(0, Math.floor((ll.lng + 180) / 360 * SW))), sy = Math.min(SH - 1, Math.max(0, Math.floor((90 - ll.lat) / 180 * SH)));
+        var i = (sy * SW + sx) * 4, k = (r * w + q) * 4;
+        out.data[k] = sd[i]; out.data[k + 1] = sd[i + 1]; out.data[k + 2] = sd[i + 2]; out.data[k + 3] = sd[i + 3];
+      }
+    }
+    ctx.putImageData(out, 0, 0);
+    mollShadeCache = { key: key, canvas: c };
+    return c;
+  }
+  function drawShade(f) {
+    if (globe) globe.mark("shade");
+    var on = shadeOn(), t = f && f.terrain, note = $("shade-note");
+    $("shade-opts").hidden = !on;
+    note.hidden = !on;
+    var seq = ++shadeSeq;
+    if (!on || !t) {
+      map.removeLayer(shadeEq); map.removeLayer(shadeMoll);
+      if (on) note.textContent = tr("contour.none");
+      return;
+    }
+    note.textContent = tr("shade.note", { age: fmtAge(f.age), x: $("shade-exag").value });
+    var key = shadeKey(t);
+    shadeCanvas(t).then(function (c) {
+      if (seq !== shadeSeq) return;
+      if (state.proj === "moll") {
+        map.removeLayer(shadeEq);
+        shadeMoll.setSource(mollShade(key, c));
+        if (!map.hasLayer(shadeMoll)) shadeMoll.addTo(map);
+      } else {
+        map.removeLayer(shadeMoll);
+        shadeEq.setSource(c);
+        if (!map.hasLayer(shadeEq)) shadeEq.addTo(map);
+      }
+    }).catch(function () { if (seq === shadeSeq) note.textContent = tr("contour.none"); });
+  }
+  function globeShade(f) {
+    var t = f && f.terrain;
+    if (!shadeOn() || !t) return Promise.resolve(null);
+    return shadeCanvas(t).catch(function () { return null; });
+  }
+
   function drawTopo(f) {
     if (!f) return;
     var on = $("layer-contour").checked, t = f.terrain, note = $("contour-note");
@@ -6147,5 +6273,6 @@
 
   setupMethods();                 // 연구방법론 창(tupandactyl 035) — Scientific 에서만
   setupContour();                 // 고지형 등고선 — 겹쳐 보기(tupandactyl 036)
+  setupShade();                   // 높이 도드라지게(tupandactyl 037)
   start();
 })();
