@@ -1765,7 +1765,10 @@
     spanNote(0, tr("what.coll"));
     $("fossil-count").textContent = tr("overview.count", { n: fmtNum(shown) }) +
       (gbdbState.on && gbdbState.ovShown ? tr("gbdb.ovCount", { n: fmtNum(gbdbState.ovShown) }) : "");
-    setOverviewStatus(tr("overview.status", { what: what, n: fmtNum(ov.total) }) + (ov.truncated ? tr("overview.truncated", { n: fmtNum(OVERVIEW_LIMIT) }) : ""));
+    // 분류군인데 PBDB 산출이 하나도 없으면 — 분류 이름만 있는 것(문헌의 분류 의견에서 온 이름). GBDB 에 있으면 그 수도(tupandactyl 039)
+    var nameOnly = state.taxon && !ov.total ? tr("overview.nameOnly") + (gbdbState.on && gbdbState.ovShown ? tr("overview.nameOnlyGbdb", { n: fmtNum(gbdbState.ovShown) })
+      : GBDB && !gbdbState.on ? tr("overview.nameOnlyTry") : "") : "";
+    setOverviewStatus(tr("overview.status", { what: what, n: fmtNum(ov.total) }) + (ov.truncated ? tr("overview.truncated", { n: fmtNum(OVERVIEW_LIMIT) }) : "") + nameOnly);
     renderLegend();
   }
   // 종합 보기의 점을 누르면 — 그 칸의 산지들(오래된 것부터). 한 곳이면 곧장 펼친다. 산지를 펼치면 PBDB 에 산출 목록을 묻고,
@@ -5711,17 +5714,24 @@
     gbdbState.rangeKey = key; gbdbState.range = "pending";
     if (!OCCS) { gbdbState.range = "none"; return "none"; }
     if (!occsIndex) occsIndex = getJSON(dataUrl(OCCS.index));
+    var plain = plainName(key), id = taxonIdOf(key);
+    var letter = /^[a-z]/i.test(plain) ? plain[0].toLowerCase() : "_";
+    function pick(entries) {
+      if (!entries || !entries.length) return null;
+      var e = (id && entries.filter(function (x) { return String(x[0]) === String(id); })[0]) ||
+        entries.slice().sort(function (a, b) { return b[4] - a[4]; })[0];
+      return [e[1], e[2]];
+    }
+    // 산출 사본의 이름표에 없으면 GBDB 의 "PBDB 산출이 없는 이름" 표(tupandactyl 039 — 예: Ampullatocephalina)
+    function fromGbdb() {
+      var file = "gbdb/taxa/" + letter + ".json";
+      if (!GBDB || !GBDB.taxa || GBDB.taxa.indexOf(file) < 0) return null;
+      return getJSON(dataUrl(file)).then(function (t) { return pick(t[plain]); });
+    }
     occsIndex.then(function (ix) {
-      var plain = plainName(key), id = taxonIdOf(key);
-      var letter = /^[a-z]/i.test(plain) ? plain[0].toLowerCase() : "_", file = "occs/taxa/" + letter + ".json";
-      if (ix.taxa.indexOf(file) < 0) return null;
-      return getJSON(dataUrl(file)).then(function (table) {
-        var entries = table[plain];
-        if (!entries || !entries.length) return null;
-        var e = (id && entries.filter(function (x) { return String(x[0]) === String(id); })[0]) ||
-          entries.slice().sort(function (a, b) { return b[4] - a[4]; })[0];
-        return [e[1], e[2]];
-      });
+      var file = "occs/taxa/" + letter + ".json";
+      if (ix.taxa.indexOf(file) < 0) return fromGbdb();
+      return getJSON(dataUrl(file)).then(function (table) { return pick(table[plain]) || fromGbdb(); });
     }).then(function (r) {
       if (gbdbState.rangeKey !== key) return;
       gbdbState.range = r || "none";

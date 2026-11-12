@@ -113,6 +113,33 @@ class SearchFieldsTest(unittest.TestCase):
         self.assertEqual(gbdb.NAME_TO_ISO["rapla county"], "EE")
 
 
+class NameOnlyTest(unittest.TestCase):
+    """PBDB 산출이 없는 이름(사본 이름표에 없다)도 분류 나무로 lft 를 얻고, 뷰어가 찾을 이름표에 오른다(tupandactyl 039)."""
+    def table(self):
+        with tempfile.TemporaryDirectory() as d:
+            folder = Path(d)
+            (folder / "c.json").write_text('{"Claraia": [[1, 100, 120, "genus", 50, "Claraia"]]}', encoding="utf-8")
+            accepted = {1: (100, 120, "Claraia", "genus", 50), 2: (300, 300, "Ampullatocephalina", "genus", 0),
+                        3: (290, 310, "Ampullatocephalinae", "subfamily", 0), 4: (400, 400, "Nothing", "genus", 0)}
+            names = {"Claraia": {1}, "Ampullatocephalina": {2}, "Ampullatocephalinae": {3}, "Nothing": {4}, "Ampullatocephalus": {2}}
+            t = gbdb.TaxonTable(folder, (accepted, names))
+            t.table("Claraia"); t.table("Ampullatocephalina"); t.table("Nothing")      # 읽어 둔다(임시 폴더가 사라지기 전에)
+            return t
+
+    def test_lft_falls_back_to_taxonomy(self):
+        t = self.table()
+        self.assertEqual(t.lft("Claraia"), 100)
+        self.assertEqual(t.lft("Ampullatocephalina"), 300)
+        self.assertEqual(t.lft("Ampullatocephalus"), 300)          # 동의어도
+
+    def test_name_only_table(self):
+        out = gbdb.name_only_taxa(self.table(), {300: 6, 100: 2})
+        self.assertEqual(out["Ampullatocephalina"], [[2, 300, 300, "genus", 6, "Ampullatocephalina"]])
+        self.assertEqual(out["Ampullatocephalinae"][0][4], 6)        # 위 분류군도(산출이 없는 아과)
+        self.assertNotIn("Claraia", out)                              # 사본 이름표에 있는 것은 넣지 않는다
+        self.assertNotIn("Nothing", out)                              # GBDB 산출을 품지 않은 것도
+
+
 class AssignTest(unittest.TestCase):
     def test_overlap_rule(self):
         c = {"max_ma": 254.17, "min_ma": 252.17}
