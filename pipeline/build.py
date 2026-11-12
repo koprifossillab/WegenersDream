@@ -10,7 +10,7 @@
 import json
 from datetime import datetime, timezone
 
-from . import climate, coastlines, countries, fossils, lithology, phylogeo, relief, terrain
+from . import climate, coastlines, countries, fossils, gbdb, lithology, phylogeo, relief, terrain
 from .common import ANALYSIS, DERIVED, EDIACARAN_AGE, PLATE_ONLY_FROM_MA, WINDOW_MA, manifest, period, source_path
 from .environments import classify, tree_for_index
 from .intervals import VAGUE_TYPES, load_types, vague_names
@@ -98,6 +98,8 @@ def build(skip_relief=False):
     from . import occurrences             # koprifossillab 050 — 사본이 없으면 건너뛴다
     occs_meta = occurrences.build(kept, [e["age"] for e in reliefs], fossil_meta.get("receipt") or {})
     del kept
+    print("GBDB 단면(Zenodo 2020) — PBDB 산출 사본과 겹침을 센다")
+    gbdb_meta = gbdb.build([e["age"] for e in reliefs])     # tupandactyl 036 — 원본이 없으면 None
     by_age = {e["age"]: e for e in fossil_entries}
     print("국경(Natural Earth → PALEOMAP)")
     border_entries, country_names = countries.build([e["age"] for e in reliefs])
@@ -156,7 +158,8 @@ def build(skip_relief=False):
         "countries": countries.country_list(country_names),
         "pbdb": fossil_meta,
         "occurrences": occs_meta,               # 산출 사본의 조각 목록(koprifossillab 050) — 없으면 null, 뷰어는 PBDB 에 바로 묻는다
-        "sources": [cite("paleodem"), cite("paleocoastlines"), cite("paleotemp"), cite("pbdb"), cite("countries")],
+        "gbdb": gbdb_meta,                      # GBDB 단면의 채집(tupandactyl 036) — 없으면 null, 뷰어는 층을 숨긴다
+        "sources": [cite("paleodem"), cite("paleocoastlines"), cite("paleotemp"), cite("pbdb"), cite("countries")] + ([cite("gbdb")] if gbdb_meta else []),
     }
     (DERIVED / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=1) + "\n",
                                         encoding="utf-8")

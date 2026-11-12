@@ -57,6 +57,20 @@
   L.TriangleMarker = L.CircleMarker.extend({
     _updatePath: function () { this._renderer._updateTriangle(this); },
   });
+  // 네모 — GBDB 단면의 채집(tupandactyl 036). PBDB 의 원·세모와 모양으로 갈라 두 자료가 섞여 보이지 않게
+  L.Canvas.include({
+    _updateSquare: function (layer) {
+      if (!this._drawing || layer._empty()) return;
+      var p = layer._point, ctx = this._ctx, r = Math.max(layer._radius, 1) * 1.1;
+      if (this._drawnLayers) this._drawnLayers[layer._leaflet_id] = layer;
+      ctx.beginPath();
+      ctx.rect(p.x - r, p.y - r, 2 * r, 2 * r);
+      this._fillStroke(ctx, layer);
+    },
+  });
+  L.SquareMarker = L.CircleMarker.extend({
+    _updatePath: function () { this._renderer._updateSquare(this); },
+  });
   var OLDEST = 540;        // 시점 막대의 왼쪽 끝 — 자료의 가장 오래된 시점으로 다시 맞춘다(에디아카라기 550 Ma, tupandactyl 019)
   var WORLD = [[-90, -180], [90, 180]];
   var UNKNOWN_COLOR = "#f5f5f5";
@@ -447,6 +461,7 @@
   map.createPane("fossils").style.zIndex = 450;
   var renderer = L.canvas({ padding: 0.3, pane: "fossils" });
   var fossilLayer = L.layerGroup().addTo(map);
+  var gbdbLayer = L.layerGroup().addTo(map);       // GBDB 단면의 채집(tupandactyl 036) — 네모
   var taxonLayer = L.layerGroup().addTo(map);
   var cmpLayer = L.layerGroup().addTo(map);        // 비교 분류군 B(tupandactyl 024) — 보라 고리
   var gridLayer = L.layerGroup();
@@ -516,7 +531,7 @@
   // 반구보다 넓게 보던 것이면 0(지구 전체가 들어오는 높이, globe.js)
   function spanAlt(spanDeg) { return spanDeg >= 150 ? 0 : spanDeg * 111195 / 1.15; }
 
-  window.Wegener = { map: map, fossils: fossilLayer, taxa: taxonLayer, borders: borderLayer, state: state, relief: relief, globe: globe };   // 콘솔에서 들여다보기용
+  window.Wegener = { map: map, fossils: fossilLayer, gbdb: gbdbLayer, search: function (n) { searchTaxon(n); }, setCountry: function (c) { setCountry(c); }, taxa: taxonLayer, borders: borderLayer, state: state, relief: relief, globe: globe };   // 콘솔에서 들여다보기용
 
   // 배경 해상도: EPSG:4326 에서 세계 폭은 512·2^zoom 픽셀이다. zoom 2 까지는 2048,
   // 그보다 확대하면 4096 을 부른다(6 분 격자가 3601 칸이라 그 이상은 얻을 것이 없다).
@@ -1187,6 +1202,7 @@
   function loadFossils(f) {
     $("fossil-count").textContent = "";
     state.payload = null;
+    loadGbdb(f);
     if (!f.slice && (!f.fossils || !f.fossils.file)) { fossilLayer.clearLayers(); return; }
     var want = f.age;
     (f.slice ? slicePayload(f) : getJSON(dataUrl(f.fossils.file))).then(function (payload) {
@@ -1469,6 +1485,11 @@
       var k = cellOf(row[col.paleolat], row[col.paleolng]);
       effort[k] = (effort[k] || 0) + frameShare(f, row[col.max_ma], row[col.min_ma]);
     });
+    // GBDB 채집을 더하면(tupandactyl 036) — PBDB 와 겹친 채집(dup)은 빼고, 지도에 보이는 것과 같은 연대 거르기로
+    gbdbEffortRows().forEach(function (row) {
+      var k = cellOf(row[G.paleolat], row[G.paleolng]);
+      effort[k] = (effort[k] || 0) + frameShare(f, row[G.max_ma], row[G.min_ma]);
+    });
     // 점유 — 찾은 분류군의 보이는 산지(058: 지도의 산지 좌표로 옮긴 것)
     var occ = {};
     if (layers.occ && state.taxon && state.taxaVisible) {
@@ -1477,6 +1498,13 @@
         c.miss *= 1 - frameShare(f, row[COLUMNS.max_ma], row[COLUMNS.min_ma]);
         c.n += 1;
         if (!effort[k]) effort[k] = 0;                  // 찾은 분류군의 산지가 거르기로 빠졌어도 칸은 표본이 있다
+      });
+      // 찾은 분류군이 나온 GBDB 채집(PBDB 와 겹친 것은 뺀다, tupandactyl 036)
+      gbdbRows(true).forEach(function (row) {
+        var k = cellOf(row[G.paleolat], row[G.paleolng]), c = occ[k] || (occ[k] = { miss: 1, n: 0 });
+        c.miss *= 1 - frameShare(f, row[G.max_ma], row[G.min_ma]);
+        c.n += 1;
+        if (!effort[k]) effort[k] = 0;
       });
     }
     var effortSteps = (ANALYSIS.occupancy && ANALYSIS.occupancy.effort_steps) || [];   // 함수 steps 를 가리지 않게(060)
@@ -1573,6 +1601,7 @@
     if (state.overview) { drawOverview(); return; }
     var payload = state.payload;
     fossilLayer.clearLayers();
+    drawGbdb();
     if (!payload) return;
     var col = columns(payload);
     if (state.taxon) { $("fossil-count").textContent = tr("fossil.taxonOnly"); return; }   // 수는 drawTaxa 가 적는다
@@ -1601,7 +1630,8 @@
     $("fossil-count").textContent = (shown === payload.rows.length ? tr("fossil.all", { n: fmtNum(shown) })
       : tr("fossil.some", { n: fmtNum(shown), total: fmtNum(payload.rows.length) })) + (wide ? tr("fossil.vague", { n: fmtNum(wide) }) : "") +
       (useShare ? tr("share.colls", { n: shareText(shareSum) }) : "") +
-      (gridOn() ? (function (g) { return tr("grid.colls", { n: fmtNum(g.n), s: shareText(g.share), km: ANALYSIS.grid_km }); })(cellGroups(shownRows, col, f)) : "");
+      (gridOn() ? (function (g) { return tr("grid.colls", { n: fmtNum(g.n), s: shareText(g.share), km: ANALYSIS.grid_km }); })(cellGroups(shownRows, col, f)) : "") +
+      gbdbCountText();
     renderLegend();
     drawCells();
   }
@@ -1694,6 +1724,8 @@
   function drawOverview() {
     fossilLayer.clearLayers();
     taxonLayer.clearLayers();
+    gbdbLayer.clearLayers();
+    drawGbdbOverview();
     var ov = state.overview, what = [koTaxon(state.taxon, state.taxonRank), state.formation ? state.formation + " Fm." : "",
       state.country ? countryName(state.country) : ""].filter(Boolean).join(" · ");
     if (ov.loading) { $("fossil-count").textContent = tr("overview.loading"); setOverviewStatus(tr("overview.asking", { what: what })); return; }
@@ -1720,7 +1752,8 @@
       el.closest(".env").classList.toggle("zero", top ? !byTop[top] : false);
     });
     spanNote(0, tr("what.coll"));
-    $("fossil-count").textContent = tr("overview.count", { n: fmtNum(shown) });
+    $("fossil-count").textContent = tr("overview.count", { n: fmtNum(shown) }) +
+      (gbdbState.on && gbdbState.ovShown ? tr("gbdb.ovCount", { n: fmtNum(gbdbState.ovShown) }) : "");
     setOverviewStatus(tr("overview.status", { what: what, n: fmtNum(ov.total) }) + (ov.truncated ? tr("overview.truncated", { n: fmtNum(OVERVIEW_LIMIT) }) : ""));
     renderLegend();
   }
@@ -1905,6 +1938,7 @@
         popup.update();
       });
     }
+    addElevation(el, f, Number(row[col.paleolat]), Number(row[col.paleolng]), function () { if (popup.update) popup.update(); });
     // 암상(lithology) — PBDB 산지의 주 암상 둘(lithology1·2)과 그 형용·부 암상. PBDB 의 원 용어 그대로(tupandactyl 012)
     getJSON(PBDB + "colls/single.json?id=" + no + "&show=lith&vocab=pbdb").then(function (data) {
       var r = (data.records || [])[0] || {}, cell = el.querySelector(".lith");
@@ -2901,6 +2935,7 @@
   function drawTaxa() {
     taxonLayer.clearLayers();
     if (state.overview) return;
+    drawGbdb();
     var rows = state.taxa;
     if (!state.taxon || !rows) return;
     placeTaxa(rows);
@@ -2952,7 +2987,7 @@
       (useShare ? tr("share.taxon", { n: shareText(shareColls), occ: shareText(shareOccs) }) : "") +
       (gridOn() ? (function (g) { return tr("grid.taxon", { n: fmtNum(g.n), s: shareText(g.share), km: ANALYSIS.grid_km }); })(cellGroups(visible, COLUMNS, f)) : "") +
       (qualHidden ? tr("q.hidden", { n: fmtNum(qualHidden) }) : "") +
-      (state.taxaTruncated ? tr("taxon.truncated", { n: fmtNum(TAXON_LIMIT) }) : "");
+      (state.taxaTruncated ? tr("taxon.truncated", { n: fmtNum(TAXON_LIMIT) }) : "") + gbdbCountText();
     state.taxaVisible = visible;
     renderLegend();
     drawCells();
@@ -4431,13 +4466,44 @@
     return grid.values[row * grid.w + col];
   }
 
+  // 그때 그 자리의 높이(고고도) — PaleoDEM 지형 격자(지구본·등고선과 같은 terrain/*.webp, 1/4°)를 겹선형으로 읽는다(tupandactyl 036).
+  // 기온처럼 층을 켜지 않아도 팝업에 적는다. 점의 좌표는 그 시점 나이로 돌린 것이라 같은 시점의 DEM 과 같은 틀이다
+  var elevGrids = {};
+  function elevGrid(t) {
+    if (!elevGrids[t.file]) {
+      elevGrids[t.file] = loadTerrainGrid(t, 1).catch(function (e) { delete elevGrids[t.file]; throw e; });
+    }
+    return elevGrids[t.file];
+  }
+  function elevAt(g, lat, lng) {
+    var y = (90 - lat) / g.deg, x = (((lng + 180) % 360) + 360) % 360 / g.deg;
+    var r0 = Math.max(0, Math.min(g.h - 1, Math.floor(y))), r1 = Math.min(g.h - 1, r0 + 1);
+    var c0 = Math.floor(x) % g.w, c1 = (c0 + 1) % g.w, fy = Math.max(0, Math.min(1, y - r0)), fx = x - Math.floor(x);
+    var z = function (r, c) { return g.z[r * g.w + c]; };
+    return (z(r0, c0) * (1 - fx) + z(r0, c1) * fx) * (1 - fy) + (z(r1, c0) * (1 - fx) + z(r1, c1) * fx) * fy;
+  }
+  function addElevation(el, f, lat, lng, update) {
+    var t = f && f.terrain;
+    if (!t || !isFinite(lat) || !isFinite(lng)) return;
+    elevGrid(t).then(function (g) {
+      var dl = el.querySelector("dl");
+      if (!dl) return;
+      var m = Math.round(elevAt(g, lat, lng) / 10) * 10;
+      dl.insertAdjacentHTML("beforeend", "<dt>" + tr("pop.elev") + "</dt><dd>" +
+        esc(m >= 0 ? tr("pop.elevUp", { m: fmtNum(m) }) : tr("pop.elevDown", { m: fmtNum(-m) })) +
+        " <small>(" + esc(tr("pop.elevsrc", { age: fmtAge(f.age) })) + ")</small></dd>");
+      update();
+    }).catch(function () { /* 격자를 못 읽으면 적지 않는다 */ });
+  }
+
   function drawClimate(f) {
     if (globe) globe.mark("climate");
     var on = $("climate").checked, info = f.climate;
     $("temp-legend").hidden = !on;
     $("climate-note").textContent = !info ? (f.grid === "plates" ? "" : f.slice ? tr("climate.stageNone", { stage: unit(f.slice.unit).full }) : tr("climate.none")) :
+      // 전 지구 평균은 온도계(wetherilli 002)가 보인다 — 설명에 다시 적지 않는다(연구자, tupandactyl 036)
       (info.source_age === f.age || info.gmst == null ? "" : tr("climate.nearest", { age: fmtAge(info.source_age) })) +
-      (info.gmst != null ? tr("climate.gmst", { t: info.gmst.toFixed(1) }) : tr("climate.paleoclim", { what: EN ? info.en : info.ko }));
+      (info.gmst != null ? "" : tr("climate.paleoclim", { what: EN ? info.en : info.ko }));
     if (f.grid === "plates") $("temp-legend").hidden = true;
     if (!on || !info) { map.removeLayer(climateLayer); map.removeLayer(climateMoll); return; }
     var want = f.age;
@@ -5134,10 +5200,9 @@
   var METHODS_KEY = "wegener.methods";
   var GUIDE = [
     { g: "m.g.count.short", items: ["share", "grid"] },
-    { g: "m.g.surface.short", items: ["occ", "effort"] },
+    { g: "m.g.surface.short", items: ["occ", "effort", "gbdb"] },
     { g: "m.g.change.short", items: ["change", "center"] },
     { g: "m.g.phylo.short", items: ["phylo"] },
-    { g: "m.g.topo.short", items: ["contour"] },
   ];
   function renderGuide() {
     var html = '<p class="note">' + esc(tr("m.guide.lead")) + "</p>";
@@ -5187,12 +5252,6 @@
     $("methods-open").setAttribute("aria-expanded", String(!!saved.open));
     if (saved.help) setHelp(true);
     // 고지형·조상 범위의 고르기(기억하지 않는 것: 고른 연구는 기억한다)
-    $("layer-contour").checked = !!saved.contour;
-    $("contour-step").value = saved.step || "1000";
-    $("contour-sea").checked = !!saved.sea;
-    $("layer-contour").addEventListener("change", function () { saved.contour = this.checked; remember(); drawTopo(frame()); });
-    $("contour-step").addEventListener("change", function () { saved.step = this.value; remember(); topo.key = null; drawTopo(frame()); });
-    $("contour-sea").addEventListener("change", function () { saved.sea = this.checked; remember(); topo.key = null; drawTopo(frame()); });
     $("layer-phylo").checked = !!saved.phylo;
     $("layer-phylo").addEventListener("change", function () { saved.phylo = this.checked; remember(); loadPhylo(); });
     $("phylo-study").addEventListener("change", function () { saved.study = this.value; remember(); loadPhylo(); });
@@ -5203,7 +5262,7 @@
   // 지구본의 지형 격자(terrain/*.webp, 1/4°, R·G 16 비트 — terrain.py)를 브라우저가 풀어 마칭 스퀘어로 등고선을 낸다. 파이프라인은 새로 굽지 않는다.
   // 격자는 두 칸에 하나(1/2°)로 줄여 읽는다 — 지구 전체에서 1/4° 선은 보이지 않고 셈이 네 배다. 시점·간격이 같으면 선을 다시 셈하지 않고 이음매만 다시 자른다
   var topo = { key: null, geo: null, pending: null };
-  function loadTerrainGrid(t) {
+  function loadTerrainGrid(t, step) {
     return new Promise(function (resolve, reject) {
       var img = new Image();
       img.crossOrigin = "anonymous";
@@ -5211,8 +5270,9 @@
         var c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
         var ctx = c.getContext("2d", { willReadFrequently: true });
         ctx.drawImage(img, 0, 0);
-        var g = PH.decodeTerrain(ctx.getImageData(0, 0, c.width, c.height).data, c.width, c.height, t.offset, t.unit, 2);
-        g.deg = t.step * 2;
+        step = step || 2;                     // 등고선은 두 칸에 하나(1/2°), 팝업의 높이는 한 칸마다(1/4°)
+        var g = PH.decodeTerrain(ctx.getImageData(0, 0, c.width, c.height).data, c.width, c.height, t.offset, t.unit, step);
+        g.deg = t.step * step;
         resolve(g);
       };
       img.onerror = reject;
@@ -5235,10 +5295,24 @@
     });
     return { type: "FeatureCollection", features: features };
   }
+  // 고지형 등고선은 겹쳐 보기의 층이다(tupandactyl 036 에서 연구방법론 창에서 옮김) — 두 모드 모두. 고른 것은 따로 기억한다
+  var CONTOUR_KEY = "wegener.contour";
+  function setupContour() {
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem(CONTOUR_KEY)) || {}; } catch (e) { /* 막힌 저장소 */ }
+    function remember() { try { localStorage.setItem(CONTOUR_KEY, JSON.stringify(saved)); } catch (e) { /* 막힌 저장소 */ } }
+    $("layer-contour").checked = !!saved.on;
+    $("contour-step").value = saved.step || "1000";
+    $("contour-sea").checked = !!saved.sea;
+    $("layer-contour").addEventListener("change", function () { saved.on = this.checked; remember(); drawTopo(frame()); });
+    $("contour-step").addEventListener("change", function () { saved.step = this.value; remember(); topo.key = null; drawTopo(frame()); });
+    $("contour-sea").addEventListener("change", function () { saved.sea = this.checked; remember(); topo.key = null; drawTopo(frame()); });
+  }
   function drawTopo(f) {
-    if (!METHODS || !f) return;
+    if (!f) return;
     var on = $("layer-contour").checked, t = f.terrain, note = $("contour-note");
     note.hidden = !on;
+    $("contour-opts").hidden = !on;
     if (!on) { topoLayer.clearLayers(); topo.key = null; return; }
     if (!t) { topoLayer.clearLayers(); topo.key = null; note.textContent = tr("contour.none"); return; }
     var step = +$("contour-step").value, sea = $("contour-sea").checked, key = t.file + "|" + step + "|" + sea;
@@ -5406,6 +5480,212 @@
     return out;
   }
   function fmtP(v) { return v == null ? "?" : (+v < 1e-6 ? "0" : (+v).toPrecision(2)); }
+
+  // ── GBDB 단면의 채집(tupandactyl 036) ───────────────────────────────
+  // 원본은 Zenodo 의 2020-11 사본(pipeline/gbdb.py). 점은 채집 하나, 좌표는 그 나이로 v19o 로 돌린 것(PBDB 산지와 같은 판 모델).
+  // PBDB 와 겹친 채집(10 km 안·연대 겹침·속 절반 이상, dup = PBDB 산지 번호)은 속 빈 네모로 그리고 셈에 더할 때 뺀다.
+  // 분류군 찾기·종합 보기·나라·지층 거르기 중에는 쉰다 — GBDB 에는 PBDB 의 분류 체계·환경·국가 코드가 없다
+  var GBDB = null, G = {}, GBDB_KEY = "wegener.gbdb";
+  var gbdbState = { on: false, payload: null, shown: 0, dup: 0, sections: {} };
+  function setupGbdb(meta) {
+    GBDB = meta && meta.frames ? meta : null;
+    var row = $("gbdb-row"), effortRow = $("gbdb-effort-row");
+    if (row) row.hidden = !GBDB;
+    if (effortRow) effortRow.hidden = !GBDB;
+    if (!GBDB) return;
+    G = {};
+    GBDB.fields.forEach(function (name, k) { G[name] = k; });
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem(GBDB_KEY)) || {}; } catch (e) { /* 막힌 저장소 */ }
+    gbdbState.on = !!saved.on;
+    $("gbdb-on").checked = gbdbState.on;
+    $("gbdb-effort").checked = METHODS && !!saved.effort;
+    function remember() {
+      try { localStorage.setItem(GBDB_KEY, JSON.stringify({ on: gbdbState.on, effort: $("gbdb-effort").checked })); } catch (e) { /* 막힌 저장소 */ }
+    }
+    $("gbdb-on").addEventListener("change", function () { gbdbState.on = this.checked; remember(); drawFossils(); });
+    $("gbdb-effort").addEventListener("change", function () { remember(); drawCells(); });
+  }
+  function loadGbdb(f) {
+    gbdbState.payload = null;
+    gbdbLayer.clearLayers();
+    var entry = GBDB && f && GBDB.frames[ageKeyOf(f.age)];
+    if (!entry) return;
+    var want = f.age;
+    getJSON(dataUrl(entry.file)).then(function (payload) {
+      if (frame().age !== want) return;
+      gbdbState.payload = payload;
+      drawFossils();
+    }).catch(function () { /* 없는 시점 — 층만 비운다 */ });
+  }
+  // 찾기·거르기도 따른다(tupandactyl 036) — 나라는 좌표가 든 나라의 PBDB 코드(cc), 지층은 같은 formKey, 분류군은 PBDB 분류 나무의
+  // [lft, rgt] 구간(산출 사본의 이름표 — 지도의 사본 셈과 같은 표). 분류군의 구간을 아직 모르면(받는 중) 아무것도 안 맞는다
+  function gbdbTaxonKey() { return state.taxon ? state.taxon : ""; }
+  function gbdbRange() {
+    var key = gbdbTaxonKey();
+    if (!key) return null;
+    if (gbdbState.rangeKey === key) return gbdbState.range;
+    gbdbState.rangeKey = key; gbdbState.range = "pending";
+    if (!OCCS) { gbdbState.range = "none"; return "none"; }
+    if (!occsIndex) occsIndex = getJSON(dataUrl(OCCS.index));
+    occsIndex.then(function (ix) {
+      var plain = plainName(key), id = taxonIdOf(key);
+      var letter = /^[a-z]/i.test(plain) ? plain[0].toLowerCase() : "_", file = "occs/taxa/" + letter + ".json";
+      if (ix.taxa.indexOf(file) < 0) return null;
+      return getJSON(dataUrl(file)).then(function (table) {
+        var entries = table[plain];
+        if (!entries || !entries.length) return null;
+        var e = (id && entries.filter(function (x) { return String(x[0]) === String(id); })[0]) ||
+          entries.slice().sort(function (a, b) { return b[4] - a[4]; })[0];
+        return [e[1], e[2]];
+      });
+    }).then(function (r) {
+      if (gbdbState.rangeKey !== key) return;
+      gbdbState.range = r || "none";
+      redraw();
+    }).catch(function () { if (gbdbState.rangeKey === key) gbdbState.range = "none"; });
+    return "pending";
+  }
+  function gbdbMatch(row) {
+    if (state.country && row[G.cc] !== state.country) return false;
+    if (state.formation && formKey(row[G.fm]) !== formKey(state.formation)) return false;
+    if (state.taxon) {
+      var r = gbdbRange();
+      if (!r || typeof r === "string") return false;
+      var l = row[G.lfts] || [];
+      for (var i = 0; i < l.length; i++) if (l[i] >= r[0] && l[i] <= r[1]) return true;
+      return false;
+    }
+    return true;
+  }
+  // 보이는(셈에 더할) 채집 — 연대 거르기(모호한 연대·연대 범위)는 PBDB 산지와 같은 것
+  function gbdbRows(forCount) {
+    var p = gbdbState.payload;
+    if (!p || !GBDB || state.overview) return [];
+    if (forCount && !(METHODS && $("gbdb-effort").checked)) return [];
+    if (!forCount && !gbdbState.on) return [];
+    return p.rows.filter(function (row) {
+      if (forCount && row[G.dup]) return false;
+      return gbdbMatch(row) && ageOk(!!row[G.precise], row[G.max_ma], row[G.min_ma]);
+    });
+  }
+  // 셈에 더할 때 — 표본 노력은 거르기(나라·지층)만 따르고 분류군은 따르지 않는다(어디를 찾아봤나), 점유는 찾은 분류군만
+  function gbdbEffortRows() {
+    var keep = state.taxon;
+    state.taxon = "";
+    try { return gbdbRows(true); } finally { state.taxon = keep; }
+  }
+  function gbdbSquare(latlng, row, big, color, a) {
+    var dup = !!row[G.dup];
+    return new L.SquareMarker(latlng, {
+      renderer: renderer, radius: big ? 4.6 : 3.4, weight: dup ? 1.4 : (big ? 1.1 : 0.8),
+      color: dup ? color : "#2b1d10", opacity: Math.min(1, a + 0.25), fillColor: color, fillOpacity: dup ? 0 : a,
+    });
+  }
+  function drawGbdb() {
+    gbdbLayer.clearLayers();
+    gbdbState.shown = 0; gbdbState.dup = 0;
+    var rows = gbdbRows(false);
+    if (!rows.length) return;
+    var a = state.opacity, base = cssVar("--gbdb", "#b06cff");
+    rows.forEach(function (row) {
+      var mid = (row[G.max_ma] + row[G.min_ma]) / 2;
+      var color = state.colorBy === "age" ? ((periodOf(mid, mid) || {}).color || UNKNOWN_COLOR) : base;
+      gbdbState.shown += 1;
+      if (row[G.dup]) gbdbState.dup += 1;
+      gbdbSquare([row[G.paleolat], row[G.paleolng]], row, !!state.taxon, color, a)
+        .on("click", function (e) { L.DomEvent.stopPropagation(e); openGbdb(e.latlng, row); }).addTo(gbdbLayer);
+    });
+  }
+  function gbdbCountText() {
+    if (!GBDB || !gbdbState.on) return "";
+    if (state.taxon && gbdbState.range === "pending") return tr("gbdb.asking");
+    return gbdbState.shown ? tr("gbdb.count", { n: fmtNum(gbdbState.shown), d: fmtNum(gbdbState.dup) }) : "";
+  }
+  // 종합 보기(모든 시대, 오늘날 자리) — 단면마다 네모 하나, 크기는 맞는 채집 수. 누르면 그 단면(첫 채집의 층을 밝힌다)
+  function drawGbdbOverview() {
+    gbdbState.ovShown = 0;
+    if (!GBDB || !gbdbState.on || !state.overview) return;
+    if (!gbdbState.all) {
+      gbdbState.all = getJSON(dataUrl(GBDB.all)).then(function (d) { gbdbState.allRows = d.rows; if (state.overview) drawFossils(); return d; });
+      return;
+    }
+    if (!gbdbState.allRows) return;
+    var bySec = {}, base = cssVar("--gbdb", "#b06cff");
+    gbdbState.allRows.forEach(function (row) {
+      if (!gbdbMatch(row)) return;
+      var s = bySec[row[G.section]] || (bySec[row[G.section]] = { row: row, n: 0, fresh: 0 });
+      s.n += 1;
+      if (!row[G.dup]) s.fresh += 1;
+    });
+    Object.keys(bySec).forEach(function (k) {
+      var s = bySec[k], row = s.row;
+      gbdbState.ovShown += s.n;
+      new L.SquareMarker([row[G.lat], row[G.lng]], {
+        renderer: renderer, radius: 3.6 + 2.2 * Math.log(s.n) / Math.LN10, weight: s.fresh ? 1.2 : 1.6, color: s.fresh ? "#2b1d10" : base,
+        opacity: .9, fillColor: base, fillOpacity: s.fresh ? Math.max(.75, state.opacity) : 0,
+      }).bindTooltip(function () { return esc(tr("gbdb.ovTip", { n: fmtNum(s.n), d: fmtNum(s.n - s.fresh) })); },
+                     { className: "occ-tip", sticky: true, direction: "auto", opacity: 0.96 })
+        .on("click", function (e) { L.DomEvent.stopPropagation(e); openGbdb(e.latlng, row, true); }).addTo(gbdbLayer);
+    });
+  }
+  function gbdbSection(sid) {
+    var b = String(sid % GBDB.buckets).padStart(2, "0");
+    if (!gbdbState.sections[b]) gbdbState.sections[b] = getJSON(dataUrl(GBDB.sections.replace("{b}", b)));
+    return gbdbState.sections[b].then(function (all) { return all[String(sid)]; });
+  }
+  function gbdbRefs(refs) {
+    return refs.map(function (r) { return esc([r[0], r[1]].filter(Boolean).join(" ")) + (r[2] ? " — " + esc(r[2]) : ""); }).join("<br>");
+  }
+  function openGbdb(latlng, row, today) {
+    if (measure.on) return;
+    var el = document.createElement("div");
+    el.className = "pop gbdb-pop";
+    el.innerHTML = '<p class="muted">' + esc(tr("gbdb.loading")) + "</p>";
+    var popup = state.proj === "globe" ? globe.popup(latlng, el) : L.popup(popupOptions(380)).setLatLng(latlng).setContent(el).openOn(map);
+    var upd = function () { if (popup.update) popup.update(); };
+    gbdbSection(row[G.section]).then(function (sec) {
+      if (!sec) { el.innerHTML = '<p class="muted">' + esc(tr("gbdb.nosection")) + "</p>"; upd(); return; }
+      var here = null, hereUnit = null;
+      sec.units.forEach(function (u) { u.colls.forEach(function (c) { if (c.id === row[G.id]) { here = c; hereUnit = u; } }); });
+      var dup = row[G.dup];
+      var html = "<h3>" + esc(sec.name || tr("pop.noname")) + ' <small class="muted">GBDB</small></h3><dl>' +
+        (hereUnit ? "<dt>" + tr("pop.age") + "</dt><dd>" + esc(hereUnit.label || "") + " (" + hereUnit.max_ma + "–" + hereUnit.min_ma + " Ma)" +
+          (row[G.precise] ? "" : '<br><small class="wide-note">' + tr("pop.vague") + "</small>") + "</dd>" : "") +
+        (hereUnit && hereUnit.formation ? "<dt>" + tr("pop.formation") + "</dt><dd>" + esc(hereUnit.formation) + (hereUnit.group ? " <small>(" + esc(hereUnit.group) + ")</small>" : "") + "</dd>" : "") +
+        (hereUnit && hereUnit.lithology ? "<dt>" + tr("pop.lith") + "</dt><dd>" + esc(hereUnit.lithology) + "</dd>" : "") +
+        "<dt>" + tr("gbdb.place") + "</dt><dd>" + esc([sec.province, sec.country].filter(Boolean).join(", ")) + " <small>(" + sec.lat + "°, " + sec.lng + "°)</small><br><small>" +
+          esc(today ? tr("gbdb.today") : tr("gbdb.rotated", { age: fmtAge(frame().age) })) + "</small></dd>" +
+        (here ? "<dt>" + tr("gbdb.coll", { no: here.no || "—" }) + "</dt><dd><i>" + here.taxa.map(esc).join("</i>, <i>") + "</i>" +
+          (here.groups.length ? "<br><small>" + esc(here.groups.join(" · ")) + "</small>" : "") + "</dd>" : "") +
+        (here && here.refs.length ? "<dt>" + tr("gbdb.ref") + '</dt><dd class="ref">' + gbdbRefs(here.refs) + "</dd>" : "") +
+        "</dl>" +
+        (dup ? '<p class="note">' + esc(tr("gbdb.dup")) + ' <a href="' + PBDB_COLL_PAGE + dup + '" target="_blank" rel="noopener">PBDB ' + dup + "</a></p>" : "") +
+        "<h4>" + esc(tr("gbdb.column", { n: sec.units.length })) + '</h4><ol class="gbdb-column">';
+      sec.units.forEach(function (u) {
+        var n = 0;
+        u.colls.forEach(function (c) { n += c.taxa.length; });
+        html += "<li" + (u === hereUnit ? ' class="here"' : "") + "><b>" + esc(u.formation || "—") + "</b> " +
+          (u.no ? "<small>#" + esc(u.no) + "</small> " : "") + "<small>" + esc(u.label || "") + " · " + u.max_ma + "–" + u.min_ma + " Ma" +
+          (u.lithology ? " · " + esc(u.lithology) : "") + (n ? " · " + esc(tr("gbdb.taxa", { n: n })) : "") + "</small></li>";
+      });
+      html += '</ol><p class="note"><a href="https://doi.org/10.5281/zenodo.4245604" target="_blank" rel="noopener">GBDB · ' + esc(GBDB.snapshot) + "</a> · " + esc(GBDB.license) + "</p>";
+      el.innerHTML = html;
+      upd();
+      if (!today) {                                     // 그때의 기온·높이 — PBDB 산지 팝업과 같은 것(오늘날 자리의 종합 보기에서는 뺀다)
+        var f = frame(), plat = Number(row[G.paleolat]), plng = Number(row[G.paleolng]);
+        if (f.climate) loadGrid(f.climate).then(function (grid) {
+          var tv = tempAt(grid, plat, plng), dl = el.querySelector("dl");
+          if (tv !== tv || !dl) return;
+          dl.insertAdjacentHTML("beforeend", "<dt>" + tr("pop.temp") + "</dt><dd>" + tv.toFixed(0) + (EN ? " °C" : " ℃") +
+            " <small>(" + tr("pop.tempsrc", { age: fmtAge(f.climate.source_age) }) + ")</small></dd>");
+          upd();
+        });
+        addElevation(el, f, plat, plng, upd);
+      }
+    }).catch(function (err) { el.innerHTML = '<p class="muted">' + esc(tr("taxon.fail", { err: String(err.message || err) })) + "</p>"; upd(); });
+  }
+
   function ageKeyOf(age) { return String(Math.round(age * 10)).padStart(4, "0"); }
   function phyloCite() {
     var b = phylo.bundle;
@@ -5476,6 +5756,7 @@
         QUALITY = index.rules.quality || null;
         OCCS = index.occurrences || null;
         syncShareRow();
+        setupGbdb(index.gbdb);             // GBDB 단면(tupandactyl 036)
         setupPhylo(index.phylogeo);        // 계통 생물지리 묶음(tupandactyl 035)
         (index.rules.vague_intervals || []).forEach(function (name) { VAGUE[name] = true; });
       }
@@ -5865,5 +6146,6 @@
   })();
 
   setupMethods();                 // 연구방법론 창(tupandactyl 035) — Scientific 에서만
+  setupContour();                 // 고지형 등고선 — 겹쳐 보기(tupandactyl 036)
   start();
 })();
