@@ -5817,6 +5817,14 @@
     if (!gbdbState.sections[b]) gbdbState.sections[b] = getJSON(dataUrl(GBDB.sections.replace("{b}", b)));
     return gbdbState.sections[b].then(function (all) { return all[String(sid)]; });
   }
+  // 산출 이름 — PBDB 산출과 같이 Casual 이면 속·종을 한글로 음차하고 학명은 커서를 대면(taxonHtml, tupandactyl 020). 한 낱말이면 속, 두 낱말이면 종
+  function gbdbTaxa(names) {
+    return names.map(function (n) { return taxonHtml(n, guessRank(n) || "genus"); }).join(", ");
+  }
+  // 층 단위의 시대 이름("Changhsingian", "Wuchiapingian – Changhsingian") — Casual 이면 층서표의 한글 이름으로(koInterval)
+  function gbdbLabel(label) {
+    return String(label || "").split(" – ").map(function (x) { return koInterval(x); }).join(" – ");
+  }
   function gbdbRefs(refs) {
     return refs.map(function (r) { return esc([r[0], r[1]].filter(Boolean).join(" ")) + (r[2] ? " — " + esc(r[2]) : ""); }).join("<br>");
   }
@@ -5833,13 +5841,13 @@
       sec.units.forEach(function (u) { u.colls.forEach(function (c) { if (c.id === row[G.id]) { here = c; hereUnit = u; } }); });
       var dup = row[G.dup];
       var html = "<h3>" + esc(sec.name || tr("pop.noname")) + ' <small class="muted">GBDB</small></h3><dl>' +
-        (hereUnit ? "<dt>" + tr("pop.age") + "</dt><dd>" + esc(hereUnit.label || "") + " (" + hereUnit.max_ma + "–" + hereUnit.min_ma + " Ma)" +
+        (hereUnit ? "<dt>" + tr("pop.age") + "</dt><dd>" + esc(gbdbLabel(hereUnit.label)) + " (" + hereUnit.max_ma + "–" + hereUnit.min_ma + " Ma)" +
           (row[G.precise] ? "" : '<br><small class="wide-note">' + tr("pop.vague") + "</small>") + "</dd>" : "") +
         (hereUnit && hereUnit.formation ? "<dt>" + tr("pop.formation") + "</dt><dd>" + esc(hereUnit.formation) + (hereUnit.group ? " <small>(" + esc(hereUnit.group) + ")</small>" : "") + "</dd>" : "") +
         (hereUnit && hereUnit.lithology ? "<dt>" + tr("pop.lith") + "</dt><dd>" + esc(hereUnit.lithology) + "</dd>" : "") +
         "<dt>" + tr("gbdb.place") + "</dt><dd>" + esc([sec.province, sec.country].filter(Boolean).join(", ")) + " <small>(" + sec.lat + "°, " + sec.lng + "°)</small><br><small>" +
           esc(today ? tr("gbdb.today") : tr("gbdb.rotated", { age: fmtAge(frame().age) })) + "</small></dd>" +
-        (here ? "<dt>" + tr("gbdb.coll", { no: here.no || "—" }) + "</dt><dd><i>" + here.taxa.map(esc).join("</i>, <i>") + "</i>" +
+        (here ? "<dt>" + tr("gbdb.coll", { no: here.no || "—" }) + "</dt><dd>" + gbdbTaxa(here.taxa) +
           (here.groups.length ? "<br><small>" + esc(here.groups.join(" · ")) + "</small>" : "") + "</dd>" : "") +
         (here && here.refs.length ? "<dt>" + tr("gbdb.ref") + '</dt><dd class="ref">' + gbdbRefs(here.refs) + "</dd>" : "") +
         "</dl>" +
@@ -5849,7 +5857,7 @@
         var n = 0;
         u.colls.forEach(function (c) { n += c.taxa.length; });
         html += "<li" + (u === hereUnit ? ' class="here"' : "") + "><b>" + esc(u.formation || "—") + "</b> " +
-          (u.no ? "<small>#" + esc(u.no) + "</small> " : "") + "<small>" + esc(u.label || "") + " · " + u.max_ma + "–" + u.min_ma + " Ma" +
+          (u.no ? "<small>#" + esc(u.no) + "</small> " : "") + "<small>" + esc(gbdbLabel(u.label)) + " · " + u.max_ma + "–" + u.min_ma + " Ma" +
           (u.lithology ? " · " + esc(u.lithology) : "") + (n ? " · " + esc(tr("gbdb.taxa", { n: n })) : "") + "</small></li>";
       });
       html += '</ol><p class="note"><a href="https://doi.org/10.5281/zenodo.4245604" target="_blank" rel="noopener">GBDB · ' + esc(GBDB.snapshot) + "</a> · " + esc(GBDB.license) + "</p>";
