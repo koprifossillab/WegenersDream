@@ -494,6 +494,8 @@
     reliefUrl: function (f) { var files = f.relief_files || {}; return dataUrl(files["4096"] || files["2048"] || f.relief); },
     climate: globeClimate, climateOpacity: function () { return climateLayer.options.opacity; },
     shade: globeShade,                   // 높이 도드라지게(tupandactyl 037) — 정거원통 그림을 그대로 입힌다
+    // 지구본의 빈 땅을 누르면 지금의 나라(tupandactyl 038) — 지구본은 누르기를 Cesium 이 받아 map 의 click 이 오지 않는다
+    onEmptyClick: function (ll) { if (LAND && !measure.on) openLand(L.latLng(ll.lat, ll.lng)); },
     onView: function () { if (state.proj === "globe" && frame()) writeHash(frame()); },
     avoid: function () { return [$("findfloat")]; },
     // 지형(wetherilli 017) — 가공물의 terrain 칸을 그대로 넘긴다. 옛 가공물(칸 없음)이면 매끈한 구
@@ -4872,7 +4874,7 @@
         (who && who.iso && !EN && who.en ? ' <small class="muted">' + esc(who.en) + "</small>" : "") + "</h3>" +
         '<p class="note">' + esc(who && who.iso ? tr("land.now", { age: fmtAge(f.age) }) : tr("land.noneWhy")) + "</p><dl>" +
         "<dt>" + tr("pop.paleo") + "</dt><dd>" + (Math.round(lat * 100) / 100) + "°, " + (Math.round(lng * 100) / 100) + "°</dd></dl>";
-      var popup = L.popup(popupOptions(300)).setLatLng(latlng).setContent(el).openOn(map);
+      var popup = state.proj === "globe" ? globe.popup(latlng, el) : L.popup(popupOptions(300)).setLatLng(latlng).setContent(el).openOn(map);
       var upd = function () { if (popup.update) popup.update(); };
       if (f.climate) loadGrid(f.climate).then(function (grid) {
         var tv = tempAt(grid, lat, lng), dl = el.querySelector("dl");
