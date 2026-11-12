@@ -149,3 +149,4 @@
 | tupandactyl 035 | 2026-11-11 | [계통 생물지리: 이산 지역 결과를 시점 단면으로, 연구방법론 창, 고지형 등고선](20261111_tupandactyl_035_phylogeography_methods.md) |
 | tupandactyl 036 | 2026-11-12 | [GBDB 단면의 채집을 PBDB 곁에 따로 올리고, 겹침을 표시한다](20261112_tupandactyl_036_gbdb_sections.md) |
 | tupandactyl 037 | 2026-11-12 | [높이 도드라지게: 음영 기복과 산줄기(대동여지도식)](20261112_tupandactyl_037_relief_emphasis.md) |
+| tupandactyl 038 | 2026-11-12 | [고지도의 빈 땅을 누르면 지금 어느 나라 땅인지](20261112_tupandactyl_038_land_country.md) |

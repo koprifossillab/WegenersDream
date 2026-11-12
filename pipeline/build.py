@@ -10,7 +10,7 @@
 import json
 from datetime import datetime, timezone
 
-from . import climate, coastlines, countries, fossils, gbdb, lithology, phylogeo, relief, terrain
+from . import climate, coastlines, countries, fossils, gbdb, landmap, lithology, phylogeo, relief, terrain
 from .common import ANALYSIS, DERIVED, EDIACARAN_AGE, PLATE_ONLY_FROM_MA, WINDOW_MA, manifest, period, source_path
 from .environments import classify, tree_for_index
 from .intervals import VAGUE_TYPES, load_types, vague_names
@@ -104,6 +104,8 @@ def build(skip_relief=False):
     print("국경(Natural Earth → PALEOMAP)")
     border_entries, country_names = countries.build([e["age"] for e in reliefs])
     borders = {e["age"]: e["file"] for e in border_entries}
+    print("지금의 나라 지도(고지도의 땅 → 오늘날 나라)")
+    land_meta = landmap.build([e["age"] for e in reliefs])      # tupandactyl 038
     print("고기후(Scotese 2021 지표 기온)")
     temps = climate.build([e["age"] for e in reliefs])
     # 최근의 절 기온(PaleoClim, tupandactyl 010) — climate/pc_*.png·recent.json. 뷰어는 index.json 이 아니라 recent.json 을
@@ -159,6 +161,7 @@ def build(skip_relief=False):
         "pbdb": fossil_meta,
         "occurrences": occs_meta,               # 산출 사본의 조각 목록(koprifossillab 050) — 없으면 null, 뷰어는 PBDB 에 바로 묻는다
         "gbdb": gbdb_meta,                      # GBDB 단면의 채집(tupandactyl 036) — 없으면 null, 뷰어는 층을 숨긴다
+        "land": land_meta,                      # 시점마다 "이 땅은 지금 어느 나라" 칸 지도(tupandactyl 038)
         "sources": [cite("paleodem"), cite("paleocoastlines"), cite("paleotemp"), cite("pbdb"), cite("countries")] + ([cite("gbdb")] if gbdb_meta else []),
     }
     (DERIVED / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=1) + "\n",
