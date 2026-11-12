@@ -170,7 +170,13 @@
       var handler = new C.ScreenSpaceEventHandler(scene.canvas);
       handler.setInputAction(function (e) {
         var hit = pickMarker(e.position);
-        if (!hit) { closePopup(); return; }
+        if (!hit) {
+          // 빈 자리 — 팝업이 열려 있었으면 닫기만, 아니면 그 땅을 알린다(빈 땅의 지금 나라, tupandactyl 038)
+          if (pop) { closePopup(); return; }
+          var ll = opts.onEmptyClick && groundAt(e.position);
+          if (ll) opts.onEmptyClick(ll);
+          return;
+        }
         hideTip();
         hit.fire("click", { latlng: hit.getLatLng(), originalEvent: null });
       }, C.ScreenSpaceEventType.LEFT_CLICK);
@@ -179,6 +185,15 @@
         if (!hoverReq) hoverReq = requestAnimationFrame(hover);
       }, C.ScreenSpaceEventType.MOUSE_MOVE);
       scene.canvas.addEventListener("mouseleave", hideTip);
+    }
+
+    // 화면의 한 점이 가리키는 땅의 경위도 — 지형을 세웠으면 지형 면에서, 아니면 타원체에서. 지구 밖이면 null
+    function groundAt(pos) {
+      var ray = scene.camera.getPickRay(pos), at = ray && scene.globe.pick(ray, scene);
+      if (!at) at = scene.camera.pickEllipsoid(pos, scene.globe.ellipsoid);
+      if (!at) return null;
+      var c = C.Cartographic.fromCartesian(at);
+      return { lat: C.Math.toDegrees(c.latitude), lng: C.Math.toDegrees(c.longitude) };
     }
 
     function pickMarker(pos) {
