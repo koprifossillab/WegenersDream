@@ -1316,8 +1316,8 @@
   // 2 표본 노력 — 그 시점 전체 산지(지도의 거르기를 따른다)의 칸마다 몫 합을 회색 단계로. 표본 없는 곳은 옅은 빗금(연구자: 표시한다)
   // 기본은 Scientific 에서 1+2 켬, Casual 끔 — 모드마다 기억한다(043 과 같은 방식). 칸 크기는 053 의 rules.analysis.grid_km
   var LAYERS_KEY = "wegener.layers." + I18N.mode;
-  var layers = I18N.mode === "sci" ? { occ: true, effort: true, change: false, center: false } : { occ: false, effort: false, change: false, center: false };
-  try { var layersStored = JSON.parse(localStorage.getItem(LAYERS_KEY)); if (layersStored) Object.keys(layers).forEach(function (k) { if (typeof layersStored[k] === "boolean") layers[k] = layersStored[k]; }); } catch (e) { /* 막힌 저장소 */ }
+  // 사이트를 켤 때는 분석 층을 모두 끈 채로 연다(연구자, tupandactyl 038) — 지난 선택을 되살리지 않는다. 켜는 것은 연구방법론 창에서
+  var layers = { occ: false, effort: false, change: false, center: false };
   // 통계·분석 층은 Scientific 에서만(연구자, tupandactyl 035) — Casual 에서는 연구방법론 창이 없고 층도 늘 끈다
   var METHODS = I18N.mode === "sci";
   if (!METHODS) Object.keys(layers).forEach(function (k) { layers[k] = false; });
@@ -4834,6 +4834,61 @@
       "<b>" + fmtNum(Math.round(total)) + " km</b> · " + esc(tr("measure.segs", { n: n - 1 + (extra ? 1 : 0) })) +
       "<br><small>" + esc(tr("measure.about", { age: fmtAge(measure.age) })) + "</small>";
   }
+  // ── 빈 땅을 누르면 "이 땅은 지금 어느 나라"(tupandactyl 038) ─────────
+  // 파이프라인이 오늘날 0.5° 칸의 나라를 시점 나이로 v19o 로 돌려 구운 칸 지도(land/<시점>.png, 값 = 나라 번호, pipeline/landmap.py)를 읽는다.
+  // 점(산지·채집·찾기)을 누른 것이면 그 팝업이 먼저 열렸으니 건너뛴다. 그때의 높이·기온도 함께 적는다
+  var LAND = null, landGrids = {}, lastPopupAt = 0;
+  map.on("popupopen", function () { lastPopupAt = Date.now(); });
+  // 팝업이 열린 채로 지도를 누르면 그것은 "닫기" 다 — 새 팝업을 띄우지 않는다(Leaflet 은 preclick 에서 닫는다)
+  var hadPopup = false;
+  map.on("preclick", function () { hadPopup = !!(map._popup && map.hasLayer(map._popup)); });
+  function landGrid(file) {
+    if (!landGrids[file]) landGrids[file] = new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = function () {
+        var c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+        var ctx = c.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0);
+        var d = ctx.getImageData(0, 0, c.width, c.height).data, v = new Uint8Array(c.width * c.height);
+        for (var i = 0; i < v.length; i++) v[i] = d[i * 4];
+        resolve({ v: v, w: c.width, h: c.height });
+      };
+      img.onerror = function (e) { delete landGrids[file]; reject(e); };
+      img.src = dataUrl(file);
+    });
+    return landGrids[file];
+  }
+  function openLand(latlng) {
+    var f = frame(), file = LAND && f && LAND.files[ageKeyOf(f.age)];
+    if (!file) return;
+    var lat = latlng.lat, lng = wrap180(latlng.lng);
+    landGrid(file).then(function (g) {
+      var r = Math.min(g.h - 1, Math.max(0, Math.floor((90 - lat) / LAND.step))), c = Math.min(g.w - 1, Math.max(0, Math.floor((lng + 180) / LAND.step)));
+      var who = LAND.countries[g.v[r * g.w + c]] || null;
+      var el = document.createElement("div");
+      el.className = "pop land-pop";
+      el.innerHTML = "<h3>" + esc(who && who.iso ? (EN ? who.en : who.ko) : tr("land.none")) +
+        (who && who.iso && !EN && who.en ? ' <small class="muted">' + esc(who.en) + "</small>" : "") + "</h3>" +
+        '<p class="note">' + esc(who && who.iso ? tr("land.now", { age: fmtAge(f.age) }) : tr("land.noneWhy")) + "</p><dl>" +
+        "<dt>" + tr("pop.paleo") + "</dt><dd>" + (Math.round(lat * 100) / 100) + "°, " + (Math.round(lng * 100) / 100) + "°</dd></dl>";
+      var popup = L.popup(popupOptions(300)).setLatLng(latlng).setContent(el).openOn(map);
+      var upd = function () { if (popup.update) popup.update(); };
+      if (f.climate) loadGrid(f.climate).then(function (grid) {
+        var tv = tempAt(grid, lat, lng), dl = el.querySelector("dl");
+        if (tv !== tv || !dl) return;
+        dl.insertAdjacentHTML("beforeend", "<dt>" + tr("pop.temp") + "</dt><dd>" + tv.toFixed(0) + (EN ? " °C" : " ℃") +
+          " <small>(" + tr("pop.tempsrc", { age: fmtAge(f.climate.source_age) }) + ")</small></dd>");
+        upd();
+      });
+      addElevation(el, f, lat, lng, upd);
+    }).catch(function () { /* 칸 지도를 못 읽으면 아무것도 안 띄운다 */ });
+  }
+  map.on("click", function (e) {
+    if (measure.on || state.proj === "globe" || !LAND || !onGlobe(e.containerPoint)) return;
+    if (hadPopup || Date.now() - lastPopupAt < 300) return;   // 팝업 닫기였거나, 점을 눌러 그 팝업이 방금 열렸다
+    openLand(e.latlng);
+  });
   map.on("click", function (e) {
     if (!measure.on || !onGlobe(e.containerPoint)) return;
     if (!measure.pts.length) measure.age = frame().age;
@@ -5256,12 +5311,12 @@
     // 지도의 끌기·휠이 창 안에서 일지 않게
     L.DomEvent.disableClickPropagation(box);
     L.DomEvent.disableScrollPropagation(box);
-    box.classList.toggle("open", !!saved.open);
-    $("methods-win").hidden = !saved.open;
-    $("methods-open").setAttribute("aria-expanded", String(!!saved.open));
-    if (saved.help) setHelp(true);
-    // 고지형·조상 범위의 고르기(기억하지 않는 것: 고른 연구는 기억한다)
-    $("layer-phylo").checked = !!saved.phylo;
+    // 사이트를 켤 때는 창을 접고 조상 범위 층도 끈다(연구자, tupandactyl 038) — 고른 연구만 기억한다
+    saved.open = false; saved.help = false; saved.phylo = false; remember();
+    box.classList.remove("open");
+    $("methods-win").hidden = true;
+    $("methods-open").setAttribute("aria-expanded", "false");
+    $("layer-phylo").checked = false;
     $("layer-phylo").addEventListener("change", function () { saved.phylo = this.checked; remember(); loadPhylo(); });
     $("phylo-study").addEventListener("change", function () { saved.study = this.value; remember(); loadPhylo(); });
     state.methodsSaved = saved;
@@ -5625,7 +5680,7 @@
     try { saved = JSON.parse(localStorage.getItem(GBDB_KEY)) || {}; } catch (e) { /* 막힌 저장소 */ }
     gbdbState.on = !!saved.on;
     $("gbdb-on").checked = gbdbState.on;
-    $("gbdb-effort").checked = METHODS && !!saved.effort;
+    $("gbdb-effort").checked = false;           // 셈에 더하기는 켤 때마다 끈 채로(연구방법론 창의 다른 층과 같게, tupandactyl 038)
     function remember() {
       try { localStorage.setItem(GBDB_KEY, JSON.stringify({ on: gbdbState.on, effort: $("gbdb-effort").checked })); } catch (e) { /* 막힌 저장소 */ }
     }
@@ -5883,6 +5938,7 @@
         OCCS = index.occurrences || null;
         syncShareRow();
         setupGbdb(index.gbdb);             // GBDB 단면(tupandactyl 036)
+        LAND = index.land && index.land.files ? index.land : null;   // 빈 땅의 지금 나라(tupandactyl 038)
         setupPhylo(index.phylogeo);        // 계통 생물지리 묶음(tupandactyl 035)
         (index.rules.vague_intervals || []).forEach(function (name) { VAGUE[name] = true; });
       }

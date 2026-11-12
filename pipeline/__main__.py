@@ -17,6 +17,7 @@ USAGE = """사용법: python -m pipeline <명령>
   lithology        암상 용어의 한글(lithology.py)만 지금 index.json 에 다시 붙인다 (1 초)
   phylogeo         계통 생물지리 묶음(sources/phylogeo — 연대 나무와 조상 범위)만 굽고 지금 index.json 에 붙인다 (몇 초)
   gbdb             GBDB 단면(Zenodo 2020 사본)의 채집만 굽고 지금 index.json 에 붙인다 (PBDB 와 겹침 포함, 2 분 남짓)
+  landmap          시점마다 "이 땅은 지금 어느 나라" 칸 지도만 굽고 지금 index.json 에 붙인다 (몇 분)
   paleoclim        최근의 절에 붙이는 PaleoClim 기온 지도만 받고 굽는다 (climate/pc_*.png·recent.json, 1 분 안쪽)
 """
 
@@ -47,6 +48,9 @@ def main(argv):
     elif command == "gbdb":
         from . import gbdb
         gbdb.attach()
+    elif command == "landmap":
+        from . import landmap
+        landmap.attach()
     elif command == "paleoclim":
         from . import paleoclim
         paleoclim.main()
