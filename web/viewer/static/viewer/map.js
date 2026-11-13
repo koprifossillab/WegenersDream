@@ -5828,8 +5828,12 @@
     return gbdbState.sections[b].then(function (all) { return all[String(sid)]; });
   }
   // 산출 이름 — PBDB 산출과 같이 Casual 이면 속·종을 한글로 음차하고 학명은 커서를 대면(taxonHtml, tupandactyl 020). 한 낱말이면 속, 두 낱말이면 종
+  // 이름을 누르면 그 학명으로 찾는다 — PBDB 산출 팝업과 같은 taxonLink(tupandactyl 015·039). "cf."·"?" 같은 수식어가 붙은 이름은 앞의 학명만 찾는다
   function gbdbTaxa(names) {
-    return names.map(function (n) { return taxonHtml(n, guessRank(n) || "genus"); }).join(", ");
+    return names.map(function (n) {
+      var q = (/^[A-Z][a-z]+( [a-z][a-z-]+)?/.exec(n) || [n])[0];
+      return taxonLink(q, taxonHtml(n, guessRank(n) || "genus"));
+    }).join(", ");
   }
   // 층 단위의 시대 이름("Changhsingian", "Wuchiapingian – Changhsingian") — Casual 이면 층서표의 한글 이름으로(koInterval)
   function gbdbLabel(label) {
@@ -5872,6 +5876,7 @@
       });
       html += '</ol><p class="note"><a href="https://doi.org/10.5281/zenodo.4245604" target="_blank" rel="noopener">GBDB · ' + esc(GBDB.snapshot) + "</a> · " + esc(GBDB.license) + "</p>";
       el.innerHTML = html;
+      bindTaxonLinks(el);
       upd();
       if (!today) {                                     // 그때의 기온·높이 — PBDB 산지 팝업과 같은 것(오늘날 자리의 종합 보기에서는 뺀다)
         var f = frame(), plat = Number(row[G.paleolat]), plng = Number(row[G.paleolng]);

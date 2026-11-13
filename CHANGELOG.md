@@ -7,6 +7,7 @@
 
 - **PBDB 에 이름만 있는 속도 GBDB 로** — PBDB 분류 나무에는 있지만 산출이 0 인 이름(예: *Ampullatocephalina*)을 GBDB 채집과 잇는다. GBDB 이름을 사본의
   분류 나무 전체로 맞추고, 그런 이름의 표를 `gbdb/taxa` 에 굽는다(주간 갱신부터). 모든 시대 보기에 "PBDB 에는 산출 기록이 없다" 를 적는다 (tupandactyl 039)
+- **GBDB 산출 이름을 누르면 그 학명으로 찾기** — PBDB 산출 팝업처럼 (tupandactyl 039)
 
 ## 1.20.2 — 2026-11-12 · `feature/globe-land-click`
 
