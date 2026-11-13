@@ -3,6 +3,12 @@
 괄호 안의 번호는 `devlog/` 의 그 문서다. **지금 무엇이 도는지는 이 파일이 아니라
 [HANDOFF.md](HANDOFF.md) 다.**
 
+## 1.20.3 — 2026-11-12 · `feature/gbdb-name-only-taxa`
+
+- **PBDB 에 이름만 있는 속도 GBDB 로** — PBDB 분류 나무에는 있지만 산출이 0 인 이름(예: *Ampullatocephalina*)을 GBDB 채집과 잇는다. GBDB 이름을 사본의
+  분류 나무 전체로 맞추고, 그런 이름의 표를 `gbdb/taxa` 에 굽는다(주간 갱신부터). 모든 시대 보기에 "PBDB 에는 산출 기록이 없다" 를 적는다 (tupandactyl 039)
+- **GBDB 산출 이름을 누르면 그 학명으로 찾기** — PBDB 산출 팝업처럼 (tupandactyl 039)
+
 ## 1.20.2 — 2026-11-12 · `feature/globe-land-click`
 
 - **지구본에서도 빈 땅의 지금 나라** — 지구본은 누르기를 Cesium 이 받아 지도의 click 이 오지 않았다. 빈 자리를 누르면 지형 면(없으면 타원체)의 경위도로

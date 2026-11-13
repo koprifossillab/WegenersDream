@@ -150,3 +150,4 @@
 | tupandactyl 036 | 2026-11-12 | [GBDB 단면의 채집을 PBDB 곁에 따로 올리고, 겹침을 표시한다](20261112_tupandactyl_036_gbdb_sections.md) |
 | tupandactyl 037 | 2026-11-12 | [높이 도드라지게: 음영 기복과 산줄기(대동여지도식)](20261112_tupandactyl_037_relief_emphasis.md) |
 | tupandactyl 038 | 2026-11-12 | [고지도의 빈 땅을 누르면 지금 어느 나라 땅인지](20261112_tupandactyl_038_land_country.md) |
+| tupandactyl 039 | 2026-11-12 | [찾히는데 점이 안 뜨는 속: PBDB 에 이름만 있는 분류군](20261112_tupandactyl_039_name_only_taxa.md) |

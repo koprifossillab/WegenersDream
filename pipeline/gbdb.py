@@ -291,22 +291,58 @@ def country_codes(points, names):
 
 
 class TaxonTable:
-    """이름 → PBDB 분류 나무의 lft — 산출 사본의 이름표(occs/taxa/<첫 글자>.json, 050). 같은 이름이 여럿이면 산출이 많은 것."""
-    def __init__(self, folder):
+    """이름 → PBDB 분류 나무의 lft. 먼저 산출 사본의 이름표(occs/taxa/<첫 글자>.json, 050 — 뷰어가 찾기에 쓰는 표), 거기 없으면 **같은 때 받은
+    분류 나무 전체**(taxonomy.csv). PBDB 에 이름만 있고 산출이 없는 속(예: *Ampullatocephalina* — Lu & Qian 1983, PBDB 산출 0, GBDB 6 채집)은
+    이름표에 없다(tupandactyl 039). 같은 이름이 여럿이면 산출이 많은 것."""
+    def __init__(self, folder, taxonomy=None):
         self.folder, self.cache = folder, {}
+        self.accepted, self.names = taxonomy or ({}, {})
 
-    def lft(self, name):
-        if not name:
-            return None
-        letter = name[0].lower() if name[0].isalpha() else "_"
+    def table(self, name):
+        letter = name[0].lower() if name[0].isalpha() and name[0].isascii() else "_"
         table = self.cache.get(letter)
         if table is None:
             path = self.folder / f"{letter}.json"
             table = self.cache[letter] = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-        entries = table.get(name)
-        if not entries:
+        return table
+
+    def lft(self, name):
+        if not name:
             return None
-        return max(entries, key=lambda e: e[4])[1]
+        entries = self.table(name).get(name)
+        if entries:
+            return max(entries, key=lambda e: e[4])[1]
+        accs = [a for a in self.names.get(name, ()) if a in self.accepted]
+        if not accs:
+            return None
+        return self.accepted[max(accs, key=lambda a: self.accepted[a][4])][0]
+
+
+def name_only_taxa(table, gbdb_lfts):
+    """사본의 이름표에 없는(PBDB 산출이 없는) 채택 분류군 가운데 GBDB 산출을 품은 것의 이름들 → 이름표와 같은 꼴
+    {이름: [[채택 번호, lft, rgt, 계급, GBDB 채집 수, 채택 이름]]}. 뷰어가 그 이름으로 찾을 때 구간을 얻게(tupandactyl 039).
+    gbdb_lfts: {lft: 그 lft 를 가진 채집 수}"""
+    import bisect
+    if not table.accepted:
+        return {}
+    keys = sorted(gbdb_lfts)
+    cum = [0]
+    for k in keys:
+        cum.append(cum[-1] + gbdb_lfts[k])
+    by_acc = {}
+    for name, accs in table.names.items():
+        for acc in accs:
+            by_acc.setdefault(acc, []).append(name)
+    out = {}
+    for acc, (lft, rgt, accepted_name, rank, _) in table.accepted.items():
+        i, j = bisect.bisect_left(keys, lft), bisect.bisect_right(keys, rgt)
+        if i == j:
+            continue
+        for name in by_acc.get(acc, ()):
+            if table.table(name).get(name):
+                continue                        # 이름표에 이미 있다 — 뷰어가 거기서 찾는다
+            out.setdefault(name, []).append([acc, lft, rgt, rank, cum[j] - cum[i], accepted_name])
+    return out
 
 
 def taxon_lfts(taxa, table):
@@ -353,7 +389,15 @@ def build(ages):
     # 찾기에 쓰는 칸 — 나라(좌표), 지층(층 단위), 분류 나무의 lft(산출 사본의 이름표)
     units = {(sid, uid): u for sid, sec in sections.items() for uid, u in sec["units"].items()}
     codes = country_codes([(c["lat"], c["lng"]) for c in collections], [sections[c["section"]]["country"] for c in collections])
-    table = TaxonTable(DERIVED / "occs" / "taxa")
+    taxonomy = None
+    try:
+        from .occurrences import read_taxonomy
+        tax_path = source_path(manifest("pbdb")["taxonomy"]["path"])
+        if tax_path.exists():
+            taxonomy = read_taxonomy(tax_path)
+    except (KeyError, OSError) as err:
+        print(f"  분류 나무를 못 읽었다({err}) — 산출 사본의 이름표만 쓴다")
+    table = TaxonTable(DERIVED / "occs" / "taxa", taxonomy)
     named = 0
     for c, cc in zip(collections, codes):
         c["cc"] = cc
@@ -366,6 +410,23 @@ def build(ages):
 
     out = DERIVED / "gbdb"
     (out / "sections").mkdir(parents=True, exist_ok=True)
+    # PBDB 에 산출이 없는 분류군의 이름표(뷰어가 occs/taxa 에서 못 찾을 때 본다)
+    counted = defaultdict(int)
+    for c in collections:
+        for l in c["lfts"]:
+            counted[l] += 1
+    extra = name_only_taxa(table, counted)
+    shards = defaultdict(dict)
+    for name, entries in extra.items():
+        shards[name[0].lower() if name[0].isalpha() and name[0].isascii() else "_"][name] = entries
+    if (out / "taxa").exists():
+        for old in (out / "taxa").glob("*.json"):
+            old.unlink()
+    (out / "taxa").mkdir(exist_ok=True)
+    for key, t in shards.items():
+        (out / "taxa" / f"{key}.json").write_text(json.dumps(t, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    stats["name_only_taxa"] = len(extra)
+    print(f"  PBDB 산출이 없는 이름 {len(extra)} 개를 gbdb/taxa 에 (분류 나무 {'있음' if taxonomy else '없음'})")
     # 모든 시대를 오늘날 자리로(찾기의 종합 보기) — 시점 파일과 같은 칸, 고좌표 칸에 오늘날 좌표
     every = [row_of(c, c["lng"], c["lat"]) for c in collections]
     (out / "all.json").write_text(json.dumps({"fields": FIELDS, "rows": every}, ensure_ascii=False, separators=(",", ":")),
@@ -402,6 +463,7 @@ def build(ages):
     return {"snapshot": spec["snapshot"], "record": spec["record"], "citation": spec["citation"],
             "license": spec["license"]["name"], "fields": FIELDS, "frames": frames,
             "sections": "gbdb/sections/{b}.json", "buckets": BUCKETS, "all": "gbdb/all.json",
+            "taxa": [f"gbdb/taxa/{k}.json" for k in sorted(shards)],
             "dup_rule": {"km": DUP_KM, "share": DUP_SHARE, "slack_ma": DUP_SLACK_MA}, "stats": stats}
 
 
