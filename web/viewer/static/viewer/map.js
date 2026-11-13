@@ -412,6 +412,19 @@
   map.createPane("base").style.zIndex = 380;
   map.createPane("climate").style.zIndex = 390;
   var relief = new ReliefOverlay("", WORLD, { interactive: false, className: "relief", pane: "base" }).addTo(map);
+  // 확대 4 부터는 8192 폭 배경의 타일을 그 위에 얹는다(tupandactyl 040 — 화질). 밑의 4096 그림은 두어 타일이 오는 동안 비친다.
+  // 정거원통만 — 몰바이데는 가운데 경선을 돌려 그리므로(025) 그림 한 장을 쓴다. 확대 단계·타일 크기는 index.json 의 relief_tiles 가 정한다
+  var reliefTiles = L.tileLayer("", { pane: "base", tileSize: 256, noWrap: true, bounds: L.latLngBounds([[-90, -180], [90, 180]]),
+    keepBuffer: 1, updateWhenZooming: false, className: "relief-tiles" });
+  function syncReliefTiles(f) {
+    var t = f && f.relief_tiles, want = !!t && state.proj === "eq" && map.getZoom() >= t.zoom;
+    if (!want) { if (map.hasLayer(reliefTiles)) map.removeLayer(reliefTiles); return; }
+    reliefTiles.options.minNativeZoom = reliefTiles.options.maxNativeZoom = t.zoom;
+    reliefTiles.options.tileSize = t.size;
+    var url = dataUrl(t.url);
+    if (reliefTiles._url !== url) reliefTiles.setUrl(url, map.hasLayer(reliefTiles) ? false : true);
+    if (!map.hasLayer(reliefTiles)) reliefTiles.addTo(map);
+  }
   // 높이 도드라지게(tupandactyl 037) — 배경 바로 위, 기온 밑. 정거원통·몰바이데 그림을 따로 둔다(기온 층과 같은 방식)
   map.createPane("shade").style.zIndex = 385;
   map.getPane("shade").style.pointerEvents = "none";
@@ -492,6 +505,7 @@
     layers: { fossils: fossilLayer, taxa: taxonLayer, lines: [gridLayer, topoLayer, coastLayer, borderLayer] },
     frame: frame,
     reliefUrl: function (f) { var files = f.relief_files || {}; return dataUrl(files["4096"] || files["2048"] || f.relief); },
+    reliefTiles: function (f) { var t = f.relief_tiles; return t ? { url: dataUrl(t.url), zoom: t.zoom, size: t.size } : null; },
     climate: globeClimate, climateOpacity: function () { return climateLayer.options.opacity; },
     shade: globeShade,                   // 높이 도드라지게(tupandactyl 037) — 정거원통 그림을 그대로 입힌다
     // 지구본의 빈 땅을 누르면 지금의 나라(tupandactyl 038) — 지구본은 누르기를 Cesium 이 받아 map 의 click 이 오지 않는다
@@ -593,6 +607,7 @@
     noteTerrain(f);
     if (!f) return;
     relief.setUrl(reliefUrl(f));
+    syncReliefTiles(f);
     redrawLines(f);
     drawClimate(f);
     drawShade(f);
@@ -695,6 +710,7 @@
     if (!f) return;
     var url = reliefUrl(f);
     if (relief._url !== url) relief.setUrl(url);
+    syncReliefTiles(f);
     noteRelief(f);
   });
   // 지형 칸은 지구본이고 가공물에 지형이 있을 때만 보인다(wetherilli 017)
@@ -1010,6 +1026,7 @@
       $(id).closest("label").classList.toggle("off", plateOnly);
     });
     relief.setUrl(reliefUrl(f));
+    syncReliefTiles(f);
     noteRelief(f);
     noteTerrain(f);
     drawCoast(f);
@@ -5399,21 +5416,31 @@
     $("shade-exag").addEventListener("change", function () { saved.exag = this.value; remember(); drawShade(frame()); });
   }
   function shadeKey(t) { return t.file + "|" + $("shade-style").value + "|" + $("shade-exag").value; }
+  // 음영은 세밀한 격자(0.1°, terrain.fine — tupandactyl 040)가 있으면 그것으로, 산줄기는 늘 1/4° 격자로 셈한다 — 산줄기의 기준(솟은 높이·반지름·덩이 크기)은
+  // 1/4° 칸으로 맞춘 것이고, 대동여지도처럼 큰 줄기만 긋는 것이라 칸이 잘수록 잔 능선만 는다. 세밀한 격자는 이 층을 켤 때만 받는다
+  var FINE_EXAG = 0.5;
+  function fineGrid(t) {
+    if (!t.fine) return Promise.resolve(null);
+    var ft = { file: t.fine.file, step: t.fine.step, offset: t.offset, unit: t.unit };
+    return loadTerrainGrid(ft, 1).catch(function () { return null; });
+  }
   function shadeCanvas(t) {
     var key = shadeKey(t);
     if (shadeCache[key]) return shadeCache[key];
     var style = $("shade-style").value, exag = +$("shade-exag").value;
-    shadeCache = {};                                   // 한 장만 둔다 — 2880×1440 이 여럿이면 메모리가 크다
-    shadeCache[key] = elevGrid(t).then(function (g) {
-      var S = 2, W = g.w * S, H = (g.h - 1) * S, c = document.createElement("canvas");
+    shadeCache = {};                                   // 한 장만 둔다 — 3600×1800 이 여럿이면 메모리가 크다
+    shadeCache[key] = Promise.all([elevGrid(t), style !== "ridge" ? fineGrid(t) : null]).then(function (both) {
+      var g = both[0], hg = both[1] || g;
+      var PX = hg === g ? 8 : 10, W = 360 * PX, H = 180 * PX, S = g.deg * PX, c = document.createElement("canvas");   // PX: 1° 의 픽셀
       c.width = W; c.height = H;
       var ctx = c.getContext("2d");
       if (style !== "ridge") {
-        var hs = RL.hillshade(g, exag), small = document.createElement("canvas");
-        small.width = g.w; small.height = g.h;
-        var sctx = small.getContext("2d"), img = sctx.createImageData(g.w, g.h);
+        // 0.1° 칸은 1/4° 칸보다 경사가 그대로 가파르게 잡힌다(평균으로 덜 눌린다) — 같은 과장이면 지나쳐 잡음까지 도드라졌다. 과장을 절반으로
+        var hs = RL.hillshade(hg, hg === g ? exag : exag * FINE_EXAG), small = document.createElement("canvas");
+        small.width = hg.w; small.height = hg.h;
+        var sctx = small.getContext("2d"), img = sctx.createImageData(hg.w, hg.h);
         for (var k = 0; k < hs.length; k++) {
-          var v = hs[k], sea = g.z[k] < 0, a = v < 0 ? Math.min(0.85, -v * 3.0) : Math.min(0.3, v * 0.9);
+          var v = hs[k], sea = hg.z[k] < 0, a = v < 0 ? Math.min(0.85, -v * 3.0) : Math.min(0.3, v * 0.9);
           if (sea) a *= 0.35;                                 // 바다 밑 지형은 옅게 — 대양이 무늬로 덮이지 않게
           var col = v < 0 ? 18 : 255;
           img.data[k * 4] = col; img.data[k * 4 + 1] = col * (v < 0 ? 0.8 : 0.97); img.data[k * 4 + 2] = col * (v < 0 ? 0.55 : 0.88);
@@ -5443,7 +5470,8 @@
   var mollShadeCache = { key: null, canvas: null };
   function mollShade(key, src) {
     if (mollShadeCache.key === key) return mollShadeCache.canvas;
-    var w = 1440, h = 720, c = document.createElement("canvas"), flat = { lon0: 0 };
+    // 세밀한 음영(3600 폭)이면 두 배로 옮긴다 — 1440 폭이면 0.1° 의 세부가 다시 뭉개진다(tupandactyl 040)
+    var w = src.width >= 3600 ? 2880 : 1440, h = w / 2, c = document.createElement("canvas"), flat = { lon0: 0 };
     c.width = w; c.height = h;
     var sd = src.getContext("2d").getImageData(0, 0, src.width, src.height).data, SW = src.width, SH = src.height;
     var ctx = c.getContext("2d"), out = ctx.createImageData(w, h);

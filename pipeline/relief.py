@@ -11,10 +11,20 @@
 
 뷰어는 넓게 볼 때 2048, 확대하면 4096 을 부른다.
 
+**화질(tupandactyl 040)** — 연구자: "지도 화질은 이게 최선이야?". 6 분 격자가 정보의 끝이라 세부를 더할 수는 없고, 보기를 다듬었다.
+- 격자를 **3 차(bicubic)**로 늘린다(전에는 1 차). 칸의 모서리가 곡선으로 이어진다
+- 바다·뭍의 경계는 격자를 σ = 1 칸(약 11 km) 가우스로 고른 높이로 가른다 — PaleoDEM 의 얕은 대륙붕은 0 m 언저리에서 칸마다 부호가
+  오락가락해 해안이 바둑판처럼 자글자글했다. 색과 음영은 고르지 않은 높이 그대로다
+- 가장 큰 그림을 **8192 폭**으로 그리고, 확대 4 단계(EPSG:4326 에서 세계 폭 8192 픽셀)의 **256 픽셀 타일**로 잘라 둔다. 4096·2048 은
+  그것을 줄인 것이다(넓이 평균 — 줄일 때 계단이 생기지 않는다). 뷰어는 확대 4 부터 화면에 든 타일만 받는다
+- WebP 품질 80 → 90. 색 경계의 뭉개짐이 준다(파일은 1.8 배)
+- 새 그림은 `basemap/` 아래에 둔다. 옛 `relief/` 와 이름이 같으면 브라우저 캐시(하루)와 주간 갱신의 rsync 가 옛 그림을 다시 쓸 수 있다
+
 몰바이데 투영(024)의 배경도 같은 두 폭으로 굽는다 — 정거원통으로 그린 그림을 타원 안으로 옮긴 것이고
 타원 밖은 투명하다. 뷰어가 그림을 투영하지 않게 하려는 것이다(4096 폭을 시점마다 브라우저에서 옮기면
 밀대가 무거워진다).
 """
+import json
 import sys
 from functools import lru_cache
 
@@ -27,7 +37,12 @@ from .common import DERIVED, age_key, manifest, parse_dem_name, source_path
 
 WIDTHS = (2048, 4096)
 WIDTH = WIDTHS[0]
-QUALITY = 80
+QUALITY = 90
+TILE_ZOOM = 4                 # 타일을 자르는 확대 단계 — EPSG:4326 에서 세계 폭 512·2^4 = 8192 픽셀
+TILE = 256
+TOP = 512 * 2 ** TILE_ZOOM    # 가장 큰 그림의 폭
+ROOT_DIR = "basemap"
+MASK_SIGMA = 1.0              # 바다·뭍을 가를 때 고르는 폭(격자 칸)
 
 # (고도 m, RGB). 사이는 선형으로 섞는다. 0 m 에서 바다 쪽과 뭍 쪽이 따로 선다.
 SEA = [(-9000, (6, 22, 48)), (-5000, (18, 52, 96)), (-2500, (36, 86, 138)),
@@ -46,14 +61,13 @@ def read_grid(path):
     return z[::-1] if lat[0] < lat[-1] else z
 
 
-def resample(z, width=WIDTH):
+def resample(z, width=WIDTH, order=3):
+    """마디 격자 → 폭 width 의 픽셀 가운데 값. 3 차 보간(tupandactyl 040, 그 전은 1 차)."""
     height = width // 2
-    rows, cols = np.mgrid[0:height, 0:width]
-    lat = 90.0 - (rows + 0.5) / height * 180.0
-    lon = -180.0 + (cols + 0.5) / width * 360.0
-    coords = [(90.0 - lat) / (180.0 / (z.shape[0] - 1)),
-              (lon + 180.0) / (360.0 / (z.shape[1] - 1))]
-    return ndimage.map_coordinates(z, coords, order=1, mode="nearest")
+    rows = (np.arange(height) + 0.5) / height * (z.shape[0] - 1)      # 마디 격자의 행(0 = 북위 90°)
+    cols = (np.arange(width) + 0.5) / width * (z.shape[1] - 1)
+    rr, cc = np.meshgrid(rows.astype(np.float32), cols.astype(np.float32), indexing="ij")
+    return ndimage.map_coordinates(z.astype(np.float32), [rr, cc], order=order, mode="nearest", prefilter=order > 1)
 
 
 def ramp(z, stops):
@@ -81,12 +95,18 @@ def hillshade(z, azimuth=315.0, altitude=45.0, exaggeration=12.0):
 def render(z, width=WIDTH):
     """정거원통 RGB 배열(uint8, 높이 = 폭/2)과 뭍의 비율."""
     fine = resample(z, width)
-    colour = np.where((fine > 0)[..., None], ramp(fine, LAND), ramp(np.minimum(fine, 0), SEA))
+    land = resample(ndimage.gaussian_filter(z, MASK_SIGMA, mode="nearest"), width) > 0
+    rgb = np.empty(fine.shape + (3,), dtype=np.uint8)
     shade = hillshade(fine)
-    # 뭍은 음영을 세게, 바다는 약하게 — 해저 지형이 뭍보다 눈에 띄지 않게 한다.
-    strength = np.where(fine > 0, 0.55, 0.25)[..., None]
-    lit = colour * (1.0 - strength + strength * 1.35 * shade[..., None])
-    return np.clip(lit, 0, 255).astype(np.uint8), float((fine > 0).mean())
+    # 뭍은 음영을 세게, 바다는 약하게 — 해저 지형이 뭍보다 눈에 띄지 않게 한다. 띠로 나눠 칠한다(8192 폭이면 한 번에 수 GB)
+    for r0 in range(0, fine.shape[0], 512):
+        sl = slice(r0, r0 + 512)
+        f, m = fine[sl], land[sl]
+        colour = np.where(m[..., None], ramp(np.maximum(f, 0), LAND), ramp(np.minimum(f, 0), SEA))
+        strength = np.where(m, 0.55, 0.25)[..., None]
+        lit = colour * (1.0 - strength + strength * 1.35 * shade[sl][..., None])
+        rgb[sl] = np.clip(lit, 0, 255).astype(np.uint8)
+    return rgb, float(land.mean())
 
 
 @lru_cache(maxsize=None)
@@ -151,28 +171,80 @@ def grids():
     return out
 
 
-def build(only=None):
+def shrink(rgb, width):
+    """큰 그림을 넓이 평균으로 줄인다 — 다시 보간하지 않는다."""
+    return np.asarray(Image.fromarray(rgb).resize((width, width // 2), Image.Resampling.BOX))
+
+
+def save(image, name):
+    (DERIVED / name).parent.mkdir(parents=True, exist_ok=True)
+    image.save(DERIVED / name, "WEBP", quality=QUALITY, method=4)
+
+
+def tiles(rgb, key):
+    """8192 폭 그림을 확대 4 단계의 256 픽셀 타일로 — basemap/tiles/<나이>/<x>_<y>.webp. 뷰어·지구본이 같은 주소 꼴을 쓴다."""
+    h, w = rgb.shape[:2]
+    assert w == TOP and h == TOP // 2, "타일은 8192 폭 그림에서만 자른다"
+    for y in range(h // TILE):
+        for x in range(w // TILE):
+            save(Image.fromarray(rgb[y * TILE:(y + 1) * TILE, x * TILE:(x + 1) * TILE]), f"{ROOT_DIR}/tiles/{key}/{x}_{y}.webp")
+    return {"url": f"{ROOT_DIR}/tiles/{key}/{{x}}_{{y}}.webp", "zoom": TILE_ZOOM, "size": TILE}
+
+
+def render_frame(args):
+    """한 시점의 그림 모두 — 일꾼 프로세스에서 돈다."""
+    age, label, path, grid = args
+    key = age_key(age)
+    big, land = render(read_grid(path), TOP)
+    files = {}
     for width in WIDTHS:
-        (DERIVED / "relief" / str(width)).mkdir(parents=True, exist_ok=True)
-        (DERIVED / "relief" / f"moll-{width}").mkdir(parents=True, exist_ok=True)
-    entries = []
-    for age, label, path, grid in grids():
-        if only and age not in only:
+        rgb = shrink(big, width)
+        files[str(width)] = name = f"{ROOT_DIR}/{width}/{key}.webp"
+        save(Image.fromarray(rgb), name)
+        files[f"moll-{width}"] = name = f"{ROOT_DIR}/moll-{width}/{key}.webp"
+        save(mollweide(rgb), name)
+    entry = {"age": age, "label": label, "file": files[str(WIDTH)], "files": files, "tiles": tiles(big, key),
+             "grid": grid, "land_fraction": round(land, 3)}
+    done_path(key).write_text(json.dumps(entry, ensure_ascii=False) + "\n", encoding="utf-8")      # 다 구운 표 — 끊겼다 다시 돌면 건너뛴다
+    print(f"  배경 {age:6.1f} Ma  {label:40s} {grid}  뭍 {land:5.1%}", flush=True)
+    return entry
+
+
+def done_path(key):
+    return DERIVED / ROOT_DIR / "done" / f"{key}.json"
+
+
+def build(only=None, workers=6, fresh=False):
+    """시점마다 배경(2048·4096·몰바이데 둘·8192 타일). 8192 폭 한 장에 15 초 남짓이라 일꾼 여섯으로 나눠 굽는다.
+    다 구운 시점은 basemap/done/<나이>.json 이 남아 건너뛴다(fresh 면 다시) — 한 시간 가까운 굽기가 끊겨도 처음부터 하지 않는다."""
+    from multiprocessing import get_context
+    (DERIVED / ROOT_DIR / "done").mkdir(parents=True, exist_ok=True)
+    todo, entries = [], []
+    for g in grids():
+        if only and g[0] not in only:
             continue
-        z = read_grid(path)
-        files = {}
-        for width in WIDTHS:
-            rgb, land = render(z, width)
-            name = f"relief/{width}/{age_key(age)}.webp"
-            Image.fromarray(rgb).save(DERIVED / name, "WEBP", quality=QUALITY, method=4)
-            files[str(width)] = name
-            name = f"relief/moll-{width}/{age_key(age)}.webp"
-            mollweide(rgb).save(DERIVED / name, "WEBP", quality=QUALITY, method=4)
-            files[f"moll-{width}"] = name
-        entries.append({"age": age, "label": label, "file": files[str(WIDTH)], "files": files,
-                        "grid": grid, "land_fraction": round(land, 3)})
-        print(f"  배경 {age:6.1f} Ma  {label:40s} {grid}  뭍 {land:5.1%}")
-    return entries
+        done = done_path(age_key(g[0]))
+        if done.is_file() and not fresh:
+            entries.append(json.loads(done.read_text(encoding="utf-8")))
+        else:
+            todo.append(g)
+    if todo:
+        with get_context("spawn").Pool(workers) as pool:
+            entries += pool.map(render_frame, todo, chunksize=1)
+    return sorted(entries, key=lambda e: e["age"])
+
+
+def patch(index, entries):
+    """index.json 의 시점에 새 배경 항목을 입힌다. 이미 구운 것(basemap/entries.json)을 다른 자료 폴더의 목록에 입힐 때도 쓴다."""
+    n = 0
+    for frame in index["frames"]:
+        e = entries.get(frame["age"])
+        if not e:
+            continue
+        frame["relief"], frame["relief_files"], frame["relief_tiles"] = e["file"], e["files"], e["tiles"]
+        frame["land_fraction"] = e["land_fraction"]
+        n += 1
+    return n
 
 
 if __name__ == "__main__":
