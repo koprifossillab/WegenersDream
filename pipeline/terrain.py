@@ -67,7 +67,45 @@ def build(only=None):
         out[age] = {"file": name, "step": STEP, "offset": OFFSET, "unit": UNIT,
                     "min": int(heights.min()), "max": int(heights.max())}
         print(f"  지형 {age:6.1f} Ma  {grid}  {int(heights.min()):6d} ~ {int(heights.max()):5d} m")
+    for age, fine in build_fine(only).items():            # 세밀한 격자(tupandactyl 040) — 일꾼 여럿으로
+        if age in out:
+            out[age]["fine"] = fine
     return out
+
+
+FINE_STEP = 0.1      # 6 분 격자 그대로(3601 × 1801)
+
+
+def build_fine_one(age, path, grid):
+    """6 분 격자를 고르지 않고 그대로 담은 세밀한 지형(tupandactyl 040) — 「높이 도드라지게」의 음영이 쓴다. 1° 격자뿐이면 없다.
+
+    1/4° 격자는 지구본·등고선·팝업의 높이에 그대로 쓴다 — 시점마다 1~4 MB 인 이 파일은 그 층을 켰을 때만 받는다."""
+    if grid != "6min":
+        return None
+    z = read_grid(path)
+    if z.shape != (int(round(180 / FINE_STEP)) + 1, int(round(360 / FINE_STEP)) + 1):
+        return None
+    (DERIVED / "terrain" / "fine").mkdir(parents=True, exist_ok=True)
+    name = f"terrain/fine/{age_key(age)}.webp"
+    encode(z).save(DERIVED / name, "WEBP", lossless=True, quality=100, method=6)
+    return {"file": name, "step": FINE_STEP}
+
+
+def _fine_job(args):
+    age, path, grid = args
+    name = DERIVED / f"terrain/fine/{age_key(age)}.webp"
+    if name.is_file():                     # 이미 구운 것 — 무손실 method 6 은 한 장에 1 분 가까이 걸린다
+        return age, {"file": f"terrain/fine/{age_key(age)}.webp", "step": FINE_STEP}
+    return age, build_fine_one(age, path, grid)
+
+
+def build_fine(only=None, workers=6):
+    """{나이: terrain 칸의 fine} — 1/4° 격자는 그대로 두고 세밀한 것만. 일꾼 여럿으로, 있는 파일은 건너뛴다."""
+    from multiprocessing import get_context
+    todo = [(age, path, grid) for age, label, path, grid in grids() if not only or age in only]
+    with get_context("spawn").Pool(workers) as pool:
+        done = pool.map(_fine_job, todo, chunksize=1)
+    return {age: fine for age, fine in done if fine}
 
 
 def attach():

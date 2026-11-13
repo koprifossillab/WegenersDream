@@ -85,7 +85,7 @@
   /**
    * opts: { box: 지도 칸(#map), map: Leaflet 지도, base: Cesium 이 놓인 주소, L,
    *         layers: { fossils, taxa, lines: [층…] },
-   *         reliefUrl(f), climate(f) → Promise<캔버스|null>, climateOpacity() → 0~1, frame(),
+   *         reliefUrl(f), reliefTiles(f) → { url, zoom, size } | null, climate(f) → Promise<캔버스|null>, climateOpacity() → 0~1, frame(),
    *         onView(자리) — 카메라가 멈출 때(주소를 고친다), onLoading(bool), avoid() → 팝업이 덮지 않을 요소들,
    *         terrain(f) → { url, step, offset, unit } | null — 지형을 세울 때(끄거나 없으면 null), exaggeration() → 배 }
    */
@@ -99,7 +99,7 @@
     L.DomEvent.disableScrollPropagation(host);
 
     var C = null, widget = null, scene = null;
-    var reliefLayer = null, reliefFor = null, climateLayer = null, climateFor = null, shadeLayer = null, shadeFor = null;
+    var reliefLayer = null, reliefFor = null, tilesLayer = null, climateLayer = null, climateFor = null, shadeLayer = null, shadeFor = null;
     var points = null, lines = null;
     var dirty = {}, frameReq = 0, ready = null, active = false;
     var pop = null, tip = null, hoverReq = 0, hoverPos = null, pending = null;
@@ -322,8 +322,23 @@
         var old = reliefLayer;
         reliefLayer = layer;
         if (old) setTimeout(function () { scene.imageryLayers.remove(old, true); scene.requestRender(); }, 400);
+        syncTiles(f);
         scene.requestRender();
       }).catch(function () { if (reliefFor === url) reliefFor = null; });
+    }
+
+    // 가까이 보면 8192 폭 배경의 타일(tupandactyl 040) — 평면 지도와 같은 타일을 같은 주소로 받는다. 지형 칸이 그 확대 단계에 이른
+    // 뒤에만 보인다(minimumTerrainLevel) — 멀리서는 타일을 하나도 받지 않는다. 한 장짜리 배경 바로 위, 음영 밑
+    function syncTiles(f) {
+      var t = opts.reliefTiles ? opts.reliefTiles(f) : null;
+      if (tilesLayer) { scene.imageryLayers.remove(tilesLayer, true); tilesLayer = null; }
+      if (!t) return;
+      var provider = new C.UrlTemplateImageryProvider({
+        url: t.url, tilingScheme: new C.GeographicTilingScheme(), tileWidth: t.size, tileHeight: t.size,
+        minimumLevel: t.zoom, maximumLevel: t.zoom,
+      });
+      tilesLayer = new C.ImageryLayer(provider, { minimumTerrainLevel: t.zoom });
+      scene.imageryLayers.add(tilesLayer, scene.imageryLayers.indexOf(reliefLayer) + 1);
     }
 
     function syncClimate(f) {
@@ -356,7 +371,7 @@
         return C.SingleTileImageryProvider.fromUrl(canvas.toDataURL()).then(function (provider) {
           if (shadeFor !== token) return;
           if (shadeLayer) scene.imageryLayers.remove(shadeLayer, true);
-          var at = reliefLayer ? scene.imageryLayers.indexOf(reliefLayer) + 1 : 1;
+          var under = tilesLayer || reliefLayer, at = under ? scene.imageryLayers.indexOf(under) + 1 : 1;
           shadeLayer = scene.imageryLayers.addImageryProvider(provider, at);
           shadeLayer._src = canvas;
           scene.requestRender();

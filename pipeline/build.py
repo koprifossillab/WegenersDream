@@ -44,7 +44,7 @@ def previous_reliefs():
         missing = [p for p in files.values() if not (DERIVED / p).is_file()]
         if missing:
             raise SystemExit(f"배경 그림이 없다({missing[0]}) — --no-relief 없이 돌린다")
-        out.append({"age": f["age"], "label": f["label"], "file": f["relief"], "files": files,
+        out.append({"age": f["age"], "label": f["label"], "file": f["relief"], "files": files, "tiles": f.get("relief_tiles"),
                     "grid": f.get("grid", "1deg"), "land_fraction": f["land_fraction"]})
     return out
 
@@ -67,6 +67,7 @@ def frame_entry(entry, terrain, coast, border, temp, found):
         "units": [u["id"] for u in containing(age, units())],
         "relief": entry["file"],
         "relief_files": entry["files"],
+        "relief_tiles": entry.get("tiles"),      # 확대 4 단계의 타일(tupandactyl 040) — 에디아카라기 시점은 없다
         "grid": entry["grid"],
         "land_fraction": entry["land_fraction"],
         "terrain": terrain,

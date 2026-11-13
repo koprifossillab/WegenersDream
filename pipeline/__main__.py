@@ -10,6 +10,8 @@ USAGE = """사용법: python -m pipeline <명령>
   build            배경·해안선·화석·국경·목록 만들기
   build --no-relief  배경 그림·지형(합해 10 분 남짓)은 지난 것을 두고 나머지만
   all              fetch 뒤 build
+  basemap          배경 그림(2048·4096·몰바이데·8192 타일)과 세밀한 지형만 다시 굽고 지금 index.json 에 붙인다 (일꾼 여섯으로 10 분 남짓)
+  basemap --attach-only   이미 구운 basemap/entries.json·terrain 표를 지금 index.json 에 입히기만 한다(다른 자료 폴더로 옮긴 뒤)
   terrain          지구본 지형만 굽고 지금 index.json 에 붙인다 (배경·화석은 그대로, 5 분 남짓)
   ediacaran        에디아카라기 시점(550 Ma, 판 복원만)의 배경·국경·화석만 굽고 지금 index.json 에 붙인다 (1 분 남짓)
   events           대멸종·전 지구 사건(events.py)만 지금 index.json 에 다시 붙인다 (1 초)
@@ -28,6 +30,9 @@ def main(argv):
         fetch.main(argv[1:])
     elif command == "build":
         build.build(skip_relief="--no-relief" in argv)
+    elif command == "basemap":
+        from . import basemap
+        basemap.main(attach_only="--attach-only" in argv)
     elif command == "terrain":
         terrain.attach()
     elif command == "ediacaran":
