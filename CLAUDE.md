@@ -38,6 +38,9 @@
 - PaleoCoastlines 는 이미 복원 좌표라 회전하지 않는다
 - 다른 판 모델(Merdith, Müller 등)의 자료를 더할 때는 그 모델로 화석을 다시 옮겨야
   한다. 섞지 않는다
+- **GBDB 단면의 채집**(1.19.0, `pipeline/gbdb.py`)은 오늘날 좌표를 시점 나이로 v19o 로 돌린다. GBDB 화면의 "ancient" 좌표는
+  판 모델을 밝히지 않아 쓰지 않고, 그 나이에 판이 없으면 그 시점에서 뺀다(tupandactyl 036). PBDB 와 겹친 채집(`dup` — 10 km 안·연대 겹침·속 절반 이상)은
+  속 빈 네모로 그리고 셈에서 뺀다 — 같은 화석을 두 번 세지 않는다. 기준값은 gbdb.py 한 곳이다
 
 ## 화석을 시점에 나누는 규칙
 
@@ -95,7 +98,11 @@ sources/*.json ──fetch──▶ data/sources/ ──build──▶ data/deri
  (주소·SHA-256)            (원본, 커밋 안 함)       (가공물, 커밋 안 함)
 ```
 
-- Zenodo 압축본(PaleoDEM·PaleoCoastlines·기온)은 매니페스트의 SHA-256 과 맞아야만 쓴다
+- Zenodo 압축본(PaleoDEM·PaleoCoastlines·기온·GBDB)은 매니페스트의 SHA-256 과 맞아야만 쓴다. GBDB 는 사이트 API(문서·이용 조건이
+  없다)가 아니라 Zenodo 4245604 의 2020-11 사본(CC BY 4.0)이다(tupandactyl 036)
+- **계통 생물지리 결과는 예외로 커밋한다** — `sources/phylogeo/<id>.result.json` 은 받아 오는 원본이 아니라 연구실이 고른 모델·지역·모수의
+  판단이고 다시 만드는 데 몇 시간이 걸린다. BioGeoBEARS(R)는 `pipeline/r/` 의 따로 된 Docker 상자에서 돌리고, 뷰어 이미지·파이프라인에
+  R 을 들이지 않는다(tupandactyl 035, 다시 만드는 법은 `pipeline/r/README.md`)
 - PBDB 는 계속 자라서 고정하지 않고, 받은 날의 값을 `data/sources/pbdb/receipt.json` 에 남긴다
 - 뷰어는 파이프라인을 import 하지 않는다. 웹 이미지에 numpy 등이 들어가지 않게 하려는 것이다
 - 뷰어가 내주는 것은 `.json`·`.webp`·`.png` 뿐이다(`views.SERVED`)

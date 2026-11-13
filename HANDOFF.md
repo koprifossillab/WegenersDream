@@ -8,10 +8,13 @@
 패키지 `wegenerweb` (020, CLAUDE.md "이름"). **로컬 실행·시험의 `MIH_*` 환경변수는 이제 안 먹는다.**
 
 **저장소** https://github.com/koprifossillab/WegenersDream (09-30 에 `MIH` 에서 바꿈 — 옛 주소는 GitHub 가 넘겨 준다).
-**브랜치** `main` = `1.17.0` (11-09 — PR #71 1.17.0 산출 지층 [tupandactyl 034](devlog/20261109_tupandactyl_034_taxon_formations.md), PR #70 1.16.0 PBDB 고좌표가 없는 산지를 판으로 돌릴 수 있는 시점에 [tupandactyl 033](devlog/20261109_tupandactyl_033_plate_rotated_sites.md), #69 1.15.2 주간 갱신 실패 Teams 알림 [tupandactyl 032](devlog/20261109_tupandactyl_032_refresh_alert_teams.md), PR #65 1.13.1 사본 목록·몰바이데 빗금 [koprifossillab 060](devlog/20261106_koprifossillab_060_occs_list_404.md), #66 1.14.0 점유 변화 층
-[061](devlog/20261106_koprifossillab_061_occupancy_change.md), #67 1.15.0 무게중심 층·궤적 [062](devlog/20261106_koprifossillab_062_centroid_layer.md), #68 1.15.1 cron 의 gh PATH
-[063](devlog/20261109_koprifossillab_063_cron_gh_path.md) — 계획 [P03](devlog/20261022_koprifossillab_P03_occupancy_layers.md) 의 층 1~4). 병합을 기다리는 브랜치는 없다.
-**운영은 v1.17.0(11-09), 자료는 PBDB 11-08**(11-09 cron `ok`). 1.16.0 의 산지 규칙(고좌표가 없는 산지 약 2 만 2 천 곳, 거의 제4기)은 자료를 다시 가공해야 들어가 **11-16 cron 부터** 보인다. Teams 알림(032)은 paleoadmin 이 웹훅 주소와 cron 줄을 넣어야 돈다(TODOs). **분포 분석은 11-09 부터 PBDB 사본으로 돈다** — 옛 rsync 에서 빠졌던
+**브랜치** `main` = `1.20.2` (11-12 — 1.20.1·1.20.2 빈 땅을 누르면 지금의 나라·그때 높이·기온, 지구본에서도 [tupandactyl 038](devlog/20261112_tupandactyl_038_land_country.md),
+1.20.0 높이 도드라지게(음영 기복·대동여지도식 산줄기) [037](devlog/20261112_tupandactyl_037_relief_emphasis.md), 1.19.0 GBDB 단면의 채집(Zenodo 4245604, CC BY 4.0 — 네모, PBDB 와 겹친 채집은 속 빈 네모)
+[036](devlog/20261112_tupandactyl_036_gbdb_sections.md), 1.18.0 계통 생물지리(조상 범위 층·연구방법론 창·고지형 등고선) [035](devlog/20261111_tupandactyl_035_phylogeography_methods.md),
+1.17.0 산출 지층 [034](devlog/20261109_tupandactyl_034_taxon_formations.md), 1.16.0 PBDB 고좌표가 없는 산지를 판으로 돌릴 수 있는 시점에 [033](devlog/20261109_tupandactyl_033_plate_rotated_sites.md),
+1.15.2 주간 갱신 실패 Teams 알림 [032](devlog/20261109_tupandactyl_032_refresh_alert_teams.md); 11-09 의 1.13.1~1.15.1 은 koprifossillab [060](devlog/20261106_koprifossillab_060_occs_list_404.md)~[063](devlog/20261109_koprifossillab_063_cron_gh_path.md)).
+**병합을 기다리는 것**: PR #78 1.20.3 PBDB 에 이름만 있는 속도 GBDB 로(tupandactyl 039, CI 통과) — 그 이름표는 `taxonomy.csv` 를 운영 계정만 읽어 11-16 주간 갱신부터 생긴다.
+**운영은 v1.20.2(11-12), 자료는 PBDB 11-08**(11-09 cron `ok`) — GBDB·계통 생물지리·빈 땅 나라(`gbdb`·`phylogeo`·`land`)는 11-12 에 손으로 운영에 옮겼다. 1.16.0 의 산지 규칙(고좌표가 없는 산지 약 2 만 2 천 곳, 거의 제4기)은 자료를 다시 가공해야 들어가 **11-16 cron 부터** 보인다. Teams 알림(032)은 paleoadmin 이 웹훅 주소와 cron 줄을 넣어야 돈다(TODOs). **분포 분석은 11-09 부터 PBDB 사본으로 돈다** — 옛 rsync 에서 빠졌던
 `occs/index.json` 을 손으로 옮겼다(`/healthz` ok, 바깥 사이트에도). 11-16 cron 부터는 새 이름 `occs/list.json` 으로 스스로 간다(060).
 갱신 13 분, 백업 154 MB, 운영 자료 559 MB, 바깥 사이트 압축본 188 MB. 0.11.1 부터 GitHub PR 로 병합하고,
 판을 올리면 CHANGELOG 로 GitHub 릴리스를 만든다(v0.11.2 부터).
@@ -22,7 +25,7 @@
 몰바이데 `moll-*`(024)가 있어야 한다. `python -m pipeline fetch`(PBDB 시대 이름 목록 `intervals.json` 이 든다) 다음
 `build`(배경 포함, 7 분 남짓). 몰바이데 배경이 없으면 투영 고르기가 숨는다.
 
-**배포**: paleoserver — **http://paleolab/WegenersDream/**(`172.16.116.98`) = `v1.15.1`(Docker Hub 이미지, 11-09 · 띄울 때 `WEGENER_TAG=v1.15.1` 을 준다 — compose 가 `.env` 가 아니라 환경변수로 판을 받고, 안 주면 `latest` 를 찾다 실패한다). 컨테이너 `wegenersdream-web-1`
+**배포**: paleoserver — **http://paleolab/WegenersDream/**(`172.16.116.98`) = `v1.20.2`(Docker Hub 이미지, 11-12 · 띄울 때 `WEGENER_TAG=v1.20.2` 을 준다 — compose 가 `.env` 가 아니라 환경변수로 판을 받고, 안 주면 `latest` 를 찾다 실패한다). 컨테이너 `wegenersdream-web-1`
 **주간 갱신**은 10-26·11-02·11-09 cron 모두 `ok`, `/healthz` ok. 다음은 11-16(월) 02:30. **바깥 사이트 자료는 10-23 에 멈춰 있었다** — 로그인은 돼 있었고, cron 의 PATH 에
 `~/.local/bin` 이 없어 `gh` 를 못 찾았다(결과는 `ok` 로 나와 놓치기 쉽다). 1.15.1 에서 고쳤고(063), 11-09 의 자료는 손으로 올렸다. 11-16 cron 이 처음으로 스스로 올린다.
 
